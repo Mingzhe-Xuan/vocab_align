@@ -1,0 +1,26 @@
+schema_version: 1
+source:
+  name: Qwen/Qwen3-8B
+  revision: b968826d9c46dd6066d109eabc6255188de91218
+  tokenizer_revision: b968826d9c46dd6066d109eabc6255188de91218
+  dtype: bfloat16
+  device_map: auto
+target:
+  name: mistralai/Mistral-Nemo-Instruct-2407
+  revision: 04d8a90549d23fc6bd7f642064003592df51e9b3
+  tokenizer_revision: 04d8a90549d23fc6bd7f642064003592df51e9b3
+  dtype: bfloat16
+  device_map: auto
+  checkpoint: pending-new-projector-training
+data:
+  dataset: teknium/OpenHermes-2.5
+  build_splits:
+    - transport_train
+  dev_fraction: 0.01
+seed: 42
+output_path: local/transport/artifacts/qwen3_8b_to_mistral_nemo_instruct_2407.npz
+output_schema: stt-result-v1
+generation:
+  do_sample: false
+  max_new_tokens: 128
+  temperature: 1.0

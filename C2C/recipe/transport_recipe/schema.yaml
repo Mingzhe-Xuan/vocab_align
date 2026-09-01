@@ -1,0 +1,17 @@
+schema_version: 1
+required:
+  - schema_version
+  - source
+  - target
+  - data
+  - seed
+  - output_path
+  - output_schema
+model:
+  required: [name, revision, tokenizer_revision]
+  revision: 40-character hexadecimal commit SHA
+  dtype: [float32, float16, bfloat16]
+  checkpoint_pending_value: pending-new-projector-training
+data:
+  build_splits_forbid_substring: test
+  dev_fraction: exclusive range (0, 1)

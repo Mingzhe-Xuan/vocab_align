@@ -17,3 +17,23 @@
 - `python -m compileall -q rosetta/transport`：通过。
 - 对测试目录执行 `compileall` 时因沙箱拒绝创建其 `__pycache__` 而失败；测试文件已由 pytest 成功导入执行，因此不作为源码编译失败。
 - `git diff --check`：通过。
+
+## 2026-09-01：阶段 0 配置与 manifest 实现单元
+
+计划范围：
+
+- 合法配置稳定序列化/反序列化，保留模型 revision、seed、输出 schema 与生成参数。
+- 缺少 revision、seed、输出路径，或使用 benchmark test split 构建 transport 时显式失败。
+- `pending-new-projector-training` 只能作为 pending 状态，不可解析成可加载 checkpoint。
+- 相同 seed/样本 ID 产生字节级一致 manifest；输入顺序变化不改变划分。
+- 检测重复 sample ID，并验证 train/dev 无交集、无重复且数量符合约定。
+- CLI 输入输出使用 JSONL/JSON，执行帮助与 tiny fixture smoke，不访问网络。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_config.py test/transport/test_manifest.py -q`：9 passed（0.59s）。
+- `python -m pytest -o addopts= -q`：17 passed（0.67s），包含旧词表传输回归。
+- `python -m compileall -q rosetta/transport script/dataset`：通过。
+- 使用 `yaml.safe_load` 读取主 recipe 并交给 `TransportConfig.from_dict`：通过；source/target revision 为锁定 SHA，target checkpoint 状态为 unavailable/pending。
+- `git diff --check`：通过。
+- 首次 CLI smoke 采用文件路径直接执行，因项目未安装到当前解释器而无法导入 `rosetta`；改为文档统一的 `python -m script.dataset.build_transport_manifest` 后通过，未修改测试断言。
