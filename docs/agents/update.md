@@ -58,5 +58,7 @@
 - 完成 marginal-aware feasibility support：为所有已有 active edge 预留正 interior mass，再以 residual northwest-corner 支撑补充独立低证据边；不平衡 facade/audit 与完整回归 108/108 通过。
 - feasibility 修复提交 `8f26fa8` 已推送并由 Job 220 验证；真实 row residual 改善约 475 倍至 `5.58e-4`，但 10,000 次标准缩放仍失败。开始保持同一 OT 目标的 sparse dual acceleration 单元。
 - 完成 sparse dual acceleration：标准 log-domain warm-up、gauge-fixed L-BFGS 对偶加速和严格 residual 复验共享同一 kernel/OT 目标；病态图与完整回归 110/110 通过。
+- Guqq venv 补装锁定 SciPy 1.15.3 后提交 Job 226；作业 24:54 被 SIGKILL（137），无 traceback/有效产物。开始限制 L-BFGS history 并为 Slurm 增加 MaxRSS 遥测。
+- 完成 memory-bounded dual telemetry：默认 L-BFGS `maxcor=3`、evaluation budget 1,000，Slurm 以可选 GNU time 记录 MaxRSS 并保留失败码；完整回归 112/112 通过。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

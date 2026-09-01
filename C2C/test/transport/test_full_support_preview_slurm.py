@@ -58,6 +58,7 @@ def test_full_support_preview_job_has_valid_bash_and_no_partition():
     assert "#SBATCH --partition" not in source
     assert "TRANSPORT_SMOOTHING:-1e-8" in source
     assert "--ann-candidates-json" in source
+    assert "RESOURCE_TIME_BIN:-/usr/bin/time" in source
 
 
 def test_full_support_preview_forwards_locked_inputs_to_stub_python(tmp_path):
@@ -76,6 +77,7 @@ def test_full_support_preview_forwards_locked_inputs_to_stub_python(tmp_path):
             "CAPTURE_PATH": _bash_path(capture),
             "CODE_VERSION": "test-commit",
             "TRANSPORT_SMOOTHING": "2e-8",
+            "RESOURCE_TIME_BIN": _bash_path(root / "missing-time"),
         }
     )
     process = subprocess.run(
@@ -110,6 +112,7 @@ def test_full_support_preview_propagates_builder_failure(tmp_path):
             "TEXTS_JSONL": _bash_path(texts),
             "ANN_CANDIDATES_JSON": _bash_path(ann),
             "CODE_VERSION": "test",
+            "RESOURCE_TIME_BIN": _bash_path(root / "missing-time"),
         }
     )
     process = subprocess.run(
@@ -122,3 +125,42 @@ def test_full_support_preview_propagates_builder_failure(tmp_path):
         check=False,
     )
     assert process.returncode == 7
+
+
+def test_full_support_preview_emits_resource_telemetry_when_available(tmp_path):
+    root, python_bin, texts, ann = _fixture_root(
+        tmp_path,
+        '#!/usr/bin/env bash\nif [[ "$1" == "-c" ]]; then exit 0; fi\nexit 0\n',
+    )
+    time_bin = root / "time"
+    time_bin.write_text(
+        "#!/usr/bin/env bash\n"
+        '[[ "$1" == "-v" ]] || exit 9\n'
+        "shift\n"
+        'echo "Maximum resident set size (kbytes): 1234" >&2\n'
+        '"$@"\n',
+        encoding="utf-8",
+    )
+    time_bin.chmod(0o755)
+    environment = dict(os.environ)
+    environment.update(
+        {
+            "SLURM_SUBMIT_DIR": _bash_path(root),
+            "PYTHON_BIN": _bash_path(python_bin),
+            "TEXTS_JSONL": _bash_path(texts),
+            "ANN_CANDIDATES_JSON": _bash_path(ann),
+            "CODE_VERSION": "test",
+            "RESOURCE_TIME_BIN": _bash_path(time_bin),
+        }
+    )
+    process = subprocess.run(
+        ["bash", str(_job_path())],
+        env=environment,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    assert process.returncode == 0, process.stderr
+    assert "Maximum resident set size (kbytes): 1234" in process.stderr

@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。sparse OT dual acceleration 已完成本地验收，保持同一 OT 目标与严格 residual；等待形成提交并经 Guqq Slurm 验证真实 full-support preview。
+正在实施 Training-free Soft-Token Transport。memory-bounded dual telemetry 已完成本地验收：L-BFGS history 限为 3、evaluation 默认 1,000，Slurm 将记录 GNU time MaxRSS。等待提交并在相同 64G allocation 获取证据。
 
 ## 当前计划
 
-1. 形成并推送 dual acceleration 验收提交，保留 Job 220 失败记录和用户参考文件边界。
-2. 登记 Guqq 连接，首条 pull 后通过 Slurm 重跑 preview，验收方法/迭代/residual/artifact/audit。
-3. preview 成功后进入正式 OpenHermes 下载/物化；若仍失败则依据加速报告修正，不降低标准。
+1. 形成并推送 memory-bounded telemetry 验收提交，保留 Job 226 失败与环境记录。
+2. 登记 Guqq 连接，在相同 64G allocation 重跑并读取 GNU time MaxRSS/elapsed/exit status。
+3. 根据终态与 MaxRSS 决定是否继续算法内存优化或合理提高资源；严格 residual 与 OT 目标不变。
 
 ## 变更记录
 
@@ -65,5 +65,7 @@
 - 2026-09-02 00:08 +08:00：marginal-aware feasibility support 完成本地验收；不平衡容量用例与 artifact audit 通过，完整回归 108/108。下一步形成验收提交并登记 Slurm 重跑。
 - 2026-09-02 00:54 +08:00：Job 220 运行 40:33 后仍未收敛，但 row residual 已从 `0.2651` 降到 `5.58e-4`，确认支撑可行而标准缩放收敛过慢。进入同一熵正则 OT 的对偶加速单元，不调整目标或容差。
 - 2026-09-02 01:07 +08:00：sparse dual acceleration 完成本地验收；有限差分梯度、病态图严格收敛与完整回归 110/110 通过。下一步形成验收提交并经 Slurm 验证真实图。
+- 2026-09-02 01:35 +08:00：Job 226 安装 SciPy 1.15.3 后运行 24:54，以 SIGKILL/137 结束且无 Python traceback；无有效 artifact/audit。进入 memory-bounded history + GNU time telemetry 单元，先测量再调整资源。
+- 2026-09-02 01:44 +08:00：memory-bounded dual telemetry 完成本地验收；显式 `maxcor=3`/1,000 evaluations、GNU time wrapper、Bash/stub 与完整回归 112/112 通过。下一步同 64G 重跑获取 MaxRSS。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

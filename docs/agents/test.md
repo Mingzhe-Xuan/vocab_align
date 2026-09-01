@@ -1,5 +1,23 @@
 # 测试记录
 
+## 2026-09-02：memory-bounded dual telemetry 单元
+
+计划范围：
+
+- sparse dual API 显式限制 L-BFGS `maxcor` history 和 evaluation budget；非法 history/budget 失败，convergence report 保持实际分阶段次数。
+- monkeypatch SciPy optimizer 验证 `maxcor`、`maxfun` 与解析 jacobian 确实传入，不依赖实现默认值；病态图仍在 `1e-9` 收敛。
+- full-support Slurm 作业在可用时通过 GNU `/usr/bin/time -v` 包装 builder，成功和 SIGKILL 都应在 stderr 记录 MaxRSS/elapsed/exit status；本地 stub 环境无 GNU time 时仍保持原命令与失败码传播。
+- Bash syntax、stub 参数、failure propagation、Black/compile 与完整离线回归全部通过；不提高内存请求，先用遥测确认峰值。
+
+远端依据：Job 226 在安装锁定 `scipy==1.15.3` 后运行 24:54，以 ExitCode `137:0` 被外部 SIGKILL；无 Python traceback，节点 swap 已满，64G 作业未留下有效 artifact/audit。当前没有 MaxRSS 证据，不能仅凭理论工作集盲目调整资源。
+
+实际结果：
+
+- `python -m pytest test/transport/test_sparse_sinkhorn.py test/transport/test_full_support_preview_slurm.py test/transport/test_vocab_transport_facade.py ...`：19 passed（16.34s）；验证 `maxcor/maxfun/jac` 透传、history 校验、GNU time 可用/缺失分支及失败码传播。
+- `bash -n script/transport/slurm/build_full_support_preview.sbatch`：通过；Black 对 3 个实现/测试文件检查通过；production solver `compileall` 通过。
+- `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/memory-full -q`：112 passed（44.79s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `git diff --check`：通过；生成的 Black cache 由既有忽略规则覆盖。
+
 ## 2026-09-02：sparse OT dual acceleration 单元
 
 计划范围：

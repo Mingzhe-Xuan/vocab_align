@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from types import SimpleNamespace
 
 from rosetta.transport.candidate_graph import (
     CandidateEdge,
@@ -85,6 +86,54 @@ def test_dual_acceleration_converges_on_pathological_sparse_scaling():
     assert report.iterations <= report.max_iter
     np.testing.assert_allclose(coupling.to_dense().sum(axis=0), source, atol=1e-9)
     np.testing.assert_allclose(coupling.to_dense().sum(axis=1), target, atol=1e-9)
+
+
+def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
+    captured = {}
+
+    def fake_minimize(objective, initial, *, method, jac, options):
+        value, gradient = objective(initial)
+        assert np.isfinite(value)
+        assert np.all(np.isfinite(gradient))
+        captured.update(method=method, jac=jac, options=options)
+        return SimpleNamespace(x=initial, nfev=1)
+
+    monkeypatch.setattr("scipy.optimize.minimize", fake_minimize)
+    graph = CandidateGraph(
+        2,
+        2,
+        (
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(0, 1, EdgeSource.ANN, 1e-6),
+            CandidateEdge(1, 0, EdgeSource.ANN, 1e-6),
+            CandidateEdge(1, 1, EdgeSource.EXACT_BYTE, 1.0),
+        ),
+    )
+    source = np.array([0.8, 0.2])
+    target = np.array([0.2, 0.8])
+    sparse_log_sinkhorn(
+        graph,
+        source,
+        target,
+        epsilon=0.5,
+        tolerance=1e-9,
+        max_iter=100,
+        acceleration_after=1,
+        acceleration_max_evaluations=2,
+        acceleration_history_size=2,
+    )
+    assert captured["method"] == "L-BFGS-B"
+    assert captured["jac"] is True
+    assert captured["options"]["maxcor"] == 2
+    assert captured["options"]["maxfun"] == 2
+    with pytest.raises(SinkhornError, match="history size"):
+        sparse_log_sinkhorn(
+            graph,
+            source,
+            target,
+            epsilon=0.5,
+            acceleration_history_size=0,
+        )
 
 
 def test_marginal_augmentation_repairs_connected_capacity_infeasibility():

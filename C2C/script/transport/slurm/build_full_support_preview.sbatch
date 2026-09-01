@@ -53,5 +53,11 @@ if [[ "${RESUME:-0}" == "1" ]]; then
   arguments+=(--resume)
 fi
 
+resource_time="${RESOURCE_TIME_BIN:-/usr/bin/time}"
+runner=()
+if [[ -x "$resource_time" ]]; then
+  runner=("$resource_time" -v)
+fi
+
 HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}" PYTHONPATH=. \
-  "$python_bin" "${arguments[@]}"
+  "${runner[@]}" "$python_bin" "${arguments[@]}"

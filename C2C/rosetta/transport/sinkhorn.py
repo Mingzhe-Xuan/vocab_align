@@ -266,6 +266,7 @@ def _accelerate_sparse_dual(
     log_v: np.ndarray,
     *,
     max_evaluations: int,
+    history_size: int,
 ) -> Tuple[np.ndarray, np.ndarray, int]:
     from scipy.optimize import minimize
 
@@ -302,6 +303,7 @@ def _accelerate_sparse_dual(
         options={
             "maxiter": max_evaluations,
             "maxfun": max_evaluations,
+            "maxcor": history_size,
             "ftol": 1e-15,
             "gtol": 1e-13,
             "maxls": 40,
@@ -329,7 +331,8 @@ def sparse_log_sinkhorn(
     max_iter: int = 10_000,
     delta: float = 1e-12,
     acceleration_after: int | None = 250,
-    acceleration_max_evaluations: int = 3_000,
+    acceleration_max_evaluations: int = 1_000,
+    acceleration_history_size: int = 3,
 ) -> Tuple[SparseCoupling, ConvergenceReport]:
     """Run log-domain Sinkhorn directly on candidate edges.
 
@@ -366,6 +369,8 @@ def sparse_log_sinkhorn(
         or acceleration_max_evaluations <= 0
     ):
         raise SinkhornError("acceleration evaluation budget must be positive")
+    if not isinstance(acceleration_history_size, int) or acceleration_history_size <= 0:
+        raise SinkhornError("acceleration history size must be positive")
 
     active_edges = tuple(
         edge
@@ -444,6 +449,7 @@ def sparse_log_sinkhorn(
                 log_u,
                 log_v,
                 max_evaluations=budget,
+                history_size=acceleration_history_size,
             )
             accelerated = True
             data = np.exp(log_u[rows] + log_kernel + log_v[columns])

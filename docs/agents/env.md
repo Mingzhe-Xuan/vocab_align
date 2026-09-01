@@ -14,3 +14,11 @@
 - 最终传递依赖：certifi 2026.7.22、charset-normalizer 3.5.1、filelock 3.32.5、fsspec 2026.7.0、hf-xet 1.6.0、idna 3.19、packaging 26.3、regex 2026.9.3、requests 2.34.2、tqdm 4.70.0、typing-extensions 4.16.0、urllib3 2.7.0。
 - 模型框架：未安装 PyTorch/TensorFlow/Flax；该环境只允许 tokenizer/config/file utilities，不用于模型推理。
 - 下载端点：`huggingface.co` 在运行时 DNS 解析失败，改用可解析的 `HF_ENDPOINT=https://hf-mirror.com` 下载锁定 revision 的 tokenizer 文件。
+
+## Guqq sparse OT 加速依赖补充（2026-09-02）
+
+- 复用环境：`/home/xmz/vocab_align/C2C/.venv`（Python venv，不重建、不覆盖其他任务环境）。
+- 安装原因：sparse OT 的 gauge-fixed L-BFGS 加速路径延迟导入 SciPy；Job 226 提交前检查发现该 tokenizer-only venv 未安装 SciPy。
+- 安装命令：`.venv/bin/python -m pip install scipy==1.15.3`；命中服务器缓存的 CPython 3.10 manylinux wheel，无源码编译。
+- 验证命令：`.venv/bin/python -c 'import numpy, scipy; print(numpy.__version__, scipy.__version__)'`。
+- 验证结果：NumPy `2.2.6`、SciPy `1.15.3`；与 `C2C/environment.yml` 的 SciPy 锁定版本一致。
