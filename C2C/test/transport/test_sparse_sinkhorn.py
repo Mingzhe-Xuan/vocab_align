@@ -46,7 +46,7 @@ def test_sparse_dual_gradient_matches_finite_difference():
 
 
 def test_dual_acceleration_converges_on_pathological_sparse_scaling():
-    size = 50
+    size = 80
     graph = CandidateGraph(
         size,
         size,
@@ -56,7 +56,7 @@ def test_dual_acceleration_converges_on_pathological_sparse_scaling():
             + [CandidateEdge(0, j, EdgeSource.ANN, 1e-6) for j in range(1, size)]
         ),
     )
-    source = np.geomspace(1.0, 1e-8, size)
+    source = np.geomspace(1.0, 1e-14, size)
     source /= source.sum()
     target = source[::-1].copy()
     graph, _ = augment_candidate_graph_for_marginals(graph, source, target)
@@ -81,8 +81,8 @@ def test_dual_acceleration_converges_on_pathological_sparse_scaling():
         acceleration_max_evaluations=800,
     )
     assert report.converged
-    assert report.method == "sinkhorn-lbfgs-sinkhorn"
-    assert report.acceleration_evaluations > 0
+    assert report.method == "sinkhorn-scaled-lbfgs-sinkhorn"
+    assert 0 < report.acceleration_evaluations < 400
     assert report.iterations <= report.max_iter
     np.testing.assert_allclose(coupling.to_dense().sum(axis=0), source, atol=1e-9)
     np.testing.assert_allclose(coupling.to_dense().sum(axis=1), target, atol=1e-9)
@@ -134,6 +134,40 @@ def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
             epsilon=0.5,
             acceleration_history_size=0,
         )
+
+
+def test_dual_acceleration_scaled_gradient_matches_finite_difference(monkeypatch):
+    checked = False
+
+    def fake_minimize(objective, initial, *, method, jac, options):
+        nonlocal checked
+        value, gradient = objective(initial)
+        numerical = np.empty_like(gradient)
+        step = 1e-6
+        for index in range(len(initial)):
+            offset = np.zeros_like(initial)
+            offset[index] = step
+            upper, _ = objective(initial + offset)
+            lower, _ = objective(initial - offset)
+            numerical[index] = (upper - lower) / (2 * step)
+        assert np.isfinite(value)
+        np.testing.assert_allclose(gradient, numerical, atol=1e-8)
+        checked = True
+        return SimpleNamespace(x=initial, nfev=1)
+
+    monkeypatch.setattr("scipy.optimize.minimize", fake_minimize)
+    graph = _complete_graph(2, 3)
+    sparse_log_sinkhorn(
+        graph,
+        np.array([1e-8, 0.2, 0.8 - 1e-8]),
+        np.array([0.3, 0.7]),
+        epsilon=0.5,
+        tolerance=1e-9,
+        max_iter=100,
+        acceleration_after=1,
+        acceleration_max_evaluations=2,
+    )
+    assert checked
 
 
 def test_marginal_augmentation_repairs_connected_capacity_infeasibility():

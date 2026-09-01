@@ -2,7 +2,7 @@
 
 ## 病态稀疏支撑需要保持目标不变的对偶加速
 
-即使候选图存在对所有 active edges 严格为正的可行 coupling，交替 row/column scaling 在极端边际和低证据 feasibility 边上仍可能以很慢的速率收敛；真实图中 column residual 已到机器精度而 row residual 在 10,000 次后仍为 `5.58e-4`。不能用提高 `max_iter`、放宽 tolerance 或直接采用可行 coupling 代替熵正则最优解。可先用标准 log-domain Sinkhorn warm up，再固定一个 dual gauge，对同一 Gibbs kernel 的凸缩放对偶做解析梯度 L-BFGS，最后继续标准缩放并用原始两侧 L1 residual 验收。加速器必须有独立预算和方法记录；非有限变量、不可行支撑和总预算耗尽仍显式失败。
+即使候选图存在对所有 active edges 严格为正的可行 coupling，交替 row/column scaling 在极端边际和低证据 feasibility 边上仍可能以很慢的速率收敛；真实图中 column residual 已到机器精度而 row residual 在 10,000 次后仍为 `5.58e-4`。不能用提高 `max_iter`、放宽 tolerance 或直接采用可行 coupling 代替熵正则最优解。可先用标准 log-domain Sinkhorn warm up，再固定一个 dual gauge，对同一 Gibbs kernel 的凸缩放对偶做解析梯度 L-BFGS，最后继续标准缩放并用原始两侧 L1 residual 验收。正 smoothing 会使 dual Hessian 的边际尺度对角跨越许多数量级；直接优化 log scaling 会忽略稀有 token，必须用 `z = sqrt(marginal) * x` 的可逆坐标缩放把局部对角预条件到约 1，同时保持原目标不变。加速器必须有独立预算和方法记录；非有限变量、不可行支撑和总预算耗尽仍显式失败。
 
 ## 二部候选图连通不等于边际容量可行
 

@@ -1,5 +1,23 @@
 # 测试记录
 
+## 2026-09-02：sparse OT convergence follow-up 单元
+
+计划范围：
+
+- 从 Job 229 固定同一 Gibbs kernel/边际目标，复核 standard scaling、gauge-fixed dual gradient、预算计数与收敛检查，定位 column residual 达机器精度而 row residual 停滞的原因。
+- 用小型病态稀疏图构造可由 dense oracle 验证的回归；新方案必须达到原 `1e-9` 两侧 L1 residual，不得提高容差或改用 feasibility coupling 伪装熵正则解。
+- 约束内存仍为 O(edges + nodes + bounded history)，非法/不可行输入继续显式失败；运行 sparse Sinkhorn 定向测试、transport facade/audit 集成、完整 pytest、格式与 diff 检查。
+
+远端前置证据：Job 229 `FAILED`/Exit `1:0`，standard 8,999 + acceleration 1,001，总 10,000；row/column residual `4.071621136e-4`/`4.996e-14`；GNU time MaxRSS `1,846,656 KiB`、0 swaps，checkpoint `building`，artifact/audit 不存在。
+
+实际结果：
+
+- dual 使用可逆 `sqrt(marginal)` 坐标缩放；scaled objective 解析梯度与中心有限差分在 `1e-8` 内一致，方法 provenance 为 `sinkhorn-scaled-lbfgs-sinkhorn`。
+- 80×80、边际从 `1` 跨至 `1e-14` 的病态稀疏图：纯 scaling 100 次按预期失败；scaled dual 仅 60 次 evaluations、总 103 次即达到 row residual `9.3017e-10`，column residual `2.8356e-15`。
+- sparse/facade/audit/CLI 定向回归：21 passed（9.88s）；强化 sparse 文件：11 passed（2.38s）。
+- 完整 pytest：`118 passed, 2 warnings in 50.93s`，warnings 仍仅为既有 pandas 可选依赖版本提示。
+- Black（独立仓库内 cache、单 worker）检查 sinkhorn 与测试：全部无需修改；`git diff --check` 提交前复核。
+
 ## 2026-09-02：Guqq telemetry 重连登记文档检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 新条目的时间、用途、权限边界、首条 `git pull` 命令与目标提交；`git diff --check -- docs/agents/gpu.md` 通过，关键字段检索通过，路径和命令与当前仓库/AGENTS 规范一致。

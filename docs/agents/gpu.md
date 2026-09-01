@@ -108,3 +108,4 @@
 - 连接用途：建立持久 SSH 会话监控 Job 229，等待终态后读取 stdout/stderr、GNU time MaxRSS、checkpoint、artifact 与 audit；避免为每次轮询重复建立连接。
 - 权限判断：登录节点仅执行首条 `git pull`、`squeue` 轮询和终态结果只读检查，不直接运行计算或修改服务器源码/产物。
 - 计划顺序：持久会话第一条命令为 `cd vocab_align && git pull`；随后进入 `C2C`，每次间隔约一分钟查询 Job 229。完成后验证 artifact/audit；失败则保留原始日志与 building checkpoint 证据。
+- 实际结果：Job 229 在 node221 运行 `00:38:24` 后 `FAILED`、ExitCode `1:0`；不是 SIGKILL。GNU time 记录 MaxRSS `1,846,656 KiB`、swaps `0`，证明 `maxcor=3` 已将内存远降至 64G 配额内。失败为总预算 10,000（standard 8,999 + acceleration evaluations 1,001）后 row residual `4.071621136e-4`、column residual `4.996e-14`，未达到 `1e-9`。checkpoint 保持 `building/restart-from-recorded-inputs`，artifact/audit 均不存在；已退出持久会话，下一步本地诊断收敛算法，不放宽容差。

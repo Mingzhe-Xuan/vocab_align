@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。OpenHermes 500k pinned-prefix materialization 已以 `a4bd39b` 验收并同步 Guqq；64G MaxRSS preview 重跑 Job 229 正在 node221 运行。
+正在实施 Training-free Soft-Token Transport。Job 229 排除内存问题后，已实现 marginal-scaled dual 坐标预条件；极端 CPU fixture 与完整 118/118 通过，待验收提交并重跑同一真实 preview。
 
 ## 当前计划
 
-1. 通过持久 Guqq 会话监控 Job 229，取得终态、严格 residual、GNU time MaxRSS、artifact/audit。
-2. 根据 preview MaxRSS/收敛结果决定正式 transport 构建资源或继续修复。
-3. preview 验收后安装锁定 `datasets==4.0.0` 并提交正式语料物化作业。
+1. 提交并推送 marginal-scaled dual 验收实现及 Job 229 证据记录。
+2. 登记 Guqq 连接，同步后以相同输入/64G/`1e-9` 重跑 full-support preview，验收 residual、MaxRSS、artifact/audit。
+3. preview artifact 验收后安装锁定 `datasets==4.0.0` 并提交正式语料物化作业。
 
 ## 变更记录
 
@@ -72,5 +72,7 @@
 - 2026-09-02 01:59 +08:00：复核 `OpenHermesChatDataset` 后发现其 500k 语义为过滤前 source prefix；计划从全量 hash top-k 调整为 pinned prefix，避免改变 C2C 语料集合。seed 42 仅用于稳定 99/1 manifest，token-length filter 明确留待共享消费层应用。
 - 2026-09-02 02:05 +08:00：OpenHermes pinned-prefix 物化、raw-hash manifest、离线/HF CLI 与无 partition Slurm 入口完成；定向 20/20、完整 117/117、Bash/Black/diff 检查通过。下一步形成验收提交并同步 Guqq。
 - 2026-09-02 02:12 +08:00：物化提交 `a4bd39b` 已推送；Guqq pull 恢复并同步至 `4e947f9`，输入哈希/venv 复核通过，64G telemetry Job 229 已在 node221 运行。下一步持久监控并读取 GNU time MaxRSS。
+- 2026-09-02 02:54 +08:00：Job 229 运行 38:24 后以严格不收敛失败；MaxRSS 1,846,656 KiB/0 swaps 排除内存问题，row residual 仍为 `4.07e-4`。checkpoint 为 building 且无 artifact/audit。进入保持同一 OT 目标的收敛算法诊断，不提高资源或放宽 `1e-9`。
+- 2026-09-02 03:02 +08:00：确认 unscaled dual Hessian 对角受极端边际尺度支配；改用保持同一目标的 `sqrt(marginal)` 坐标预条件。80×80/`1e-14` 病态图以 60 次 evaluations 达 `9.30e-10`，完整回归 118/118。下一步形成验收提交并重跑同一真实图。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

@@ -283,8 +283,18 @@ def _accelerate_sparse_dual(
             (log_v[active_columns] - gauge)[:-1],
         )
     )
+    # The unscaled dual Hessian has marginal-sized diagonal blocks. Vocabulary
+    # smoothing makes those diagonals span many orders of magnitude, so an
+    # optimizer using Euclidean gradients effectively ignores rare tokens.
+    # Optimizing z = sqrt(marginal) * x makes the local diagonal close to one
+    # while retaining the exact same convex dual objective and gauge.
+    variable_scale = np.sqrt(
+        np.concatenate((target[active_rows], source[active_columns][:-1]))
+    )
+    scaled_initial = initial * variable_scale
 
-    def objective(variables: np.ndarray) -> Tuple[float, np.ndarray]:
+    def objective(scaled_variables: np.ndarray) -> Tuple[float, np.ndarray]:
+        variables = scaled_variables / variable_scale
         value, gradient, _ = _dual_value_gradient(
             variables,
             row_positions,
@@ -293,11 +303,11 @@ def _accelerate_sparse_dual(
             source[active_columns],
             target[active_rows],
         )
-        return value, gradient
+        return value, gradient / variable_scale
 
     result = minimize(
         objective,
-        initial,
+        scaled_initial,
         method="L-BFGS-B",
         jac=True,
         options={
@@ -311,11 +321,12 @@ def _accelerate_sparse_dual(
     )
     if not np.all(np.isfinite(result.x)):
         raise SinkhornError("sparse dual acceleration produced non-finite variables")
+    optimized = result.x / variable_scale
     accelerated_u = log_u.copy()
     accelerated_v = log_v.copy()
-    accelerated_u[active_rows] = result.x[: len(active_rows)]
+    accelerated_u[active_rows] = optimized[: len(active_rows)]
     active_v = np.concatenate(
-        (result.x[len(active_rows) :], np.zeros(1, dtype=np.float64))
+        (optimized[len(active_rows) :], np.zeros(1, dtype=np.float64))
     )
     accelerated_v[active_columns] = active_v
     return accelerated_u, accelerated_v, int(result.nfev)
@@ -427,7 +438,7 @@ def sparse_log_sinkhorn(
                 True,
                 tolerance,
                 max_iter,
-                "sinkhorn-lbfgs-sinkhorn" if accelerated else "sinkhorn",
+                "sinkhorn-scaled-lbfgs-sinkhorn" if accelerated else "sinkhorn",
                 iteration,
                 acceleration_evaluations,
             )
@@ -470,7 +481,7 @@ def sparse_log_sinkhorn(
                     True,
                     tolerance,
                     max_iter,
-                    "sinkhorn-lbfgs-sinkhorn",
+                    "sinkhorn-scaled-lbfgs-sinkhorn",
                     iteration,
                     acceleration_evaluations,
                 )
@@ -483,7 +494,7 @@ def sparse_log_sinkhorn(
         False,
         tolerance,
         max_iter,
-        "sinkhorn-lbfgs-sinkhorn" if accelerated else "sinkhorn",
+        "sinkhorn-scaled-lbfgs-sinkhorn" if accelerated else "sinkhorn",
         iteration,
         acceleration_evaluations,
     )
