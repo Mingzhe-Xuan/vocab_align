@@ -122,3 +122,9 @@
 - 连接用途：使用持久 SSH 会话逐条同步并提交 scaled-dual preview，消除 PowerShell/Bash substitution 歧义；后续在同一会话监控新 job。
 - 权限判断：第一条纯命令为 `cd vocab_align && git pull`；随后仅执行字面提交/哈希比较、`squeue`、`sbatch` 和状态/结果只读检查，计算仍只在 Slurm。
 - 计划顺序：不使用本地可展开的 `$()`/反引号；pull 成功后逐条 `git rev-parse`、`sha256sum`、`squeue`，确认无误才 `sbatch`。
+- 实际结果：持久会话首条 pull 等待 60 秒无输出；中断后 `bash net.sh` 成功刷新网络，retry pull 等待 90 秒仍无输出。已中断并退出，未执行版本/哈希检查，未提交新作业；服务器仍停留在旧 scaled-dual 前提交。
+
+## 2026-09-02 03:07 +08:00
+
+- 连接用途：在用户确认 pull 已恢复的当前窗口做第三次独立 scaled-dual 同步尝试；成功则复核输入并提交/持久监控 preview，失败则停止本轮网络重试并转回本地可推进事项。
+- 权限判断与顺序：新会话第一条命令仍为 `cd vocab_align && git pull`；成功前不执行其他远端操作。成功后仅做轻量哈希/队列检查与 Slurm 提交/监控，计算不在登录节点运行。

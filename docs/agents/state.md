@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。Job 229 排除内存问题后，已实现 marginal-scaled dual 坐标预条件；极端 CPU fixture 与完整 118/118 通过，待验收提交并重跑同一真实 preview。
+正在实施 Training-free Soft-Token Transport。marginal-scaled dual 已以 `f5ba846` 验收；Guqq 新会话 pull 与 `net.sh` 后 retry 分别卡住 60/90 秒，尚未同步/提交真实 preview，准备第三次独立重试。
 
 ## 当前计划
 
@@ -74,5 +74,6 @@
 - 2026-09-02 02:12 +08:00：物化提交 `a4bd39b` 已推送；Guqq pull 恢复并同步至 `4e947f9`，输入哈希/venv 复核通过，64G telemetry Job 229 已在 node221 运行。下一步持久监控并读取 GNU time MaxRSS。
 - 2026-09-02 02:54 +08:00：Job 229 运行 38:24 后以严格不收敛失败；MaxRSS 1,846,656 KiB/0 swaps 排除内存问题，row residual 仍为 `4.07e-4`。checkpoint 为 building 且无 artifact/audit。进入保持同一 OT 目标的收敛算法诊断，不提高资源或放宽 `1e-9`。
 - 2026-09-02 03:00 +08:00：确认 unscaled dual Hessian 对角受极端边际尺度支配；改用保持同一目标的 `sqrt(marginal)` 坐标预条件。80×80/`1e-14` 病态图以 60 次 evaluations 达 `9.30e-10`，完整回归 118/118。下一步形成验收提交并重跑同一真实图。
+- 2026-09-02 03:07 +08:00：scaled-dual 已推送，但 Guqq 持久会话首条 pull 60 秒、`net.sh` 后 retry 90 秒均无输出，未提交作业。按既有网络经验再做一次独立连接；若仍失败则停止重试并推进本地后续单元。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

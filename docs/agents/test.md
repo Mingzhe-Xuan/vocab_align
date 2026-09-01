@@ -6,6 +6,8 @@
 
 重连调整检查：记录 PowerShell 提前展开 Bash substitution 的失败边界，下一连接改为持久会话逐条字面命令；检查无新 job 的结论、首条 pull 和权限范围，相关文档 `git diff --check` 通过。
 
+网络 retry 检查：记录首条 pull 60 秒、`net.sh` 成功、retry pull 90 秒和无新 job 边界；第三次独立连接用途/首条 pull/失败停止条件完整，相关文档 `git diff --check` 通过。
+
 ## 2026-09-02：sparse OT convergence follow-up 单元
 
 计划范围：
