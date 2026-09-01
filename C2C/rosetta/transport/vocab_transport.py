@@ -7,92 +7,18 @@ tokens observed in the supplied texts (plus observed special tokens).
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Sequence, Tuple
 
-
-def _bytes_to_unicode() -> Dict[int, str]:
-    """Return the reversible byte alphabet used by GPT/Qwen byte-level BPE."""
-    safe = list(range(ord("!"), ord("~") + 1))
-    safe += list(range(ord("¡"), ord("¬") + 1))
-    safe += list(range(ord("®"), ord("ÿ") + 1))
-    chars = safe[:]
-    extra = 0
-    for byte in range(256):
-        if byte not in safe:
-            safe.append(byte)
-            chars.append(256 + extra)
-            extra += 1
-    return dict(zip(safe, (chr(value) for value in chars)))
-
-
-_UNICODE_TO_BYTE = {value: key for key, value in _bytes_to_unicode().items()}
-
-
-def token_raw_bytes(tokenizer: Any, token_id: int) -> bytes:
-    """Recover raw bytes for a normal byte-level BPE token.
-
-    Special tokens are represented by their literal UTF-8 spelling and are
-    handled separately by the alignment priority rules.
-    """
-    token = tokenizer.convert_ids_to_tokens(int(token_id))
-    if token is None:
-        raise ValueError(f"Tokenizer returned no token for id {token_id}")
-    if all(char in _UNICODE_TO_BYTE for char in token):
-        return bytes(_UNICODE_TO_BYTE[char] for char in token)
-    return token.encode("utf-8")
-
-
-def _special_id_to_token(tokenizer: Any) -> Dict[int, str]:
-    vocabulary = tokenizer.get_vocab()
-    result: Dict[int, str] = {}
-    for token in getattr(tokenizer, "all_special_tokens", []):
-        token_id = vocabulary.get(token)
-        if token_id is not None:
-            result[int(token_id)] = token
-    return result
-
-
-def _encode_with_byte_spans(tokenizer: Any, text: str) -> List[Tuple[int, int, int]]:
-    encoded = tokenizer(
-        text,
-        add_special_tokens=False,
-        return_offsets_mapping=True,
-        truncation=False,
-    )
-    ids = encoded["input_ids"]
-    offsets = encoded["offset_mapping"]
-    if ids and isinstance(ids[0], list):
-        ids, offsets = ids[0], offsets[0]
-
-    byte_prefix = [0]
-    for char in text:
-        byte_prefix.append(byte_prefix[-1] + len(char.encode("utf-8")))
-
-    spans: List[Tuple[int, int, int]] = []
-    for token_id, (char_start, char_end) in zip(ids, offsets):
-        if not (0 <= char_start <= char_end <= len(text)):
-            raise ValueError(
-                f"Invalid character offset {(char_start, char_end)} for text length {len(text)}"
-            )
-        if char_start == char_end:
-            continue
-        spans.append((int(token_id), byte_prefix[char_start], byte_prefix[char_end]))
-    return spans
-
-
-def _tokenizer_fingerprint(tokenizer: Any) -> str:
-    payload = {
-        "name_or_path": str(getattr(tokenizer, "name_or_path", "unknown")),
-        "vocab": sorted(tokenizer.get_vocab().items(), key=lambda item: item[1]),
-        "special_tokens": list(getattr(tokenizer, "all_special_tokens", [])),
-    }
-    encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+from .token_metadata import (
+    encode_with_byte_spans,
+    special_id_to_token,
+    token_raw_bytes,
+    tokenizer_fingerprint,
+)
 
 
 @dataclass
@@ -137,11 +63,11 @@ def build_small_transport(
     if not getattr(target_tokenizer, "is_fast", False):
         raise ValueError("target_tokenizer must be a fast tokenizer with offsets")
 
-    source_special = _special_id_to_token(source_tokenizer)
+    source_special = special_id_to_token(source_tokenizer)
     target_special_by_token = {
-        token: token_id for token_id, token in _special_id_to_token(target_tokenizer).items()
+        token: token_id for token_id, token in special_id_to_token(target_tokenizer).items()
     }
-    target_special_ids = set(_special_id_to_token(target_tokenizer))
+    target_special_ids = set(special_id_to_token(target_tokenizer))
     target_bytes: DefaultDict[bytes, List[int]] = defaultdict(list)
     for target_id in range(len(target_tokenizer)):
         if target_id not in target_special_ids:
@@ -152,8 +78,8 @@ def build_small_transport(
     span_counts: DefaultDict[int, Counter[int]] = defaultdict(Counter)
 
     for text in texts:
-        source_spans = _encode_with_byte_spans(source_tokenizer, text)
-        target_spans = _encode_with_byte_spans(target_tokenizer, text)
+        source_spans = encode_with_byte_spans(source_tokenizer, text)
+        target_spans = encode_with_byte_spans(target_tokenizer, text)
         source_counts.update(token_id for token_id, _, _ in source_spans)
         target_counts.update(token_id for token_id, _, _ in target_spans)
 
@@ -234,8 +160,8 @@ def build_small_transport(
         schema_version=1,
         source_tokenizer=str(getattr(source_tokenizer, "name_or_path", "unknown")),
         target_tokenizer=str(getattr(target_tokenizer, "name_or_path", "unknown")),
-        source_fingerprint=_tokenizer_fingerprint(source_tokenizer),
-        target_fingerprint=_tokenizer_fingerprint(target_tokenizer),
+        source_fingerprint=tokenizer_fingerprint(source_tokenizer),
+        target_fingerprint=tokenizer_fingerprint(target_tokenizer),
         text_count=len(texts),
         observed_source_tokens=len(source_counts),
         observed_target_tokens=len(target_counts),

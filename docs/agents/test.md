@@ -37,3 +37,21 @@
 - 使用 `yaml.safe_load` 读取主 recipe 并交给 `TransportConfig.from_dict`：通过；source/target revision 为锁定 SHA，target checkpoint 状态为 unavailable/pending。
 - `git diff --check`：通过。
 - 首次 CLI smoke 采用文件路径直接执行，因项目未安装到当前解释器而无法导入 `rosetta`；改为文档统一的 `python -m script.dataset.build_transport_manifest` 后通过，未修改测试断言。
+
+## 2026-09-01：token metadata 实现单元
+
+计划范围：
+
+- UTF-8、多字节字符与 GPT/Qwen byte-level BPE token 恢复为正确 raw bytes。
+- fast tokenizer 的字符 offset 转换为 byte offset，覆盖中文、emoji 与组合字符。
+- special/control token 分类明确，且不进入普通 exact-byte 索引。
+- 相同 token ID 但不同 raw bytes 的两个 tokenizer 不产生 exact 匹配。
+- 现有 `build_small_transport` exact/span 回归继续通过；比较脚本复用公共 metadata 逻辑并可静态导入。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_token_metadata.py test/test_vocab_transport.py -q`：5 passed（0.22s）。
+- `python -m pytest -o addopts= -q`：21 passed（0.71s）。
+- `python -m compileall -q rosetta/transport script/transport`：通过。
+- `import script.transport.compare_tokenizers`：通过（13.45s）；本地 pandas 报告既有 numexpr/bottleneck 版本 warning，不影响导入。
+- `git diff --check`：通过。

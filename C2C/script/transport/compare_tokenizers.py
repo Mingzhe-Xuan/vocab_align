@@ -11,6 +11,13 @@ from typing import Any
 
 from transformers import AutoTokenizer
 
+from rosetta.transport.token_metadata import (
+    encode_with_byte_spans,
+    iter_token_metadata,
+    special_id_to_token,
+    tokenizer_fingerprint,
+)
+
 
 DEFAULT_TEXTS = [
     "Explain why the sky appears blue in one sentence.",
@@ -22,29 +29,6 @@ DEFAULT_TEXTS = [
 ]
 
 
-def bytes_to_unicode() -> dict[int, str]:
-    values = list(range(ord("!"), ord("~") + 1))
-    values += list(range(ord("¡"), ord("¬") + 1))
-    values += list(range(ord("®"), ord("ÿ") + 1))
-    chars = values[:]
-    extra = 0
-    for byte in range(256):
-        if byte not in values:
-            values.append(byte)
-            chars.append(256 + extra)
-            extra += 1
-    return dict(zip(values, (chr(value) for value in chars)))
-
-
-UNICODE_TO_BYTE = {char: byte for byte, char in bytes_to_unicode().items()}
-
-
-def raw_bytes(token: str) -> bytes:
-    if all(char in UNICODE_TO_BYTE for char in token):
-        return bytes(UNICODE_TO_BYTE[char] for char in token)
-    return token.encode("utf-8")
-
-
 def added_tokens(tokenizer: Any) -> dict[int, dict[str, Any]]:
     decoder = tokenizer.backend_tokenizer.get_added_tokens_decoder()
     return {
@@ -54,11 +38,10 @@ def added_tokens(tokenizer: Any) -> dict[int, dict[str, Any]]:
 
 
 def ordinary_vocab(tokenizer: Any) -> dict[str, int]:
-    excluded = set(added_tokens(tokenizer))
     return {
-        token: int(token_id)
-        for token, token_id in tokenizer.get_vocab().items()
-        if int(token_id) not in excluded
+        item.token: item.token_id
+        for item in iter_token_metadata(tokenizer)
+        if not item.is_special
     }
 
 
@@ -68,12 +51,7 @@ def fingerprint(vocab: dict[str, int]) -> str:
 
 
 def token_spans(tokenizer: Any, text: str) -> list[tuple[int, int, int]]:
-    encoded = tokenizer(text, add_special_tokens=False, return_offsets_mapping=True)
-    return [
-        (int(token_id), int(start), int(end))
-        for token_id, (start, end) in zip(encoded["input_ids"], encoded["offset_mapping"])
-        if start != end
-    ]
+    return encode_with_byte_spans(tokenizer, text)
 
 
 def main() -> None:
@@ -97,10 +75,12 @@ def main() -> None:
     target_vocab = ordinary_vocab(target)
     source_bytes: dict[bytes, list[int]] = defaultdict(list)
     target_bytes: dict[bytes, list[int]] = defaultdict(list)
-    for token, token_id in source_vocab.items():
-        source_bytes[raw_bytes(token)].append(token_id)
-    for token, token_id in target_vocab.items():
-        target_bytes[raw_bytes(token)].append(token_id)
+    for item in iter_token_metadata(source):
+        if not item.is_special:
+            source_bytes[item.raw_bytes].append(item.token_id)
+    for item in iter_token_metadata(target):
+        if not item.is_special:
+            target_bytes[item.raw_bytes].append(item.token_id)
 
     shared_bytes = set(source_bytes) & set(target_bytes)
     source_exact_ids = {token_id for value in shared_bytes for token_id in source_bytes[value]}
@@ -132,8 +112,8 @@ def main() -> None:
             }
         )
 
-    source_special = {item["token"]: token_id for token_id, item in source_added.items()}
-    target_special = {item["token"]: token_id for token_id, item in target_added.items()}
+    source_special = {token: token_id for token_id, token in special_id_to_token(source).items()}
+    target_special = {token: token_id for token_id, token in special_id_to_token(target).items()}
     common_control = sorted(set(source_special) & set(target_special))
     report = {
         'requested_revisions': {
@@ -147,6 +127,7 @@ def main() -> None:
             "ordinary_vocab_size": len(source_vocab),
             "added_token_count": len(source_added),
             "ordinary_vocab_fingerprint": fingerprint(source_vocab),
+            "tokenizer_fingerprint": tokenizer_fingerprint(source),
         },
         "target": {
             "name": args.target,
@@ -155,6 +136,7 @@ def main() -> None:
             "ordinary_vocab_size": len(target_vocab),
             "added_token_count": len(target_added),
             "ordinary_vocab_fingerprint": fingerprint(target_vocab),
+            "tokenizer_fingerprint": tokenizer_fingerprint(target),
         },
         "ordinary_byte_overlap": {
             "shared_unique_byte_strings": len(shared_bytes),
