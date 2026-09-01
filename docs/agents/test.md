@@ -20,6 +20,8 @@
 
 Guqq 重跑审计检查：记录锁定提交 `0409679`、首条 `git pull`、Job 214 非有效 checkpoint、Slurm-only 计算边界和新 job 日志/产物验收范围；`git diff --check` 在提交前执行。
 
+Guqq 重跑实际未开始：首次 pull 约 90 秒无响应；`bash net.sh` 成功后重试约 60 秒仍无响应。未同步修复、未执行 `sbatch`，因此没有新的测试结果或可验收 artifact。
+
 ## 2026-09-01：全词表支撑预览 Slurm 作业单元
 
 计划范围：
