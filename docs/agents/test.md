@@ -18,6 +18,18 @@
 - 对测试目录执行 `compileall` 时因沙箱拒绝创建其 `__pycache__` 而失败；测试文件已由 pytest 成功导入执行，因此不作为源码编译失败。
 - `git diff --check`：通过。
 
+## 2026-09-01：真实 tokenizer 审计（服务器集成）
+
+计划范围：
+
+- 服务器连接后首先 `git pull`，确认代码版本包含阶段 0 实现。
+- 使用 Python 虚拟环境；若需新建，使用 `python -m venv` 并记录 Python/依赖版本。
+- 按 recipe 的锁定 revision 加载两个 fast tokenizer，不下载模型权重。
+- 输出全词表 bytes/special-control/exact-byte 覆盖与 sample 长度审计 JSON，并检查 revision 与 schema 字段。
+- 该任务仅为轻量 tokenizer 元数据处理；若资源表现超出预期则改走 Slurm。
+
+连接前文档检查：`docs/agents/gpu.md` 与锁定 recipe 路径存在，`git diff --check` 通过。服务器集成结果待执行。
+
 ## 2026-09-01：baseline 快照实现单元
 
 计划范围：
