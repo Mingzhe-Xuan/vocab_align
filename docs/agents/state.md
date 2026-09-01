@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。确定性双向 byte-ngram LSH 候选生成器、结构化 provenance loader 与 CPU Slurm 作业入口已通过 91 项完整本地测试，正在形成验收提交。用户再次确认 Guqq `git pull` 可用；提交推送后将按连接审计重新同步并提交全词表 ANN 批处理作业。
+正在实施 Training-free Soft-Token Transport。ANN generator 验收提交 `8f89fb4` 已推送，91 项完整本地测试通过。已记录 Guqq 新连接用途，下一步同步该提交、查询 Slurm 并提交全词表 ANN CPU 批处理作业。
 
 ## 当前计划
 
-1. 完成 ANN generator 单元最终回归、验收提交与 GitHub push，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
-2. 记录 Guqq 连接用途，连接后首先 `git pull`；查询 Slurm 后提交全词表 ANN candidate 作业，并从本地传输任务约定的忽略输入（如需要）。
+1. 提交并推送本次 Guqq 连接审计记录，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
+2. 连接 Guqq 后首先 `git pull`；查询 Slurm 和 Python venv 后提交全词表 ANN candidate 作业。
 3. ANN 产物验收后以 smoothing 和结构化 candidates 构建完整 support artifact，再通过 Slurm 运行真实模型短序列 smoke；失败修复使用临时验证分支。
 
 ## 变更记录
@@ -49,5 +49,6 @@
 - 2026-09-01 21:18 +08:00：进入双向 LSH ANN candidate 生成器单元；采用共享 hashed byte-ngram 特征与显式低 evidence bridge，目标是确定性全 support/连通候选 JSON。
 - 2026-09-01 21:30 +08:00：双向 LSH ANN generator、结构化 provenance loader 与 CPU Slurm 入口实现完成，目标/边界测试 16/16 通过；下一步完成最终全量回归并形成验收提交，再按用户确认重连 Guqq。
 - 2026-09-01 21:32 +08:00：双向 LSH ANN 单元最终完整回归 91/91 通过，进入验收提交阶段；提交并推送后记录新连接用途并首先执行 Guqq `git pull`。
+- 2026-09-01 21:34 +08:00：ANN generator 验收提交 `8f89fb4` 已推送，已按最新网络恢复信息登记 Guqq 连接用途；下一步提交该审计文档后连接，第一项远端操作为 `git pull`。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

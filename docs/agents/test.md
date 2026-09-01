@@ -1,5 +1,17 @@
 # 测试记录
 
+## 2026-09-01：ANN Slurm 连接审计文档
+
+计划范围：
+
+- 检查连接用途、登录节点/Slurm 边界、首条 `git pull`、`bash net.sh` 回退、锁定提交与产物目录均明确。
+- 检查引用的 `script/transport/slurm/build_ann_candidates.sbatch` 路径存在，且文档无空白错误。
+
+实际结果：
+
+- Slurm 脚本路径存在；连接记录包含提交 `8f89fb4`、首条 `git pull`、网络失败时 `bash net.sh`、登录节点/批处理边界和忽略产物目录。
+- `git diff --check`：通过；仅报告工作区 LF/CRLF 转换 warning。
+
 ## 2026-09-01：transport 核心与 artifact 实现单元
 
 计划范围：

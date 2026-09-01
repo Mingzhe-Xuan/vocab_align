@@ -42,5 +42,6 @@
 - 开始双向 LSH ANN candidate 生成器单元，冻结共享 byte-ngram 特征、seeded signature、双向 top-k、连通 bridge 与结构化 provenance 测试协议。
 - 完成确定性双向 byte-ngram LSH candidate generator、低证据连通 bridge、结构化 provenance/旧 mapping loader、原子 CLI 与无硬编码分区的 CPU Slurm 入口；目标测试 16/16 通过，进入最终全量回归。
 - 双向 LSH ANN candidate 单元最终完整回归 91/91 通过；准备形成验收提交并同步 Guqq。
+- ANN generator 验收提交 `8f89fb4` 已推送；已登记 Guqq 同步与 ANN Slurm 作业连接用途，准备先提交审计文档再连接。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。
