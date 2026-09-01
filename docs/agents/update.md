@@ -11,3 +11,4 @@
 - 开始 baseline 快照 schema 与离线 CLI 实现。
 - 完成 deterministic baseline snapshot 与 CLI，canonical messages/source prompt/target prompt 分离保存，硬件和 checkpoint 缺失显式标记；完整测试 24/24 通过。
 - 准备服务器真实 tokenizer 审计，已记录连接用途与登录节点轻量操作边界。
+- 服务器首次全词表审计完成计算但 revision 字段为空，判定产物不合格；回到本地修复报告 revision 回退逻辑后重跑。

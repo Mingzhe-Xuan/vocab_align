@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 0 的 config、manifest、token metadata 与 baseline snapshot 已通过本地测试；真实 tokenizer 审计和 R/S/T2T smoke 尚未执行。
+正在实施 Training-free Soft-Token Transport。阶段 0 本地模块已通过测试；真实 tokenizer 审计首次运行暴露 revision 元数据缺失，正在修复并准备重跑。
 
 ## 当前计划
 
@@ -22,3 +22,4 @@
 - 2026-09-01 17:24 +08:00：进入 baseline 快照实现；不加载模型，快照只接受 canonical 与预渲染 prompt 作为冻结输入。
 - 2026-09-01 17:36 +08:00：baseline 快照完成，完整测试 24/24；下一步同步服务器并执行真实 tokenizer 审计。
 - 2026-09-01 17:42 +08:00：进入真实 tokenizer 审计阶段；先提交连接记录并推送代码，服务器连接后必须先 pull。
+- 2026-09-01 18:02 +08:00：首次服务器审计计算成功但 revision 字段为 null，产物不合格；下一步本地修复、测试、提交后由服务器 pull 重跑。

@@ -54,6 +54,16 @@ def token_spans(tokenizer: Any, text: str) -> list[tuple[int, int, int]]:
     return encode_with_byte_spans(tokenizer, text)
 
 
+def reported_revision(tokenizer: Any, requested_revision: str | None) -> str | None:
+    """Report the resolved commit, retaining an explicitly requested pin.
+
+    Some local-cache and mirror code paths omit Transformers' private
+    ``_commit_hash`` field even though ``revision`` was passed to the loader.
+    In that case the explicit immutable SHA remains the authoritative pin.
+    """
+    return tokenizer.init_kwargs.get("_commit_hash") or requested_revision
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--source-revision')
@@ -122,7 +132,7 @@ def main() -> None:
         },
         "source": {
             "name": args.source,
-            "revision": source.init_kwargs.get("_commit_hash"),
+            "revision": reported_revision(source, args.source_revision),
             "total_vocab_size": len(source),
             "ordinary_vocab_size": len(source_vocab),
             "added_token_count": len(source_added),
@@ -131,7 +141,7 @@ def main() -> None:
         },
         "target": {
             "name": args.target,
-            "revision": target.init_kwargs.get("_commit_hash"),
+            "revision": reported_revision(target, args.target_revision),
             "total_vocab_size": len(target),
             "ordinary_vocab_size": len(target_vocab),
             "added_token_count": len(target_added),

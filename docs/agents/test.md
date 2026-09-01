@@ -30,6 +30,15 @@
 
 连接前文档检查：`docs/agents/gpu.md` 与锁定 recipe 路径存在，`git diff --check` 通过。服务器集成结果待执行。
 
+首次服务器运行：通过 `hf-mirror.com` 下载缺失的 Mistral tokenizer 并完成全词表计算，但报告中的 resolved revision 为 `null`；原因是 Transformers 的 cache/mirror 路径未填写私有 `_commit_hash`。该报告不作为合格产物，已增加显式锁定 SHA 回退逻辑与回归测试，待重新运行。
+
+revision 修复本地结果：
+
+- `python -m pytest -o addopts= test/transport/test_tokenizer_audit.py -q`：2 passed（10.45s）。
+- `python -m pytest -o addopts= -q`：26 passed（11.13s）。
+- `python -m compileall -q script/transport`：通过。
+- `git diff --check`：通过。
+
 ## 2026-09-01：baseline 快照实现单元
 
 计划范围：
