@@ -14,6 +14,7 @@ from .baseline import (
     freeze_baseline,
     save_baseline,
 )
+from .audit import audit_markdown, audit_transport_artifact, save_audit, transport_to_dense
 from .candidate_graph import (
     CandidateEdge,
     CandidateGraph,
@@ -53,7 +54,9 @@ from .token_metadata import (
 )
 from .vocab_transport import (
     LocalTransportArtifact,
+    VocabTransportBuildResult,
     build_small_transport,
+    build_vocab_transport,
     load_transport,
     save_transport,
 )
@@ -77,11 +80,15 @@ __all__ = [
     "SparseCoupling",
     "TransportArtifact",
     "TransportConfig",
+    "VocabTransportBuildResult",
     "TokenMetadata",
     "TokenMarginal",
     "accumulate_byte_span_counts",
     "artifact_from_dense",
+    "audit_markdown",
+    "audit_transport_artifact",
     "build_small_transport",
+    "build_vocab_transport",
     "build_transport_manifest",
     "candidate_edge_costs",
     "build_candidate_graph",
@@ -100,11 +107,13 @@ __all__ = [
     "save_transport_artifact",
     "save_manifest",
     "save_baseline",
+    "save_audit",
     "serialize_manifest",
     "special_id_to_kind",
     "special_id_to_token",
     "token_raw_bytes",
     "tokenizer_fingerprint",
+    "transport_to_dense",
     "sparse_conditional_from_coupling",
     "sparse_log_sinkhorn",
 ]

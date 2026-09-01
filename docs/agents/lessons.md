@@ -11,3 +11,7 @@
 ## 服务器 GitHub HTTPS 不稳定
 
 Guqq 登录节点可能能解析 GitHub，却在 `git pull` 时出现 GnuTLS `recv error (-110)` 或长时间无响应。连续三次同类失败后不得继续盲目重试：优先尝试 GitHub SSH transport；若 SSH transport 也不可用，则暂停需要新源码的服务器任务，保留已生成数据并等待网络恢复。不得用 `scp` 覆盖服务器受 Git 管理源码，因为服务器源码只能通过 `git pull` 同步。
+
+## OT active support 与 artifact 坐标
+
+零质量 token 必须在 `Diag(a)^-1` 前移出 OT active support，但 artifact 仍需保留原 tokenizer 方向。实现将正质量 source/target 压缩为连续矩阵坐标，同时保存唯一的 `source_token_ids`/`target_token_ids` 映射；候选边也使用压缩坐标结构化保存。不得假设压缩坐标等于原 token ID，也不得对零质量列做条件化除法。

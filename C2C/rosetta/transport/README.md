@@ -22,6 +22,8 @@ does not modify the existing C2C projector or wrapper.
   raw evidence and explicit positive-mass row/column checks.
 - `marginals.py`: canonical-content frequency marginals, smoothing, and active
   support filtering under shared special-token rules.
+- `audit.py`: independent invariant, cost, entropy, candidate-source, and
+  dangerous-special checks with JSON/Markdown rendering.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.

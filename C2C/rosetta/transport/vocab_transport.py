@@ -8,10 +8,25 @@ tokens observed in the supplied texts (plus observed special tokens).
 from __future__ import annotations
 
 import json
+import hashlib
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Sequence, Tuple
+
+import numpy as np
+
+from .artifact import TransportArtifact
+from .candidate_graph import AnnFallback, CandidateGraph, EdgeSource, build_candidate_graph
+from .marginals import TokenMarginal, estimate_token_marginal
+from .sinkhorn import (
+    ConvergenceReport,
+    SparseCoupling,
+    candidate_edge_costs,
+    dense_sinkhorn,
+    sparse_conditional_from_coupling,
+    sparse_log_sinkhorn,
+)
 
 from .token_metadata import (
     encode_with_byte_spans,
@@ -47,6 +62,200 @@ class LocalTransportArtifact:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class VocabTransportBuildResult:
+    artifact: TransportArtifact
+    graph: CandidateGraph
+    coupling: SparseCoupling
+    convergence: ConvergenceReport
+    dense_oracle_max_error: float | None
+
+
+def _compact_artifact(
+    graph: CandidateGraph,
+    coupling: SparseCoupling,
+    source_marginal: TokenMarginal,
+    target_marginal: TokenMarginal,
+    metadata: Mapping[str, Any],
+) -> TransportArtifact:
+    source_ids = np.asarray(source_marginal.active_ids, dtype=np.int64)
+    target_ids = np.asarray(target_marginal.active_ids, dtype=np.int64)
+    source_positions = {token_id: index for index, token_id in enumerate(source_ids)}
+    target_positions = {token_id: index for index, token_id in enumerate(target_ids)}
+    conditional = sparse_conditional_from_coupling(
+        coupling, source_marginal.probabilities
+    )
+    rows = np.asarray(
+        [target_positions[int(value)] for value in conditional.row_indices],
+        dtype=np.int64,
+    )
+    columns = np.asarray(
+        [source_positions[int(value)] for value in conditional.column_indices],
+        dtype=np.int64,
+    )
+    order = np.lexsort((rows, columns))
+    rows, columns, data = rows[order], columns[order], conditional.data[order]
+    indptr = np.concatenate(
+        ([0], np.cumsum(np.bincount(columns, minlength=len(source_ids))))
+    ).astype(np.int64)
+
+    active_edges = tuple(
+        edge
+        for edge in graph.edges
+        if edge.source_id in source_positions and edge.target_id in target_positions
+    )
+    candidate_rows = np.asarray(
+        [target_positions[edge.target_id] for edge in active_edges], dtype=np.int64
+    )
+    candidate_columns = np.asarray(
+        [source_positions[edge.source_id] for edge in active_edges], dtype=np.int64
+    )
+    artifact = TransportArtifact(
+        indptr=indptr,
+        indices=rows,
+        data=data,
+        shape=(len(target_ids), len(source_ids)),
+        source_marginal=source_marginal.probabilities[source_ids],
+        target_marginal=target_marginal.probabilities[target_ids],
+        metadata=dict(metadata),
+        source_token_ids=source_ids,
+        target_token_ids=target_ids,
+        candidate_rows=candidate_rows,
+        candidate_columns=candidate_columns,
+        candidate_evidence=np.asarray(
+            [edge.evidence for edge in active_edges], dtype=np.float64
+        ),
+        candidate_sources=np.asarray(
+            [edge.source.value for edge in active_edges], dtype="U16"
+        ),
+    )
+    artifact.validate()
+    return artifact
+
+
+def build_vocab_transport(
+    source_tokenizer: Any,
+    target_tokenizer: Any,
+    texts: Iterable[str],
+    *,
+    epsilon: float,
+    tolerance: float = 1e-9,
+    max_iter: int = 10_000,
+    smoothing: float = 0.0,
+    ann_fallback: AnnFallback | None = None,
+    seed: int,
+    code_version: str,
+    dense_oracle_limit: int = 10_000,
+    ann_config: Mapping[str, Any] | None = None,
+) -> VocabTransportBuildResult:
+    """Build an auditable sparse OT transport over active tokenizer support."""
+    texts = [text for text in texts if text]
+    if not texts:
+        raise ValueError("at least one non-empty canonical text is required")
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise ValueError("seed must be a nonnegative integer")
+    if not code_version.strip():
+        raise ValueError("code_version is required")
+    source_fingerprint = tokenizer_fingerprint(source_tokenizer)
+    target_fingerprint = tokenizer_fingerprint(target_tokenizer)
+    source_marginal = estimate_token_marginal(
+        source_tokenizer, texts, smoothing=smoothing
+    )
+    target_marginal = estimate_token_marginal(
+        target_tokenizer, texts, smoothing=smoothing
+    )
+    graph = build_candidate_graph(
+        source_tokenizer,
+        target_tokenizer,
+        texts,
+        required_source_ids=source_marginal.active_ids,
+        required_target_ids=target_marginal.active_ids,
+        ann_fallback=ann_fallback,
+    )
+    coupling, convergence = sparse_log_sinkhorn(
+        graph,
+        source_marginal.probabilities,
+        target_marginal.probabilities,
+        epsilon=epsilon,
+        tolerance=tolerance,
+        max_iter=max_iter,
+    )
+    active_edges = tuple(
+        edge
+        for edge in graph.edges
+        if source_marginal.probabilities[edge.source_id] > 0
+        and target_marginal.probabilities[edge.target_id] > 0
+    )
+    dense_error = None
+    active_size = len(source_marginal.active_ids) * len(target_marginal.active_ids)
+    if active_size <= dense_oracle_limit:
+        source_positions = {
+            token_id: index for index, token_id in enumerate(source_marginal.active_ids)
+        }
+        target_positions = {
+            token_id: index for index, token_id in enumerate(target_marginal.active_ids)
+        }
+        dense_cost = np.full(
+            (len(target_positions), len(source_positions)), np.inf, dtype=np.float64
+        )
+        for edge, cost in zip(active_edges, candidate_edge_costs(active_edges)):
+            dense_cost[target_positions[edge.target_id], source_positions[edge.source_id]] = cost
+        dense_coupling, _ = dense_sinkhorn(
+            dense_cost,
+            source_marginal.probabilities[list(source_marginal.active_ids)],
+            target_marginal.probabilities[list(target_marginal.active_ids)],
+            epsilon=epsilon,
+            tolerance=tolerance,
+            max_iter=max_iter,
+        )
+        sparse_dense = np.zeros_like(dense_coupling)
+        for row, column, value in zip(
+            coupling.row_indices, coupling.column_indices, coupling.data
+        ):
+            sparse_dense[target_positions[int(row)], source_positions[int(column)]] = value
+        dense_error = float(np.max(np.abs(dense_coupling - sparse_dense)))
+
+    fingerprint_payload = json.dumps(
+        {
+            "source_fingerprint": source_fingerprint,
+            "target_fingerprint": target_fingerprint,
+            "texts": texts,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    metadata = {
+        "schema_version": 1,
+        "source_fingerprint": source_fingerprint,
+        "target_fingerprint": target_fingerprint,
+        "input_fingerprint": hashlib.sha256(fingerprint_payload).hexdigest(),
+        "build_config": {
+            "epsilon": epsilon,
+            "tolerance": tolerance,
+            "max_iter": max_iter,
+            "smoothing": smoothing,
+            "ann": dict(ann_config or {"enabled": ann_fallback is not None}),
+        },
+        "seed": seed,
+        "code_version": code_version,
+        "convergence": convergence.to_dict(),
+        "dense_oracle_max_error": dense_error,
+        "coordinate_system": "active-support-target-by-source",
+        "special_mappings": [
+            {"source_id": edge.source_id, "target_id": edge.target_id}
+            for edge in active_edges
+            if edge.source == EdgeSource.SPECIAL
+        ],
+    }
+    artifact = _compact_artifact(
+        graph, coupling, source_marginal, target_marginal, metadata
+    )
+    return VocabTransportBuildResult(
+        artifact, graph, coupling, convergence, dense_error
+    )
 
 
 def build_small_transport(

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
@@ -26,6 +26,24 @@ class TransportArtifact:
     source_marginal: np.ndarray
     target_marginal: np.ndarray
     metadata: Dict[str, Any]
+    source_token_ids: np.ndarray = field(
+        default_factory=lambda: np.asarray([], dtype=np.int64)
+    )
+    target_token_ids: np.ndarray = field(
+        default_factory=lambda: np.asarray([], dtype=np.int64)
+    )
+    candidate_rows: np.ndarray = field(
+        default_factory=lambda: np.asarray([], dtype=np.int64)
+    )
+    candidate_columns: np.ndarray = field(
+        default_factory=lambda: np.asarray([], dtype=np.int64)
+    )
+    candidate_evidence: np.ndarray = field(
+        default_factory=lambda: np.asarray([], dtype=np.float64)
+    )
+    candidate_sources: np.ndarray = field(
+        default_factory=lambda: np.asarray([], dtype="U16")
+    )
 
     def validate(self, tolerance: float = 1e-8) -> None:
         dtype_tolerance = (
@@ -37,6 +55,29 @@ class TransportArtifact:
         target_size, source_size = self.shape
         if target_size <= 0 or source_size <= 0:
             raise ArtifactError("artifact shape must be positive")
+        source_token_ids = (
+            self.source_token_ids
+            if len(self.source_token_ids)
+            else np.arange(source_size, dtype=np.int64)
+        )
+        target_token_ids = (
+            self.target_token_ids
+            if len(self.target_token_ids)
+            else np.arange(target_size, dtype=np.int64)
+        )
+        if source_token_ids.shape != (source_size,) or target_token_ids.shape != (
+            target_size,
+        ):
+            raise ArtifactError("active token ID mapping shape mismatch")
+        if (
+            source_token_ids.dtype.kind not in "iu"
+            or target_token_ids.dtype.kind not in "iu"
+            or np.any(source_token_ids < 0)
+            or np.any(target_token_ids < 0)
+            or len(np.unique(source_token_ids)) != source_size
+            or len(np.unique(target_token_ids)) != target_size
+        ):
+            raise ArtifactError("active token ID mappings must be unique nonnegative integers")
         if self.indptr.shape != (source_size + 1,):
             raise ArtifactError("CSC indptr length does not match source vocabulary")
         if self.indptr.dtype.kind not in "iu" or self.indices.dtype.kind not in "iu":
@@ -76,6 +117,31 @@ class TransportArtifact:
             raise ArtifactError(f"artifact metadata missing: {sorted(missing)}")
         if self.metadata["schema_version"] != SCHEMA_VERSION:
             raise ArtifactError("unsupported artifact schema version")
+
+        candidate_lengths = {
+            len(self.candidate_rows),
+            len(self.candidate_columns),
+            len(self.candidate_evidence),
+            len(self.candidate_sources),
+        }
+        if len(candidate_lengths) != 1:
+            raise ArtifactError("candidate graph arrays have inconsistent lengths")
+        if len(self.candidate_rows):
+            if (
+                self.candidate_rows.dtype.kind not in "iu"
+                or self.candidate_columns.dtype.kind not in "iu"
+                or np.any(self.candidate_rows < 0)
+                or np.any(self.candidate_rows >= target_size)
+                or np.any(self.candidate_columns < 0)
+                or np.any(self.candidate_columns >= source_size)
+            ):
+                raise ArtifactError("candidate graph index is outside active support")
+            if not np.all(np.isfinite(self.candidate_evidence)) or np.any(
+                self.candidate_evidence <= 0
+            ):
+                raise ArtifactError("candidate evidence must be finite and positive")
+            if self.candidate_sources.dtype.kind not in "US":
+                raise ArtifactError("candidate source labels must be strings")
 
         column_sums = np.add.reduceat(
             np.append(self.data, 0.0), self.indptr[:-1]
@@ -119,6 +185,8 @@ def artifact_from_dense(
         source_marginal=np.asarray(source_marginal),
         target_marginal=np.asarray(target_marginal),
         metadata=dict(metadata),
+        source_token_ids=np.arange(transport.shape[1], dtype=np.int64),
+        target_token_ids=np.arange(transport.shape[0], dtype=np.int64),
     )
     artifact.validate()
     return artifact
@@ -138,6 +206,20 @@ def save_transport_artifact(artifact: TransportArtifact, path: str | Path) -> No
         source_marginal=artifact.source_marginal,
         target_marginal=artifact.target_marginal,
         metadata=np.asarray(payload),
+        source_token_ids=(
+            artifact.source_token_ids
+            if len(artifact.source_token_ids)
+            else np.arange(artifact.shape[1], dtype=np.int64)
+        ),
+        target_token_ids=(
+            artifact.target_token_ids
+            if len(artifact.target_token_ids)
+            else np.arange(artifact.shape[0], dtype=np.int64)
+        ),
+        candidate_rows=artifact.candidate_rows,
+        candidate_columns=artifact.candidate_columns,
+        candidate_evidence=artifact.candidate_evidence,
+        candidate_sources=artifact.candidate_sources,
     )
 
 
@@ -173,6 +255,36 @@ def load_transport_artifact(
                 source_marginal=payload["source_marginal"].copy(),
                 target_marginal=payload["target_marginal"].copy(),
                 metadata=metadata,
+                source_token_ids=(
+                    payload["source_token_ids"].copy()
+                    if "source_token_ids" in payload.files
+                    else np.arange(int(shape_values[1]), dtype=np.int64)
+                ),
+                target_token_ids=(
+                    payload["target_token_ids"].copy()
+                    if "target_token_ids" in payload.files
+                    else np.arange(int(shape_values[0]), dtype=np.int64)
+                ),
+                candidate_rows=(
+                    payload["candidate_rows"].copy()
+                    if "candidate_rows" in payload.files
+                    else np.asarray([], dtype=np.int64)
+                ),
+                candidate_columns=(
+                    payload["candidate_columns"].copy()
+                    if "candidate_columns" in payload.files
+                    else np.asarray([], dtype=np.int64)
+                ),
+                candidate_evidence=(
+                    payload["candidate_evidence"].copy()
+                    if "candidate_evidence" in payload.files
+                    else np.asarray([], dtype=np.float64)
+                ),
+                candidate_sources=(
+                    payload["candidate_sources"].copy()
+                    if "candidate_sources" in payload.files
+                    else np.asarray([], dtype="U16")
+                ),
             )
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         if isinstance(exc, ArtifactError):

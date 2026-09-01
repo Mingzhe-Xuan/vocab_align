@@ -35,6 +35,26 @@
 - `python -m compileall -q rosetta/transport`：通过。
 - `git diff --check`：通过。
 
+## 2026-09-01：facade、artifact graph 与 audit 实现单元
+
+计划范围：
+
+- facade 串联边际、候选图、sparse Sinkhorn、`T=Pi Diag(a)^-1`，并将 active support 压缩为 artifact 坐标。
+- artifact 保存 source/target 原始 token ID 映射及完整候选边来源/证据；旧 schema-1 无候选数组 artifact 可迁移加载。
+- 保存/加载后可重算非负性、列和、`Ta=b`、两侧 coupling 残差、候选覆盖、熵和来源统计。
+- tokenizer 指纹/方向不匹配、危险 special 映射、损坏候选数组或不收敛构建显式失败。
+- toy vocab 同时运行 dense 与 sparse oracle，保存/加载并生成 JSON/Markdown audit，二者数值误差在容忍度内。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_artifact.py test/transport/test_audit.py test/transport/test_vocab_transport_facade.py -q`：8 passed（3.10s）。
+- `python -m pytest -o addopts= test/transport/test_build_vocab_transport_cli.py test/transport/test_vocab_transport_facade.py -q`：3 passed（4.59s）。
+- `python -m pytest -o addopts= -q`：44 passed（27.50s）。
+- `python -m compileall -q rosetta/transport script/transport`：通过。
+- `git diff --check`：通过。
+- 正式 toy 构建：生成 `local/transport/artifacts/toy_oracle.npz`、checkpoint、JSON/Markdown audit（均被 `.gitignore` 排除）。audit 为 valid，shape 4×2、nnz 4、candidate edges 4、dense oracle max error 0、row/column/transported marginal L1 均为 0。
+- `--resume`：通过，只读加载并重新审计已验证 artifact，checkpoint 记录 `loaded-valid-artifact`。
+
 第二次服务器运行：revision 字段已正确回填，但 completion audit 发现 JSON 缺少所有 artifact 通用的 schema/input fingerprint/build config/seed/code version，故仍不标记阶段 0 审计完成。已补 provenance 字段与输入敏感性测试，待最终重跑。
 
 provenance 修复本地结果：

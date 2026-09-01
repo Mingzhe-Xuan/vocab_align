@@ -1,3 +1,6 @@
+import json
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -73,3 +76,34 @@ def test_artifact_rejects_missing_arrays_and_unnormalized_marginal(tmp_path):
             np.array([0.25, 0.25]),
             _metadata(),
         )
+
+
+def test_artifact_rejects_corrupt_candidate_arrays():
+    marginal = np.array([0.5, 0.5])
+    artifact = artifact_from_dense(np.eye(2), marginal, marginal, _metadata())
+    corrupt = replace(
+        artifact,
+        candidate_rows=np.array([0]),
+        candidate_columns=np.array([], dtype=np.int64),
+    )
+    with pytest.raises(ArtifactError, match="candidate graph arrays"):
+        corrupt.validate()
+
+
+def test_legacy_schema_one_artifact_loads_with_identity_token_ids(tmp_path):
+    path = tmp_path / "legacy.npz"
+    metadata = json.dumps(_metadata(), sort_keys=True, separators=(",", ":"))
+    np.savez_compressed(
+        path,
+        indptr=np.array([0, 1, 2], dtype=np.int64),
+        indices=np.array([0, 1], dtype=np.int64),
+        data=np.array([1.0, 1.0]),
+        shape=np.array([2, 2], dtype=np.int64),
+        source_marginal=np.array([0.5, 0.5]),
+        target_marginal=np.array([0.5, 0.5]),
+        metadata=np.asarray(metadata),
+    )
+    loaded = load_transport_artifact(path)
+    np.testing.assert_array_equal(loaded.source_token_ids, [0, 1])
+    np.testing.assert_array_equal(loaded.target_token_ids, [0, 1])
+    assert len(loaded.candidate_rows) == 0

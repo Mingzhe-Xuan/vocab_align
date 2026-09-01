@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 1 的候选图、边际、dense/sparse Sinkhorn 与 artifact 基础已通过测试；下一步实现 facade 构建与独立 audit CLI，产出 toy oracle artifact。
+正在实施 Training-free Soft-Token Transport。阶段 1 的 facade、候选图、边际、dense/sparse Sinkhorn、结构化 artifact、audit CLI 和 toy oracle 已通过测试；下一步进入阶段 2 精确 soft transport 与 metrics。
 
 ## 当前计划
 
-1. 实现 vocab transport facade 与 audit 模块/CLI，产出 toy oracle artifact。
-2. 完成阶段 1 resume/checkpoint 构建脚本后进入精确 STT 推理原型。
-3. 服务器网络恢复后 pull 并最终重跑真实 tokenizer 审计。
+1. 实现阶段 2 精确 soft transport、source top-m 与分段 metrics。
+2. 使用 tiny 随机模型实现 TrainingFreeTransportModel 的 prefill/generate 协议。
+3. 服务器网络恢复后 pull 并最终重跑真实 tokenizer 审计及真实预览 artifact。
 
 ## 变更记录
 
@@ -30,3 +30,5 @@
 - 2026-09-01 18:55 +08:00：候选图与边际完成，完整测试 33/33；下一步 sparse/log-domain Sinkhorn 与 dense oracle 对照。
 - 2026-09-01 19:02 +08:00：进入 sparse Sinkhorn 实现；保持 `[target, source]` 方向与相同收敛报告协议。
 - 2026-09-01 19:16 +08:00：sparse Sinkhorn 完成并与 dense oracle 对齐，完整测试 38/38；下一步 facade/audit/toy artifact。
+- 2026-09-01 19:24 +08:00：进入 facade/audit 实现；修正零质量过滤与 artifact 全正边际约束的接口冲突。
+- 2026-09-01 19:46 +08:00：facade/artifact graph/audit/atomic resume builder 完成，toy oracle 全不变量通过，完整测试 44/44；下一步阶段 2 精确 soft transport。

@@ -19,3 +19,5 @@
 - 完成 special/exact/span/ANN 候选优先级、双侧正质量支撑验证和 canonical 内容边际估计；完整本地测试 33/33 通过。
 - 开始 sparse/log-domain Sinkhorn 与候选证据代价实现，使用小图对照 dense oracle。
 - 完成直接在候选边上运行的 sparse/log-domain Sinkhorn、连通分量可行性检查和稀疏条件矩阵转换；完整测试 38/38 通过。
+- 开始 facade/artifact graph/audit 单元；采用 active-support 压缩坐标并保存原始 token ID 映射。
+- 完成正式 vocab transport facade、候选图结构化 artifact、独立 JSON/Markdown audit CLI 与原子/resume 构建脚本；toy oracle artifact 审计全不变量通过，完整测试 44/44。
