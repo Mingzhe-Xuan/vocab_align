@@ -18,6 +18,23 @@
 - 对测试目录执行 `compileall` 时因沙箱拒绝创建其 `__pycache__` 而失败；测试文件已由 pytest 成功导入执行，因此不作为源码编译失败。
 - `git diff --check`：通过。
 
+## 2026-09-01：baseline 快照实现单元
+
+计划范围：
+
+- canonical messages 与 source/target rendered prompts 分字段保存并计算输入指纹。
+- 快照包含 schema version、构建配置、seed、代码版本、模型/tokenizer revision、生成参数、依赖和硬件状态。
+- pending 或不存在的 C2C checkpoint 显式标记，不伪造成可用结果。
+- 相同输入产生稳定 JSON；非法 message/prompt schema 显式失败。
+- CLI 使用现有锁定 recipe 和预渲染输入生成离线 tiny snapshot。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_baseline.py -q`：3 passed（0.97s）。
+- `python -m pytest -o addopts= -q`：24 passed（1.63s）。
+- `python -m compileall -q rosetta/transport script/transport`：通过。
+- `git diff --check`：通过。
+
 ## 2026-09-01：阶段 0 配置与 manifest 实现单元
 
 计划范围：

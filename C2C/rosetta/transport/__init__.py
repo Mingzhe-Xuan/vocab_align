@@ -7,6 +7,13 @@ from .artifact import (
     load_transport_artifact,
     save_transport_artifact,
 )
+from .baseline import (
+    BaselineError,
+    BaselineSnapshot,
+    collect_runtime_info,
+    freeze_baseline,
+    save_baseline,
+)
 from .config import ConfigError, DataSpec, ModelSpec, TransportConfig
 from .manifest import (
     ManifestError,
@@ -40,6 +47,8 @@ from .vocab_transport import (
 
 __all__ = [
     "ArtifactError",
+    "BaselineError",
+    "BaselineSnapshot",
     "ConvergenceReport",
     "ConfigError",
     "DataSpec",
@@ -54,9 +63,11 @@ __all__ = [
     "build_small_transport",
     "build_transport_manifest",
     "conditional_from_coupling",
+    "collect_runtime_info",
     "dense_sinkhorn",
     "encode_with_byte_spans",
     "exact_byte_matches",
+    "freeze_baseline",
     "iter_token_metadata",
     "load_transport",
     "load_transport_artifact",
@@ -64,6 +75,7 @@ __all__ = [
     "save_transport",
     "save_transport_artifact",
     "save_manifest",
+    "save_baseline",
     "serialize_manifest",
     "special_id_to_kind",
     "special_id_to_token",

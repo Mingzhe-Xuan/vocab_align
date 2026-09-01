@@ -2,11 +2,11 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。dense Sinkhorn/artifact、阶段 0 配置/manifest 和公共 tokenizer metadata 已通过本地测试；baseline 冻结与真实 tokenizer 审计仍未完成。
+正在实施 Training-free Soft-Token Transport。阶段 0 的 config、manifest、token metadata 与 baseline snapshot 已通过本地测试；真实 tokenizer 审计和 R/S/T2T smoke 尚未执行。
 
 ## 当前计划
 
-1. 实现并测试 baseline 快照 schema。
+1. 在服务器执行真实 tokenizer 全词表审计（轻量任务）。
 2. 完成阶段 1 的候选图、边际和 sparse/log-domain Sinkhorn。
 3. 产出 toy oracle audit 后进入精确 STT 推理原型。
 
@@ -19,3 +19,5 @@
 - 2026-09-01 16:55 +08:00：阶段 0 配置与 manifest 完成，完整本地测试 17/17；下一步扩展 tokenizer metadata 与 baseline 快照。
 - 2026-09-01 17:03 +08:00：进入 token metadata 实现单元；保留现有 exact/span 行为并消除脚本与库的 bytes 规则重复。
 - 2026-09-01 17:18 +08:00：token metadata 单元完成，完整测试 21/21；下一步冻结 baseline schema。
+- 2026-09-01 17:24 +08:00：进入 baseline 快照实现；不加载模型，快照只接受 canonical 与预渲染 prompt 作为冻结输入。
+- 2026-09-01 17:36 +08:00：baseline 快照完成，完整测试 24/24；下一步同步服务器并执行真实 tokenizer 审计。

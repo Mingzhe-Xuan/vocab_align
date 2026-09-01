@@ -16,6 +16,8 @@ does not modify the existing C2C projector or wrapper.
 - `manifest.py`: order-independent train/dev splits based on stable sample IDs.
 - `token_metadata.py`: raw token bytes, character-to-byte offsets, tokenizer
   fingerprints, and special/control classification shared by builders/audits.
+- `baseline.py`: deterministic baseline snapshots that keep canonical messages
+  separate from each model's rendered prompt and mark unavailable resources.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.
