@@ -13,3 +13,5 @@
 - 准备服务器真实 tokenizer 审计，已记录连接用途与登录节点轻量操作边界。
 - 服务器首次全词表审计完成计算但 revision 字段为空，判定产物不合格；回到本地修复报告 revision 回退逻辑后重跑。
 - 服务器第二次审计 revision 已正确，但 completion audit 发现通用 artifact provenance 字段缺失；继续本地补齐 schema/input fingerprint/build config/seed/code version。
+- provenance 修复已推送，但服务器 HTTPS pull 连续三次失败；已记录网络经验并切换到 SSH transport，未直接修改服务器源码。
+- GitHub SSH transport 也因服务器无 public-key 权限失败；退出服务器并保留 audit pending，转入可离线推进的阶段 1。

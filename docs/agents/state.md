@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 0 本地模块已通过测试；真实 tokenizer 审计已完成数值计算，正在补齐 artifact provenance 后最终重跑。
+正在实施 Training-free Soft-Token Transport。provenance 修复已通过 27 个测试并推送；服务器 HTTPS/SSH 均暂不可同步，真实 tokenizer audit 保持 pending，同时继续阶段 1 本地实现。
 
 ## 当前计划
 
-1. 在服务器执行真实 tokenizer 全词表审计（轻量任务）。
-2. 完成阶段 1 的候选图、边际和 sparse/log-domain Sinkhorn。
-3. 产出 toy oracle audit 后进入精确 STT 推理原型。
+1. 完成阶段 1 的候选图、边际和 sparse/log-domain Sinkhorn。
+2. 产出 toy oracle audit 后进入精确 STT 推理原型。
+3. 服务器网络恢复后 pull 并最终重跑真实 tokenizer 审计。
 
 ## 变更记录
 
@@ -24,3 +24,5 @@
 - 2026-09-01 17:42 +08:00：进入真实 tokenizer 审计阶段；先提交连接记录并推送代码，服务器连接后必须先 pull。
 - 2026-09-01 18:02 +08:00：首次服务器审计计算成功但 revision 字段为 null，产物不合格；下一步本地修复、测试、提交后由服务器 pull 重跑。
 - 2026-09-01 18:14 +08:00：第二次审计修复 revision，但通用 artifact provenance 不完整；继续修复，未降低验收标准。
+- 2026-09-01 18:25 +08:00：服务器 HTTPS pull 连续三次失败；查阅 lessons 后新增网络经验，调整为 GitHub SSH transport，禁止 scp 覆盖受 Git 管理源码。
+- 2026-09-01 18:30 +08:00：SSH transport 亦无权限，退出服务器；该外部验收保持 pending，计划调整为先推进阶段 1 本地模块。

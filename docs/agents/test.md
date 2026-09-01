@@ -27,6 +27,12 @@ provenance 修复本地结果：
 - `python -m compileall -q script/transport`：通过。
 - `git diff --check`：通过。
 
+服务器同步异常：推送 `902ca9c` 后，服务器 HTTPS `git pull` 连续一次 GnuTLS 中断、两次超时，尚未同步 provenance 修复。已按三次失败规则记录经验，下一步改用 GitHub SSH transport；最终审计仍待执行。
+
+SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git main` 因服务器无 GitHub public-key 权限失败。已退出会话；不以 scp 覆盖源码，真实审计保持 pending。
+
+网络经验与计划调整文档检查：`git diff --check` 通过。
+
 ## 2026-09-01：真实 tokenizer 审计（服务器集成）
 
 计划范围：
