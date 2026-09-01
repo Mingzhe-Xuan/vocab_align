@@ -49,6 +49,7 @@ from .corpus import (
     file_sha256,
     load_manifest_texts,
 )
+from .corpus_materialization import MaterializationError, materialize_corpus
 from .manifest import (
     ManifestError,
     build_transport_manifest,
@@ -116,6 +117,7 @@ __all__ = [
     "EdgeSource",
     "LocalTransportArtifact",
     "ManifestError",
+    "MaterializationError",
     "MarginalError",
     "MetricsError",
     "ModelSpec",
@@ -135,6 +137,7 @@ __all__ = [
     "VocabTransportBuildResult",
     "TokenMetadata",
     "TokenMarginal",
+    "SelectionResult",
     "accumulate_byte_span_counts",
     "artifact_from_dense",
     "audit_markdown",
@@ -160,6 +163,7 @@ __all__ = [
     "iter_token_metadata",
     "load_transport",
     "load_manifest_texts",
+    "materialize_corpus",
     "load_transport_artifact",
     "ordinary_bytes_index",
     "save_transport",

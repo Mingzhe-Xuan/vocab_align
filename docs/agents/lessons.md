@@ -47,3 +47,7 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 ## ANN 是 OT 图增广而非仅缺边 fallback
 
 仅在 source 没有 exact/span 时调用 ANN，虽然逐列有边，却会保留大量孤立 exact 分量并阻止 target-only 词获得覆盖，无法满足 Sinkhorn 的连通分量质量约束。ANN 应作为所有 ordinary source 的低优先级增广候选：pair 与 exact/span 重合时保留已有高优先级证据，其余 ANN 边用于连接分量；候选生成还必须做 source→target 与 target→source 双向 top-k，才能显式保证两侧 support。
+
+## 冻结语料必须复现 adapter 的取样阶段
+
+“确定性 500k”不等于可以从全量数据另做 seeded hash top-k。现有 `OpenHermesChatDataset` 先执行 `select(range(num_samples))`，再应用 token-length filter；若物化器改用全量 hash 抽样，即使 revision、seed 和数量都已记录，也会静默更换 C2C 训练语料。基础物化必须保存 pinned split 的相同 source prefix，并把“过滤尚未应用”写入 provenance；seed 只用于之后基于稳定 canonical ID 的 99/1 划分。消费层若应用长度过滤，C2C 与 STT 必须复用同一规则和过滤后的 manifest ID，不能各自重新随机切分。

@@ -17,6 +17,9 @@ does not modify the existing C2C projector or wrapper.
 - `manifest.py`: order-independent train/dev splits based on stable sample IDs.
 - `corpus.py`: pinned raw-corpus hashing, canonical conversation identities,
   exact-content deduplication, and manifest-bound split loading.
+- `corpus_materialization.py`: streaming pinned-source-prefix materialization
+  matching `OpenHermesChatDataset` sample limiting, atomic JSONL publication,
+  and selection-provenance manifests.
 - `token_metadata.py`: raw token bytes, character-to-byte offsets, tokenizer
   fingerprints, and special/control classification shared by builders/audits.
 - `baseline.py`: deterministic baseline snapshots that keep canonical messages

@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。memory-bounded dual telemetry 已提交，但 Guqq pull 在 `net.sh` 后仍超时，服务器尚未同步，64G MaxRSS 重跑 pending。本地继续按计划审查下一项可独立推进工作。
+正在实施 Training-free Soft-Token Transport。OpenHermes 500k pinned-prefix materialization 单元本地 117/117 通过，待验收提交；64G MaxRSS preview 重跑仍因上次 Guqq pull 超时 pending。
 
 ## 当前计划
 
-1. 记录本轮 pull 超时并推送；保留 telemetry 重跑 pending，不重复占用不稳定会话。
-2. 对照两份计划审查阶段 1 后续缺口，选择不依赖远端的最小完整实现单元并先写测试计划。
-3. 下一次实质提交后重新登记 Guqq，首条 pull 同步 telemetry/新代码，再执行 64G MaxRSS 重跑。
+1. 提交并推送已通过本地验收的 OpenHermes pinned-prefix 物化入口、Slurm 作业与记录。
+2. 重新登记 Guqq；首条 pull 同步 telemetry/materializer，优先执行 64G MaxRSS preview 重跑。
+3. 根据 preview MaxRSS/收敛结果决定正式 transport 构建资源，再安装锁定 `datasets==4.0.0` 并提交正式语料物化作业。
 
 ## 变更记录
 
@@ -68,5 +68,8 @@
 - 2026-09-02 01:35 +08:00：Job 226 安装 SciPy 1.15.3 后运行 24:54，以 SIGKILL/137 结束且无 Python traceback；无有效 artifact/audit。进入 memory-bounded history + GNU time telemetry 单元，先测量再调整资源。
 - 2026-09-02 01:44 +08:00：memory-bounded dual telemetry 完成本地验收；显式 `maxcor=3`/1,000 evaluations、GNU time wrapper、Bash/stub 与完整回归 112/112 通过。下一步同 64G 重跑获取 MaxRSS。
 - 2026-09-02 01:49 +08:00：Guqq 首条 pull 60 秒无输出，`net.sh` 后重试 90 秒仍超时；未提交作业，telemetry 重跑 pending。转入本地计划缺口审查，等待下一实质提交后再同步。
+- 2026-09-02 01:54 +08:00：计划缺口审查确认缺少锁定 revision 的 OpenHermes 500k 确定性物化入口；进入 canonical hash selection + atomic JSONL/manifest + Slurm 单元，远端 telemetry 仍 pending。
+- 2026-09-02 01:59 +08:00：复核 `OpenHermesChatDataset` 后发现其 500k 语义为过滤前 source prefix；计划从全量 hash top-k 调整为 pinned prefix，避免改变 C2C 语料集合。seed 42 仅用于稳定 99/1 manifest，token-length filter 明确留待共享消费层应用。
+- 2026-09-02 02:05 +08:00：OpenHermes pinned-prefix 物化、raw-hash manifest、离线/HF CLI 与无 partition Slurm 入口完成；定向 20/20、完整 117/117、Bash/Black/diff 检查通过。下一步形成验收提交并同步 Guqq。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

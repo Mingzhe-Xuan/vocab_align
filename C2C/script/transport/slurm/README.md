@@ -19,6 +19,11 @@ small canonical JSONL corpus and positive smoothing. It activates both complete
 ordinary vocabularies to exercise sparse Sinkhorn and artifact auditing, but is
 explicitly a preview rather than the formal `transport_train` artifact.
 
+`materialize_openhermes_500k.sbatch` downloads/loads the pinned OpenHermes
+revision and materializes its first 500,000 source rows plus JSONL/manifest
+materialization entirely inside Slurm. It requires `datasets==4.0.0` in the
+task Python venv and writes only to ignored corpus/manifest/cache/log paths.
+
 Example:
 
 ```bash

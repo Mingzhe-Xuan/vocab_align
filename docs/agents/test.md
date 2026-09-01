@@ -1,5 +1,24 @@
 # 测试记录
 
+## 2026-09-02：OpenHermes 500k deterministic materialization 单元
+
+计划范围：
+
+- 从锁定 dataset revision/raw `train` split 流式保存前 500,000 个 source rows，严格复现 `OpenHermesChatDataset` 的 `select(range(num_samples))` 语义；不足 500,000 行必须失败。
+- 单次扫描不把全量 conversation 常驻内存；使用 partial 文件原子发布 JSONL/manifest，验证或长度失败不留下看似完成的目标文件。
+- manifest 继续绑定 selected JSONL SHA-256，并新增 prefix algorithm、source start、requested/selected rows、unique conversations、filtering 状态与 split seed provenance；canonical duplicate 不跨 99/1 split。
+- CLI 支持正式 Hugging Face pinned-revision 模式和离线 `--input-jsonl` 测试模式，二者互斥；`datasets` 延迟导入，模块 import/help/离线测试不访问网络。
+- Slurm 作业锁定 `teknium/OpenHermes-2.5@05c355...`、500k、seed 42、输出/缓存/log 忽略路径，无硬编码 partition；下载后的遍历/物化全部在 allocation 内。
+- tiny fixtures 覆盖精确 source prefix、duplicate、limit 越界、test split/revision 拒绝、原子输出、CLI provenance、Bash syntax/stub failure propagation 与完整回归。
+
+实际结果：
+
+- 定向 pytest：`20 passed in 11.18s`。
+- 完整 pytest：`117 passed, 2 warnings in 51.28s`；warnings 仅为既有 pandas 对可选 `numexpr`/`bottleneck` 版本提示。
+- `bash -n script/transport/slurm/materialize_openhermes_500k.sbatch`：通过。
+- Black（独立仓库内 cache、单 worker）检查 4 个新增/修改 Python 文件：全部无需修改。
+- `git diff --check`：通过（仅 Git 的 LF→CRLF 工作树提示，无 whitespace error）。
+
 ## 2026-09-02：memory-bounded dual telemetry 单元
 
 计划范围：
