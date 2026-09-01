@@ -21,3 +21,6 @@
 - 完成直接在候选边上运行的 sparse/log-domain Sinkhorn、连通分量可行性检查和稀疏条件矩阵转换；完整测试 38/38 通过。
 - 开始 facade/artifact graph/audit 单元；采用 active-support 压缩坐标并保存原始 token ID 映射。
 - 完成正式 vocab transport facade、候选图结构化 artifact、独立 JSON/Markdown audit CLI 与原子/resume 构建脚本；toy oracle artifact 审计全不变量通过，完整测试 44/44。
+- 开始阶段 2 exact soft transport/top-m/metrics，实现前先修正全词表平滑与 active support 语义。
+- 完成阶段 2 精确稀疏 `Tp`、embedding expectation、source top-m 质量报告和分段 metrics；补充无 PyTorch tokenizer-only 导入回归，完整本地测试 51/51 通过。
+- 接受最新开发规范：服务器网络异常时先运行 `bash net.sh` 再重试 HTTPS `git pull`；`AGENTS.md` 纳入本次提交。

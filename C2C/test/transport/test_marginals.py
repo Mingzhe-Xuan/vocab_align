@@ -11,12 +11,17 @@ def test_marginal_uses_canonical_content_and_filters_zero_support(TinyTokenizer)
         specials=("<pad>",),
         pad_token_id=3,
     )
-    marginal = estimate_token_marginal(tokenizer, ["ab", "ab"], smoothing=0.5)
+    marginal = estimate_token_marginal(tokenizer, ["ab", "ab"], smoothing=0.0)
     assert marginal.active_ids == (0, 1)
     assert np.all(marginal.probabilities[list(marginal.active_ids)] > 0)
     assert marginal.probabilities[2] == marginal.probabilities[3] == 0
     assert marginal.probabilities.sum() == pytest.approx(1.0)
     assert all(call["add_special_tokens"] is False for call in tokenizer.call_kwargs)
+
+    smoothed = estimate_token_marginal(tokenizer, ["ab"], smoothing=0.5)
+    assert smoothed.active_ids == (0, 1, 2)
+    assert smoothed.probabilities[2] > 0
+    assert smoothed.probabilities[3] == 0
 
 
 def test_marginal_special_pseudocount_and_invalid_empty_input(TinyTokenizer):

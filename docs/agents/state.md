@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 1 的 facade、候选图、边际、dense/sparse Sinkhorn、结构化 artifact、audit CLI 和 toy oracle 已通过测试；下一步进入阶段 2 精确 soft transport 与 metrics。
+正在实施 Training-free Soft-Token Transport。阶段 2 的精确 soft transport、source top-m 和 metrics 已通过 51 项完整本地测试；下一步实现 tiny 模型上的 TrainingFreeTransportModel prefill/generate 协议，并恢复 Guqq 的真实 tokenizer 审计。
 
 ## 当前计划
 
@@ -32,3 +32,5 @@
 - 2026-09-01 19:16 +08:00：sparse Sinkhorn 完成并与 dense oracle 对齐，完整测试 38/38；下一步 facade/audit/toy artifact。
 - 2026-09-01 19:24 +08:00：进入 facade/audit 实现；修正零质量过滤与 artifact 全正边际约束的接口冲突。
 - 2026-09-01 19:46 +08:00：facade/artifact graph/audit/atomic resume builder 完成，toy oracle 全不变量通过，完整测试 44/44；下一步阶段 2 精确 soft transport。
+- 2026-09-01 19:54 +08:00：进入 exact soft transport/metrics 单元；完整 active support 是 exact 推理前置条件，截断或缺失质量必须显式报告。
+- 2026-09-01 20:02 +08:00：阶段 2 精确 soft transport/top-m/metrics 单元完成，完整本地测试 51/51；用户确认 Guqq `git pull` 已恢复，网络异常时先执行 `bash net.sh`，并授权将 `AGENTS.md` 纳入提交。下一步提交并同步服务器审计。

@@ -49,6 +49,7 @@ def estimate_token_marginal(
             counts.update(token_id for token_id, _, _ in encode_with_byte_spans(tokenizer, text))
     kinds = special_id_to_kind(tokenizer)
     excluded = set(excluded_special_kinds)
+    excluded_ids = {token_id for token_id, kind in kinds.items() if kind in excluded}
     for token_id, kind in kinds.items():
         if kind in excluded:
             counts.pop(token_id, None)
@@ -59,10 +60,15 @@ def estimate_token_marginal(
         if len(matches) != 1:
             raise MarginalError(f"special kind {kind!r} is not unambiguous")
         counts[matches[0]] += value
-    active_ids = tuple(sorted(token_id for token_id, count in counts.items() if count > 0))
+    vocab_size = max((int(value) for value in tokenizer.get_vocab().values()), default=-1) + 1
+    if smoothing > 0:
+        active_ids = tuple(
+            token_id for token_id in range(vocab_size) if token_id not in excluded_ids
+        )
+    else:
+        active_ids = tuple(sorted(token_id for token_id, count in counts.items() if count > 0))
     if not active_ids:
         raise MarginalError("canonical content produced no active tokens")
-    vocab_size = max((int(value) for value in tokenizer.get_vocab().values()), default=-1) + 1
     count_array = np.zeros(vocab_size, dtype=np.float64)
     for token_id in active_ids:
         count_array[token_id] = counts[token_id] + smoothing

@@ -24,6 +24,9 @@ does not modify the existing C2C projector or wrapper.
   support filtering under shared special-token rules.
 - `audit.py`: independent invariant, cost, entropy, candidate-source, and
   dangerous-special checks with JSON/Markdown rendering.
+- `soft_transport.py`: temperature softmax, exact sparse transport, source
+  top-m accounting, and receiver embedding expectation.
+- `metrics.py`: evaluator-compatible segmented latency, length, and memory data.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.

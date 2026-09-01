@@ -31,6 +31,7 @@ from .manifest import (
     serialize_manifest,
 )
 from .marginals import MarginalError, TokenMarginal, estimate_token_marginal
+from .metrics import MetricsError, TransportMetrics
 from .sinkhorn import (
     ConvergenceReport,
     SparseCoupling,
@@ -51,6 +52,12 @@ from .token_metadata import (
     special_id_to_token,
     token_raw_bytes,
     tokenizer_fingerprint,
+)
+from .soft_transport import (
+    SoftTransportError,
+    SoftTransportStats,
+    transport_embeddings,
+    transport_probabilities,
 )
 from .vocab_transport import (
     LocalTransportArtifact,
@@ -75,11 +82,15 @@ __all__ = [
     "LocalTransportArtifact",
     "ManifestError",
     "MarginalError",
+    "MetricsError",
     "ModelSpec",
     "SinkhornError",
     "SparseCoupling",
+    "SoftTransportError",
+    "SoftTransportStats",
     "TransportArtifact",
     "TransportConfig",
+    "TransportMetrics",
     "VocabTransportBuildResult",
     "TokenMetadata",
     "TokenMarginal",
@@ -114,6 +125,8 @@ __all__ = [
     "token_raw_bytes",
     "tokenizer_fingerprint",
     "transport_to_dense",
+    "transport_embeddings",
+    "transport_probabilities",
     "sparse_conditional_from_coupling",
     "sparse_log_sinkhorn",
 ]
