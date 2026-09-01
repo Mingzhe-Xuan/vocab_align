@@ -12,6 +12,8 @@ in this folder.
   machine-readable JSON and a compact Markdown report.
 - `build_vocab_transport.py`: atomic formal artifact builder with checkpoint
   status, valid-artifact resume, external ANN candidates, and offline toy mode.
+- `smoke_stt.py`: one pinned STT prompt with fingerprint-checked transport,
+  atomic JSON shapes, quality statistics, segmented metrics, and receiver text.
 
 Run commands as modules from the `C2C` root, for example:
 

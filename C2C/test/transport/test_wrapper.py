@@ -8,6 +8,7 @@ import torch
 from rosetta.transport.artifact import artifact_from_dense
 from rosetta.transport.wrapper import (
     TrainingFreeTransportModel,
+    TransportGenerationOutput,
     TransportModelError,
 )
 
@@ -184,6 +185,30 @@ def test_generate_uses_last_active_prefill_logits_then_receiver_cache_only():
     )
     assert receiver.calls[1]["past_key_values"] == 3
     assert receiver.calls[2]["past_key_values"] == 4
+
+
+def test_structured_generation_reports_shapes_quality_and_segmented_metrics():
+    model, _, _ = _model()
+    output = model.generate(
+        torch.tensor([[0, 1]]),
+        max_new_tokens=2,
+        eos_token_id=None,
+        return_transport_output=True,
+    )
+    assert isinstance(output, TransportGenerationOutput)
+    assert output.virtual_prompt_shape == (1, 2, 2)
+    assert output.sequences.shape == (1, 2)
+    assert output.metrics.source_input_tokens == 2
+    assert output.metrics.virtual_tokens == 2
+    assert output.metrics.output_tokens == 2
+    assert output.metrics.peak_memory_bytes is None
+    assert output.metrics.total_seconds == pytest.approx(
+        output.metrics.source_seconds
+        + output.metrics.transport_seconds
+        + output.metrics.receiver_prefill_seconds
+        + output.metrics.decode_seconds
+    )
+    torch.testing.assert_close(output.stats.retained_mass, torch.ones((1, 2)))
 
 
 def test_receiver_only_path_is_an_exact_generate_pass_through():

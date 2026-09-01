@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any, Tuple
 
 import numpy as np
@@ -13,6 +14,7 @@ except ModuleNotFoundError:  # Tokenizer/audit-only environments do not need tor
     torch = None  # type: ignore[assignment]
 
 from .artifact import TransportArtifact
+from .metrics import TransportMetrics
 from .soft_transport import SoftTransportStats, transport_embeddings
 
 
@@ -37,6 +39,14 @@ class TransportPrefill:
     receiver_output: Any
 
 
+@dataclass(frozen=True)
+class TransportGenerationOutput:
+    sequences: torch.Tensor
+    virtual_prompt_shape: Tuple[int, ...]
+    stats: SoftTransportStats
+    metrics: TransportMetrics
+
+
 def _require_torch() -> None:
     if torch is None:
         raise TransportModelError("TrainingFreeTransportModel requires PyTorch")
@@ -44,6 +54,11 @@ def _require_torch() -> None:
 
 def _position_ids(attention_mask: torch.Tensor) -> torch.Tensor:
     return (attention_mask.long().cumsum(dim=-1) - 1).clamp_min(0)
+
+
+def _synchronize(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
 
 
 def _validate_inputs(input_ids: torch.Tensor, attention_mask: torch.Tensor) -> None:
@@ -172,10 +187,22 @@ class TrainingFreeTransportModel(_ModuleBase):
         source_input_ids: torch.Tensor,
         source_attention_mask: torch.Tensor | None = None,
     ) -> VirtualPrompt:
+        virtual_prompt, _, _ = self._build_virtual_prompt_timed(
+            source_input_ids, source_attention_mask
+        )
+        return virtual_prompt
+
+    def _build_virtual_prompt_timed(
+        self,
+        source_input_ids: torch.Tensor,
+        source_attention_mask: torch.Tensor | None,
+    ) -> tuple[VirtualPrompt, float, float]:
         if source_attention_mask is None:
             source_attention_mask = torch.ones_like(source_input_ids, dtype=torch.long)
         _validate_inputs(source_input_ids, source_attention_mask)
         position_ids = _position_ids(source_attention_mask)
+        _synchronize(source_input_ids.device)
+        source_start = perf_counter()
         with torch.no_grad():
             source_output = self.source_model(
                 input_ids=source_input_ids,
@@ -184,6 +211,8 @@ class TrainingFreeTransportModel(_ModuleBase):
                 use_cache=False,
                 return_dict=True,
             )
+        _synchronize(source_input_ids.device)
+        source_seconds = perf_counter() - source_start
         logits = getattr(source_output, "logits", None)
         if logits is None or logits.shape[:2] != source_input_ids.shape:
             raise TransportModelError(
@@ -194,6 +223,8 @@ class TrainingFreeTransportModel(_ModuleBase):
 
         receiver_embeddings = self.receiver_model.get_input_embeddings()
         receiver_weight = receiver_embeddings.weight
+        _synchronize(receiver_weight.device)
+        transport_start = perf_counter()
         transport_logits = logits.to(device=receiver_weight.device, dtype=torch.float32)
         source_attention_mask = source_attention_mask.to(receiver_weight.device)
         position_ids = position_ids.to(receiver_weight.device)
@@ -223,16 +254,33 @@ class TrainingFreeTransportModel(_ModuleBase):
             embeddings = shifted.masked_fill(~active, 0)
         else:
             embeddings = transported.masked_fill(~active, 0)
-        return VirtualPrompt(embeddings, source_attention_mask, position_ids, stats)
+        _synchronize(receiver_weight.device)
+        transport_seconds = perf_counter() - transport_start
+        return (
+            VirtualPrompt(embeddings, source_attention_mask, position_ids, stats),
+            source_seconds,
+            transport_seconds,
+        )
 
     def prefill(
         self,
         source_input_ids: torch.Tensor,
         source_attention_mask: torch.Tensor | None = None,
     ) -> TransportPrefill:
-        virtual_prompt = self.build_virtual_prompt(
-            source_input_ids, source_attention_mask
+        prefill, _, _, _ = self._prefill_timed(source_input_ids, source_attention_mask)
+        return prefill
+
+    def _prefill_timed(
+        self,
+        source_input_ids: torch.Tensor,
+        source_attention_mask: torch.Tensor | None,
+    ) -> tuple[TransportPrefill, float, float, float]:
+        virtual_prompt, source_seconds, transport_seconds = (
+            self._build_virtual_prompt_timed(source_input_ids, source_attention_mask)
         )
+        receiver_device = virtual_prompt.embeddings.device
+        _synchronize(receiver_device)
+        receiver_start = perf_counter()
         with torch.no_grad():
             receiver_output = self.receiver_model(
                 inputs_embeds=virtual_prompt.embeddings,
@@ -241,6 +289,8 @@ class TrainingFreeTransportModel(_ModuleBase):
                 use_cache=True,
                 return_dict=True,
             )
+        _synchronize(receiver_device)
+        receiver_seconds = perf_counter() - receiver_start
         if getattr(receiver_output, "past_key_values", None) is None:
             raise TransportModelError("receiver prefill did not return a KV cache")
         logits = getattr(receiver_output, "logits", None)
@@ -248,7 +298,12 @@ class TrainingFreeTransportModel(_ModuleBase):
             raise TransportModelError(
                 "receiver prefill logits must match virtual prompt"
             )
-        return TransportPrefill(virtual_prompt, receiver_output)
+        return (
+            TransportPrefill(virtual_prompt, receiver_output),
+            source_seconds,
+            transport_seconds,
+            receiver_seconds,
+        )
 
     def generate(
         self,
@@ -265,8 +320,9 @@ class TrainingFreeTransportModel(_ModuleBase):
         temperature: float = 1.0,
         top_p: float = 1.0,
         top_k: int = -1,
+        return_transport_output: bool = False,
         **kwargs: Any,
-    ) -> torch.Tensor:
+    ) -> torch.Tensor | TransportGenerationOutput:
         if (
             isinstance(max_new_tokens, bool)
             or not isinstance(max_new_tokens, int)
@@ -274,6 +330,10 @@ class TrainingFreeTransportModel(_ModuleBase):
         ):
             raise TransportModelError("max_new_tokens must be a nonnegative integer")
         if not transport:
+            if return_transport_output:
+                raise TransportModelError(
+                    "structured transport output is unavailable in receiver-only mode"
+                )
             if receiver_input_ids is None:
                 raise TransportModelError(
                     "receiver-only generation requires receiver_input_ids"
@@ -293,19 +353,25 @@ class TrainingFreeTransportModel(_ModuleBase):
         if source_input_ids is None:
             raise TransportModelError("transport generation requires source_input_ids")
         with torch.no_grad():
-            prefill = self.prefill(source_input_ids, source_attention_mask)
+            receiver_device = self.receiver_model.get_input_embeddings().weight.device
+            if receiver_device.type == "cuda":
+                torch.cuda.reset_peak_memory_stats(receiver_device)
+            prefill, source_seconds, transport_seconds, receiver_prefill_seconds = (
+                self._prefill_timed(source_input_ids, source_attention_mask)
+            )
             mask = prefill.virtual_prompt.attention_mask
             output = prefill.receiver_output
             batch = source_input_ids.shape[0]
             sequences = torch.empty((batch, 0), dtype=torch.long, device=mask.device)
-            if max_new_tokens == 0:
-                return sequences
-            last = _last_active_indices(mask)
-            logits_device = output.logits.device
-            logits = output.logits[
-                torch.arange(batch, device=logits_device), last.to(logits_device)
-            ]
-            cache = output.past_key_values
+            generated_active = 0
+            decode_seconds = 0.0
+            if max_new_tokens > 0:
+                last = _last_active_indices(mask)
+                logits_device = output.logits.device
+                logits = output.logits[
+                    torch.arange(batch, device=logits_device), last.to(logits_device)
+                ]
+                cache = output.past_key_values
 
             config = getattr(self.receiver_model, "generation_config", None)
             if config is None:
@@ -325,44 +391,80 @@ class TrainingFreeTransportModel(_ModuleBase):
             finished = torch.zeros(batch, dtype=torch.bool, device=mask.device)
             running_mask = mask
 
-            for step in range(max_new_tokens):
-                was_active = ~finished
-                next_token = _sample_next_token(
-                    logits,
-                    do_sample=do_sample,
-                    temperature=temperature,
-                    top_p=top_p,
-                    top_k=top_k,
-                ).to(mask.device)
-                next_token = torch.where(
-                    was_active,
-                    next_token,
-                    torch.full_like(next_token, pad_token_id),
-                )
-                sequences = torch.cat((sequences, next_token.unsqueeze(1)), dim=1)
-                if eos_ids:
-                    is_eos = torch.zeros_like(finished)
-                    for token_id in eos_ids:
-                        is_eos |= next_token == token_id
-                    finished |= was_active & is_eos
-                if step + 1 == max_new_tokens or torch.all(finished):
-                    break
-                running_mask = torch.cat(
-                    (running_mask, was_active.long().unsqueeze(1)), dim=1
-                )
-                decode_position = running_mask.sum(dim=-1, keepdim=True) - 1
-                output = self.receiver_model(
-                    input_ids=next_token.unsqueeze(1),
-                    attention_mask=running_mask,
-                    position_ids=decode_position,
-                    past_key_values=cache,
-                    use_cache=True,
-                    return_dict=True,
-                )
-                cache = getattr(output, "past_key_values", None)
-                if cache is None:
-                    raise TransportModelError(
-                        "receiver decode did not return a KV cache"
+            if max_new_tokens > 0:
+                _synchronize(receiver_device)
+                decode_start = perf_counter()
+                for step in range(max_new_tokens):
+                    was_active = ~finished
+                    generated_active += int(was_active.sum().item())
+                    next_token = _sample_next_token(
+                        logits,
+                        do_sample=do_sample,
+                        temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
+                    ).to(mask.device)
+                    next_token = torch.where(
+                        was_active,
+                        next_token,
+                        torch.full_like(next_token, pad_token_id),
                     )
-                logits = output.logits[:, -1, :]
-            return sequences
+                    sequences = torch.cat((sequences, next_token.unsqueeze(1)), dim=1)
+                    if eos_ids:
+                        is_eos = torch.zeros_like(finished)
+                        for token_id in eos_ids:
+                            is_eos |= next_token == token_id
+                        finished |= was_active & is_eos
+                    if step + 1 == max_new_tokens or torch.all(finished):
+                        break
+                    running_mask = torch.cat(
+                        (running_mask, was_active.long().unsqueeze(1)), dim=1
+                    )
+                    decode_position = running_mask.sum(dim=-1, keepdim=True) - 1
+                    output = self.receiver_model(
+                        input_ids=next_token.unsqueeze(1),
+                        attention_mask=running_mask,
+                        position_ids=decode_position,
+                        past_key_values=cache,
+                        use_cache=True,
+                        return_dict=True,
+                    )
+                    cache = getattr(output, "past_key_values", None)
+                    if cache is None:
+                        raise TransportModelError(
+                            "receiver decode did not return a KV cache"
+                        )
+                    logits = output.logits[:, -1, :]
+                _synchronize(receiver_device)
+                decode_seconds = perf_counter() - decode_start
+            if not return_transport_output:
+                return sequences
+            peak_memory = (
+                torch.cuda.max_memory_allocated(receiver_device)
+                if receiver_device.type == "cuda"
+                else None
+            )
+            total_seconds = (
+                source_seconds
+                + transport_seconds
+                + receiver_prefill_seconds
+                + decode_seconds
+            )
+            metrics = TransportMetrics(
+                source_seconds=source_seconds,
+                transport_seconds=transport_seconds,
+                receiver_prefill_seconds=receiver_prefill_seconds,
+                decode_seconds=decode_seconds,
+                total_seconds=total_seconds,
+                source_input_tokens=int(mask.sum().item()),
+                virtual_tokens=int(mask.sum().item()),
+                output_tokens=generated_active,
+                peak_memory_bytes=peak_memory,
+            )
+            metrics.validate()
+            return TransportGenerationOutput(
+                sequences=sequences,
+                virtual_prompt_shape=tuple(prefill.virtual_prompt.embeddings.shape),
+                stats=prefill.virtual_prompt.stats,
+                metrics=metrics,
+            )

@@ -75,6 +75,7 @@ from .vocab_transport import (
 )
 from .wrapper import (
     TrainingFreeTransportModel,
+    TransportGenerationOutput,
     TransportModelError,
     TransportPrefill,
     VirtualPrompt,
@@ -105,6 +106,7 @@ __all__ = [
     "TransportInferenceSpec",
     "TransportMetrics",
     "TrainingFreeTransportModel",
+    "TransportGenerationOutput",
     "TransportModelError",
     "TransportPrefill",
     "VirtualPrompt",

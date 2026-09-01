@@ -116,6 +116,26 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 - Black 对 4 个本单元 Python 文件检查通过，均无需变更。
 - `git diff --check`：通过；仅报告工作树 LF/CRLF 转换 warning。
 
+## 2026-09-01：STT smoke diagnostics 实现单元
+
+计划范围：
+
+- wrapper 的结构化生成结果包含 receiver token IDs、virtual prompt shape、transport 质量统计和 source/transport/receiver-prefill/decode 分段 metrics；普通 `generate` tensor 返回行为保持不变。
+- CPU peak memory 明确为 unavailable；计时总和严格由四个阶段相加，token 长度与实际输入、virtual prompt、receiver 输出一致。
+- smoke 核心函数使用注入的 tiny 模型/tokenizer/artifact 离线端到端运行，输出 receiver 解码文本及锁定配置、artifact provenance、shape、质量和 metrics。
+- CLI 只在入口加载 Transformers 模型；导入、`--help` 和单元测试均不下载网络资源。
+- artifact 加载必须核对 source/target tokenizer fingerprints；revision、transport tau/shift/top-m 和 generation 参数来自已验证 recipe，不允许混用通信温度与生成温度。
+- JSON 使用临时文件原子替换；失败不得留下看似有效的最终产物，成功输出稳定、可 JSON 序列化且包含 code version。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_wrapper.py test/transport/test_metrics.py test/transport/test_smoke_stt.py test/transport/test_optional_torch_import.py -q`：19 passed（5.74s）。
+- `python -m pytest -o addopts= -q`：69 passed（84.60s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `python -m compileall -q rosetta/transport script/transport`：通过。
+- Black 对 wrapper、smoke CLI 与对应测试共 4 个文件检查通过，均无需变更。
+- `git diff --check`：通过；仅报告工作树 LF/CRLF 转换 warning。
+- 当前仅验收 CPU tiny 离线诊断管线；真实模型 GPU smoke 尚未执行，不进入正式 latency 结果。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
 
 ## 2026-09-01：GPU 测试提交流程规范修订
