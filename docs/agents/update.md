@@ -67,5 +67,6 @@
 - Job 229 终态为严格不收敛而非 OOM：38:24、Exit 1、MaxRSS 1,846,656 KiB、0 swaps；10,000 总预算后 row residual `4.07e-4`，无有效 artifact/audit。转入本地求解器收敛诊断。
 - 完成 marginal-scaled dual 预条件：以 `sqrt(marginal)` 可逆坐标缩放保持同一 OT 目标并修复稀有 token 梯度尺度；极端 `1e-14` 边际 fixture 严格收敛，完整回归 118/118。
 - scaled-dual 提交 `f5ba846` 已推送；Guqq pull 在首轮 60 秒及 `net.sh` 后 90 秒 retry 均无输出，未提交新 preview 作业，进入第三次独立同步尝试。
+- 第三次 Guqq pull 约 90 秒后成功同步 scaled-dual；输入哈希一致并提交 Job 230。监控至 19:31 仍 RUNNING，终态因本地会话关闭待恢复检查。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

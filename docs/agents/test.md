@@ -8,6 +8,8 @@
 
 网络 retry 检查：记录首条 pull 60 秒、`net.sh` 成功、retry pull 90 秒和无新 job 边界；第三次独立连接用途/首条 pull/失败停止条件完整，相关文档 `git diff --check` 通过。
 
+Job 230 恢复检查：记录第三次 pull/输入哈希/提交及会话关闭边界；新连接只读验收用途、首条 pull、成功/失败分支明确，相关文档字段与格式检查通过。
+
 ## 2026-09-02：sparse OT convergence follow-up 单元
 
 计划范围：

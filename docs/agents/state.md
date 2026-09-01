@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。marginal-scaled dual 已以 `f5ba846` 验收；Guqq 新会话 pull 与 `net.sh` 后 retry 分别卡住 60/90 秒，尚未同步/提交真实 preview，准备第三次独立重试。
+正在实施 Training-free Soft-Token Transport。marginal-scaled dual 已同步 Guqq，Job 230 在相同 64G/严格 `1e-9` 配置下提交且至少运行至 19:31；持久会话因用户消息关闭，现待恢复终态验收。
 
 ## 当前计划
 
-1. 提交并推送 marginal-scaled dual 验收实现及 Job 229 证据记录。
-2. 登记 Guqq 连接，同步后以相同输入/64G/`1e-9` 重跑 full-support preview，验收 residual、MaxRSS、artifact/audit。
-3. preview artifact 验收后安装锁定 `datasets==4.0.0` 并提交正式语料物化作业。
+1. 恢复只读验收 Job 230 的 state/exit、residual、MaxRSS、checkpoint、artifact/audit。
+2. preview artifact 验收后安装锁定 `datasets==4.0.0` 并提交正式语料物化作业。
+3. 对照两份计划逐项审计并继续阶段 2–4 的未完成交付物。
 
 ## 变更记录
 
@@ -75,5 +75,6 @@
 - 2026-09-02 02:54 +08:00：Job 229 运行 38:24 后以严格不收敛失败；MaxRSS 1,846,656 KiB/0 swaps 排除内存问题，row residual 仍为 `4.07e-4`。checkpoint 为 building 且无 artifact/audit。进入保持同一 OT 目标的收敛算法诊断，不提高资源或放宽 `1e-9`。
 - 2026-09-02 03:00 +08:00：确认 unscaled dual Hessian 对角受极端边际尺度支配；改用保持同一目标的 `sqrt(marginal)` 坐标预条件。80×80/`1e-14` 病态图以 60 次 evaluations 达 `9.30e-10`，完整回归 118/118。下一步形成验收提交并重跑同一真实图。
 - 2026-09-02 03:07 +08:00：scaled-dual 已推送，但 Guqq 持久会话首条 pull 60 秒、`net.sh` 后 retry 90 秒均无输出，未提交作业。按既有网络经验再做一次独立连接；若仍失败则停止重试并推进本地后续单元。
+- 2026-09-02 07:49 +08:00：第三次 pull 已在约 90 秒后成功并提交 Job 230；作业运行中监控会话因用户消息关闭但 Slurm 未中断。按新 AGENTS 规范恢复终态只读验收，随后决定正式语料阶段或本地修复。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

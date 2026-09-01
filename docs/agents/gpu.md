@@ -128,3 +128,10 @@
 
 - 连接用途：在用户确认 pull 已恢复的当前窗口做第三次独立 scaled-dual 同步尝试；成功则复核输入并提交/持久监控 preview，失败则停止本轮网络重试并转回本地可推进事项。
 - 权限判断与顺序：新会话第一条命令仍为 `cd vocab_align && git pull`；成功前不执行其他远端操作。成功后仅做轻量哈希/队列检查与 Slurm 提交/监控，计算不在登录节点运行。
+- 实际结果：第三次 pull 约 90 秒后成功同步到 `ac689a4`；preview/ANN 哈希再次匹配，无同名作业，提交 Job 230。作业至少运行至 19:31 时保持 `RUNNING`，随后本地工具会话因新用户消息关闭；Slurm 作业未被中断，终态尚待只读验收。
+
+## 2026-09-02 07:49 +08:00
+
+- 连接用途：恢复检查 scaled-dual Job 230 的终态，读取 Slurm state/exit、stderr GNU time、checkpoint、artifact 和 audit；若成功则为正式 OpenHermes 物化准备环境/作业，若失败则保留证据回到本地修复。
+- 权限判断：新连接首条命令为 `cd vocab_align && git pull`；之后仅做 Slurm 与结果文件只读检查。本次不在登录节点运行构建、评测或批量处理，也不修改服务器源码/结果。
+- 计划顺序：pull 后进入 `C2C`，依次检查 Job 230、日志、checkpoint、artifact/audit；只在结果已证明成功时推进下一阶段。
