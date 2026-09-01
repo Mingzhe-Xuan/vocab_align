@@ -12,6 +12,8 @@
 - Slurm 脚本路径存在；连接记录包含提交 `8f89fb4`、首条 `git pull`、网络失败时 `bash net.sh`、登录节点/批处理边界和忽略产物目录。
 - `git diff --check`：通过；仅报告工作区 LF/CRLF 转换 warning。
 
+Job 212 重连记录检查：用途限定为 `squeue/sacct`、日志与 JSON 只读校验；明确持久会话首条执行 `git pull`，避免后续每次监控建立未审计的新连接。相关脚本路径仍存在，提交前重新执行 `git diff --check`。
+
 ## 2026-09-01：transport 核心与 artifact 实现单元
 
 计划范围：

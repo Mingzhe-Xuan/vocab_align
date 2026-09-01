@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。ANN generator 验收提交 `8f89fb4` 已推送，91 项完整本地测试通过。已记录 Guqq 新连接用途，下一步同步该提交、查询 Slurm 并提交全词表 ANN CPU 批处理作业。
+正在实施 Training-free Soft-Token Transport。Guqq 已同步到 `55825e4`，全词表 ANN CPU 作业已提交为 Job 212；首次独立状态查询的 SSH 连接被远端关闭，正在按新审计记录改用首条 `git pull` 的持久会话监控。
 
 ## 当前计划
 
-1. 提交并推送本次 Guqq 连接审计记录，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
-2. 连接 Guqq 后首先 `git pull`；查询 Slurm 和 Python venv 后提交全词表 ANN candidate 作业。
+1. 提交并推送 Job 212 持久监控重连记录，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
+2. 建立首条 `git pull` 的持久 Guqq 会话，监控 Job 212；完成后校验日志、结构化 candidates coverage/指纹/哈希并复制结果到本地忽略目录。
 3. ANN 产物验收后以 smoothing 和结构化 candidates 构建完整 support artifact，再通过 Slurm 运行真实模型短序列 smoke；失败修复使用临时验证分支。
 
 ## 变更记录
@@ -50,5 +50,6 @@
 - 2026-09-01 21:30 +08:00：双向 LSH ANN generator、结构化 provenance loader 与 CPU Slurm 入口实现完成，目标/边界测试 16/16 通过；下一步完成最终全量回归并形成验收提交，再按用户确认重连 Guqq。
 - 2026-09-01 21:32 +08:00：双向 LSH ANN 单元最终完整回归 91/91 通过，进入验收提交阶段；提交并推送后记录新连接用途并首先执行 Guqq `git pull`。
 - 2026-09-01 21:34 +08:00：ANN generator 验收提交 `8f89fb4` 已推送，已按最新网络恢复信息登记 Guqq 连接用途；下一步提交该审计文档后连接，第一项远端操作为 `git pull`。
+- 2026-09-01 21:37 +08:00：Guqq 成功同步到 `55825e4`，compute 节点 idle，Python 3.10.12/NumPy 2.2.6/Transformers 4.52.4 可用，ANN 作业已提交为 Job 212；首次状态查询连接被远端关闭，调整为审计后的持久会话监控。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
