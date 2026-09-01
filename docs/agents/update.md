@@ -47,5 +47,6 @@
 - 持久 Guqq 会话首条 pull 后确认 Job 212 正常完成：52 秒、ExitCode 0:0、151,655 source 与 131,069 target ordinary token 全覆盖，候选 JSON 134,332,695 bytes、SHA-256 `260f9804…e91652`；已登记 scp 结果用途。
 - Job 212 ANN JSON 已 scp 到本地并通过全结构扫描（2,337,695 edges，非法/重复/乱序均为 0）；开始独立 full-support preview Slurm 作业单元，强制 positive smoothing + structured ANN，保持 preview/正式 artifact 边界。
 - 完成 full-support preview Slurm 作业：强制 ANN JSON、positive smoothing、锁定 revisions、独立 preview 产物与 64G/8h Slurm 资源；目标测试 6/6、完整测试 94/94 通过。
+- full-support preview 验收提交 `ff5af46` 已推送；已登记 canonical JSONL scp 和持久 Guqq 提交/监控用途，准备同步后通过 Slurm 运行。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

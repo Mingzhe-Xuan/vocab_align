@@ -50,3 +50,11 @@
 - 权限判断：从服务器读取并复制当前任务结果属于许可操作；文件 134,332,695 bytes，超过 10 MiB，保持在 `.gitignore` 覆盖的 `C2C/local/transport/artifacts/`，不得通过普通 Git 提交。
 - 已验证远端结果：Job 212 `COMPLETED`、ExitCode `0:0`、运行 52 秒；source/target ordinary coverage 为 151,655/131,069 且两侧全部覆盖；JSON SHA-256 为 `260f98048a3d50adb667a6c0b9d23126c7d0e533fd56791c6059001104e91652`，无 `.partial` 残留。stderr 仅有 tokenizer-only 环境缺少深度学习后端的提示。
 - 计划顺序：本次连接只执行单文件 `scp`，不修改服务器文件或源码；传输后在本地复核字节数与 SHA-256。
+
+## 2026-09-01 22:07 +08:00
+
+- 连接用途 A（scp）：将本地 canonical preview JSONL 上传到 Guqq 任务专属忽略路径 `C2C/local/transport/inputs/preview_texts.jsonl`。
+- 输入校验：文件 1,094 bytes、16 条 JSONL，SHA-256 `05CA0628E57EADDA84F4D16968083D5BF12D8A9012B2A1081D9E372047207A3A`；仅覆盖当前任务同名 canonical 输入，不触及其他数据或结果。
+- 连接用途 B（持久 SSH）：同步 full-support preview 作业提交 `ff5af46`，校验上传输入哈希与既有 ANN JSON，查询 Slurm 后提交 `build_full_support_preview.sbatch` 并监控。
+- 权限判断：scp 输入、`git pull`、哈希/Slurm 查询和 `sbatch` 属于许可操作；2.3M-edge graph、Sinkhorn 与 audit 只在 64G/8h Slurm 作业内执行，不在登录节点运行。
+- 计划顺序：先完成单文件 scp；随后新持久 SSH 会话第一条命令为 `cd vocab_align && git pull`，同步成功后才校验输入并提交作业。网络异常时执行 `bash net.sh` 后重试 pull。

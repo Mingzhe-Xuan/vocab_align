@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。独立 full-support preview Slurm 作业已完成实现并通过 94 项完整本地测试：强制 structured ANN + positive smoothing，64G/8h 资源请求，产物明确区分 preview 与正式 transport_train artifact。正在形成验收提交。
+正在实施 Training-free Soft-Token Transport。full-support preview 作业验收提交 `ff5af46` 已推送，94 项本地测试通过。已登记 canonical JSONL scp 与 Guqq 持久提交/监控连接，准备上传输入并提交 Slurm。
 
 ## 当前计划
 
-1. 形成并推送 full-support preview 作业验收提交，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
-2. 登记 Guqq 连接与 canonical JSONL scp，同步提交后用 Slurm 构建并审计预览 artifact。
+1. 提交/push canonical 输入 scp 与 Guqq 作业连接审计，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
+2. 上传 canonical JSONL；建立首条 `git pull` 的持久会话，同步 `ff5af46` 后校验输入/ANN 哈希并提交 full-support preview Slurm 作业。
 3. 预览合格后准备正式 transport_train manifest/语料 artifact；随后通过 Slurm 运行真实模型短序列 smoke。
 
 ## 变更记录
@@ -54,5 +54,6 @@
 - 2026-09-01 21:43 +08:00：持久会话首条 pull 成功同步到 `280d7e3`；Job 212 已 COMPLETED/0:0，52 秒生成 134,332,695-byte JSON，两侧 ordinary vocab 全覆盖且无 partial。下一步按新记录 scp 到本地独立验收。
 - 2026-09-01 21:47 +08:00：ANN JSON 已 scp 并通过本地大小/哈希/全结构扫描；进入 full-support preview Slurm 作业单元，目标是在 16 条真实 tokenizer 小语料上以正 smoothing 激活全词表并审计 OT artifact，不将其标记为正式 transport_train 产物。
 - 2026-09-01 22:05 +08:00：full-support preview Slurm 作业封装完成，目标测试 6/6、完整测试 94/94、Bash/Black/compile 检查均通过；下一步形成验收提交并准备 Guqq 输入传输/作业审计。
+- 2026-09-01 22:07 +08:00：full-support preview 验收提交 `ff5af46` 已推送；登记 1,094-byte canonical JSONL scp 与首条 pull 的持久 Guqq 作业会话，下一步提交记录后执行传输/同步/Slurm 提交。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

@@ -18,6 +18,8 @@
 - Black 检查与显式本地 pycache 的 `compileall`：通过。
 - `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/full-preview-final -q`：94 passed（50.18s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
 
+Guqq 输入/作业连接审计检查：canonical JSONL 存在、1,094 bytes、SHA-256 为 `05CA0628E57EADDA84F4D16968083D5BF12D8A9012B2A1081D9E372047207A3A`；记录区分单文件 scp 与首条 `git pull` 的持久 SSH 会话，并将实际计算限定在 Slurm。`git diff --check` 在提交前执行。
+
 ## 2026-09-01：ANN Slurm 连接审计文档
 
 计划范围：
