@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。marginal-capacity feasibility support 已完成本地验收；full-support preview Job 215 的非收敛结果保持失败，等待新提交经 Slurm 重跑。
+正在实施 Training-free Soft-Token Transport。sparse OT dual acceleration 已完成本地验收，保持同一 OT 目标与严格 residual；等待形成提交并经 Guqq Slurm 验证真实 full-support preview。
 
 ## 当前计划
 
-1. 形成并推送 feasibility support 验收提交，保留 Job 215 失败记录与用户未跟踪参考文件。
-2. 登记 Guqq 连接，首条 pull 同步提交，经 Slurm 重跑 full-support preview 并验收收敛/产物。
-3. preview 成功后设计正式 OpenHermes 下载/物化作业；若仍失败，依据新 residual/资源数据继续修正，不降低标准。
+1. 形成并推送 dual acceleration 验收提交，保留 Job 220 失败记录和用户参考文件边界。
+2. 登记 Guqq 连接，首条 pull 后通过 Slurm 重跑 preview，验收方法/迭代/residual/artifact/audit。
+3. preview 成功后进入正式 OpenHermes 下载/物化；若仍失败则依据加速报告修正，不降低标准。
 
 ## 变更记录
 
@@ -63,5 +63,7 @@
 - 2026-09-01 22:59 +08:00：manifest-bound canonical corpus 完成本地验收；目标测试 26/26、完整回归 105/105，通过 raw hash、content ID 去重、split 可重现/隔离与 builder provenance 检查。下一步形成验收提交并推送。
 - 2026-09-02 00:00 +08:00：manifest-bound corpus 已以 `4876adb` 推送；Guqq pull 到 `5c37b39` 后提交 preview Job 215。作业运行 46:03 后因支撑图容量不可行而非 special 映射失败：row residual `0.2651`、column residual `7.2e-12`。进入 marginal-aware feasibility support 单元，不降低收敛标准。
 - 2026-09-02 00:08 +08:00：marginal-aware feasibility support 完成本地验收；不平衡容量用例与 artifact audit 通过，完整回归 108/108。下一步形成验收提交并登记 Slurm 重跑。
+- 2026-09-02 00:54 +08:00：Job 220 运行 40:33 后仍未收敛，但 row residual 已从 `0.2651` 降到 `5.58e-4`，确认支撑可行而标准缩放收敛过慢。进入同一熵正则 OT 的对偶加速单元，不调整目标或容差。
+- 2026-09-02 01:07 +08:00：sparse dual acceleration 完成本地验收；有限差分梯度、病态图严格收敛与完整回归 110/110 通过。下一步形成验收提交并经 Slurm 验证真实图。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

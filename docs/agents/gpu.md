@@ -80,3 +80,4 @@
 - 连接用途：同步 marginal-capacity feasibility support 验收提交 `8f26fa8`，复核相同 preview/ANN 输入，通过 Slurm 再次构建 full-support preview 并监控收敛与 artifact audit。
 - 权限判断：登录节点只执行首条 `git pull`、哈希/环境检查、`sinfo/squeue/scontrol`、`sbatch` 与结果只读验收；2.3M+ candidate graph、feasibility augmentation、Sinkhorn 和 artifact/audit 均只在 64G/8h Slurm 作业内执行。
 - 计划顺序：新 SSH 会话第一条远端命令为 `cd vocab_align && git pull`；网络异常时执行 `bash net.sh` 后重试。同步到 `8f26fa8` 且输入哈希一致后提交新 job，不复用 Job 215 的 `building` checkpoint 作为成功产物，不在服务器修改源码。
+- 实际结果：首条 pull 成功同步到 `1cc9163`，输入哈希一致，提交 Job 220。作业运行 40:33 后 `FAILED`、ExitCode `1:0`；10,000 次后的 row residual 为 `0.0005577679`、column residual 为 `2.199e-14`，较 Job 215 显著改善但仍未达到 `1e-9`。checkpoint 保持 `building` 且无有效 artifact/audit；已退出服务器并转回本地求解器加速，不提高远端 `max_iter` 掩盖问题。

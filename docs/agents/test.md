@@ -1,5 +1,24 @@
 # 测试记录
 
+## 2026-09-02：sparse OT dual acceleration 单元
+
+计划范围：
+
+- 保留标准 log-domain row/column Sinkhorn 更新；在大迭代预算中先 warm up，再对同一固定 kernel/边际的凸对偶使用 L-BFGS 加速，之后回到缩放更新并以原 residual 停止条件验收。
+- 对偶变量固定 gauge，目标梯度必须等于 row/column marginal residual；用有限差分小图验证梯度，并与 dense oracle 的 coupling/目标一致。
+- 构造病态但严格可行的稀疏图，证明纯缩放在限定 warm-up 内仍慢、混合求解在总 `max_iter` 内达到 `1e-9`；不可行图、NaN/Inf 与真实超预算仍显式失败。
+- convergence report 记录方法、标准缩放次数和加速次数；artifact/audit 往返保留字段。SciPy 只在进入加速路径时延迟导入，普通导入与已快速收敛的小图不新增启动依赖。
+- 完整离线测试保持 dense/sparse、极小 epsilon、极端边际和所有现有 artifact/wrapper 回归。
+
+远端依据：Job 220 在 feasibility support 后将 row residual 从 Job 215 的 `0.2651238722` 降到 `0.0005577679`，column residual 为 `2.20e-14`，但标准缩放 10,000 次仍未达到 `1e-9`；说明支撑已可行但条件病态，单纯增加迭代会继续消耗约 40 分钟/万次。
+
+实际结果：
+
+- 对偶解析梯度与中心有限差分在 `1e-9` 内一致；50×50 极端几何边际图中，纯 scaling 100 次按预期失败，混合求解以 81 次 scaling + 802 次对偶 evaluation 在总预算 1,500 内达到 row residual `8.81e-10`。
+- `python -m pytest ... test_sparse_sinkhorn.py/test_sinkhorn.py/test_vocab_transport_facade.py/test_artifact.py/test_audit.py`：24 passed（6.70s）。
+- `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/dual-full -q`：110 passed（49.95s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- Black 对 solver/测试文件检查通过；production solver `compileall` 与 `git diff --check` 通过。测试文件因既有 Windows ACL 无法写相邻 `.pyc`，但 pytest 已完整导入执行该文件，未缩减测试范围。
+
 ## 2026-09-02：marginal-capacity feasibility support 单元
 
 计划范围：

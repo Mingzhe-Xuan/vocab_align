@@ -10,11 +10,81 @@ from rosetta.transport.candidate_graph import (
 )
 from rosetta.transport.sinkhorn import (
     SinkhornError,
+    _dual_value_gradient,
     candidate_edge_costs,
     dense_sinkhorn,
     sparse_conditional_from_coupling,
     sparse_log_sinkhorn,
 )
+
+
+def test_sparse_dual_gradient_matches_finite_difference():
+    rows = np.repeat(np.arange(2), 3)
+    columns = np.tile(np.arange(3), 2)
+    log_kernel = np.log(np.array([0.7, 0.2, 0.1, 0.1, 0.3, 0.6]))
+    source = np.array([0.2, 0.3, 0.5])
+    target = np.array([0.4, 0.6])
+    variables = np.array([0.2, -0.1, 0.1, -0.2])
+    value, gradient, _ = _dual_value_gradient(
+        variables, rows, columns, log_kernel, source, target
+    )
+    numerical = np.empty_like(gradient)
+    step = 1e-6
+    for index in range(len(variables)):
+        offset = np.zeros_like(variables)
+        offset[index] = step
+        upper, _, _ = _dual_value_gradient(
+            variables + offset, rows, columns, log_kernel, source, target
+        )
+        lower, _, _ = _dual_value_gradient(
+            variables - offset, rows, columns, log_kernel, source, target
+        )
+        numerical[index] = (upper - lower) / (2 * step)
+    assert np.isfinite(value)
+    np.testing.assert_allclose(gradient, numerical, atol=1e-9)
+
+
+def test_dual_acceleration_converges_on_pathological_sparse_scaling():
+    size = 50
+    graph = CandidateGraph(
+        size,
+        size,
+        tuple(
+            [CandidateEdge(i, i, EdgeSource.EXACT_BYTE, 1.0) for i in range(size)]
+            + [CandidateEdge(i, 0, EdgeSource.ANN, 1e-6) for i in range(1, size)]
+            + [CandidateEdge(0, j, EdgeSource.ANN, 1e-6) for j in range(1, size)]
+        ),
+    )
+    source = np.geomspace(1.0, 1e-8, size)
+    source /= source.sum()
+    target = source[::-1].copy()
+    graph, _ = augment_candidate_graph_for_marginals(graph, source, target)
+    with pytest.raises(SinkhornError, match="did not converge"):
+        sparse_log_sinkhorn(
+            graph,
+            source,
+            target,
+            epsilon=0.5,
+            tolerance=1e-9,
+            max_iter=100,
+            acceleration_after=None,
+        )
+    coupling, report = sparse_log_sinkhorn(
+        graph,
+        source,
+        target,
+        epsilon=0.5,
+        tolerance=1e-9,
+        max_iter=1_500,
+        acceleration_after=10,
+        acceleration_max_evaluations=800,
+    )
+    assert report.converged
+    assert report.method == "sinkhorn-lbfgs-sinkhorn"
+    assert report.acceleration_evaluations > 0
+    assert report.iterations <= report.max_iter
+    np.testing.assert_allclose(coupling.to_dense().sum(axis=0), source, atol=1e-9)
+    np.testing.assert_allclose(coupling.to_dense().sum(axis=1), target, atol=1e-9)
 
 
 def test_marginal_augmentation_repairs_connected_capacity_infeasibility():

@@ -22,6 +22,9 @@ class ConvergenceReport:
     converged: bool
     tolerance: float
     max_iter: int
+    method: str = "sinkhorn"
+    sinkhorn_iterations: int | None = None
+    acceleration_evaluations: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -92,9 +95,7 @@ def dense_sinkhorn(
     values and large finite costs do not silently underflow kernel entries.
     Missing candidate edges are represented by ``+inf`` and retain zero mass.
     """
-    cost, source, target = _validate_problem(
-        cost, source_marginal, target_marginal
-    )
+    cost, source, target = _validate_problem(cost, source_marginal, target_marginal)
     if not np.isfinite(epsilon) or epsilon <= 0:
         raise SinkhornError("epsilon must be finite and positive")
     if not np.isfinite(tolerance) or tolerance <= 0:
@@ -225,6 +226,99 @@ def _validate_sparse_feasibility(
             raise SinkhornError("candidate support has a marginal-infeasible component")
 
 
+def _dual_value_gradient(
+    variables: np.ndarray,
+    row_positions: np.ndarray,
+    column_positions: np.ndarray,
+    log_kernel: np.ndarray,
+    source: np.ndarray,
+    target: np.ndarray,
+) -> Tuple[float, np.ndarray, np.ndarray]:
+    """Evaluate the gauge-fixed entropic OT scaling dual and gradient."""
+    row_count = len(target)
+    column_count = len(source)
+    if variables.shape != (row_count + column_count - 1,):
+        raise SinkhornError("dual variable shape does not match active marginals")
+    log_u = variables[:row_count]
+    log_v = np.concatenate((variables[row_count:], np.zeros(1, dtype=np.float64)))
+    log_mass = log_kernel + log_u[row_positions] + log_v[column_positions]
+    if np.max(log_mass, initial=-np.inf) > 700:
+        return float("inf"), np.full_like(variables, 1e100), np.empty(0)
+    mass = np.exp(log_mass)
+    if not np.all(np.isfinite(mass)):
+        return float("inf"), np.full_like(variables, 1e100), np.empty(0)
+    row_mass = np.bincount(row_positions, weights=mass, minlength=row_count)
+    column_mass = np.bincount(column_positions, weights=mass, minlength=column_count)
+    value = float(mass.sum() - np.dot(target, log_u) - np.dot(source, log_v))
+    gradient = np.concatenate((row_mass - target, (column_mass - source)[:-1]))
+    return value, gradient, mass
+
+
+def _accelerate_sparse_dual(
+    rows: np.ndarray,
+    columns: np.ndarray,
+    log_kernel: np.ndarray,
+    source: np.ndarray,
+    target: np.ndarray,
+    active_rows: np.ndarray,
+    active_columns: np.ndarray,
+    log_u: np.ndarray,
+    log_v: np.ndarray,
+    *,
+    max_evaluations: int,
+) -> Tuple[np.ndarray, np.ndarray, int]:
+    from scipy.optimize import minimize
+
+    row_lookup = np.full(len(target), -1, dtype=np.int64)
+    column_lookup = np.full(len(source), -1, dtype=np.int64)
+    row_lookup[active_rows] = np.arange(len(active_rows))
+    column_lookup[active_columns] = np.arange(len(active_columns))
+    row_positions = row_lookup[rows]
+    column_positions = column_lookup[columns]
+    gauge = float(log_v[active_columns[-1]])
+    initial = np.concatenate(
+        (
+            log_u[active_rows] + gauge,
+            (log_v[active_columns] - gauge)[:-1],
+        )
+    )
+
+    def objective(variables: np.ndarray) -> Tuple[float, np.ndarray]:
+        value, gradient, _ = _dual_value_gradient(
+            variables,
+            row_positions,
+            column_positions,
+            log_kernel,
+            source[active_columns],
+            target[active_rows],
+        )
+        return value, gradient
+
+    result = minimize(
+        objective,
+        initial,
+        method="L-BFGS-B",
+        jac=True,
+        options={
+            "maxiter": max_evaluations,
+            "maxfun": max_evaluations,
+            "ftol": 1e-15,
+            "gtol": 1e-13,
+            "maxls": 40,
+        },
+    )
+    if not np.all(np.isfinite(result.x)):
+        raise SinkhornError("sparse dual acceleration produced non-finite variables")
+    accelerated_u = log_u.copy()
+    accelerated_v = log_v.copy()
+    accelerated_u[active_rows] = result.x[: len(active_rows)]
+    active_v = np.concatenate(
+        (result.x[len(active_rows) :], np.zeros(1, dtype=np.float64))
+    )
+    accelerated_v[active_columns] = active_v
+    return accelerated_u, accelerated_v, int(result.nfev)
+
+
 def sparse_log_sinkhorn(
     graph: CandidateGraph,
     source_marginal: np.ndarray,
@@ -234,6 +328,8 @@ def sparse_log_sinkhorn(
     tolerance: float = 1e-9,
     max_iter: int = 10_000,
     delta: float = 1e-12,
+    acceleration_after: int | None = 250,
+    acceleration_max_evaluations: int = 3_000,
 ) -> Tuple[SparseCoupling, ConvergenceReport]:
     """Run log-domain Sinkhorn directly on candidate edges.
 
@@ -261,6 +357,15 @@ def sparse_log_sinkhorn(
         raise SinkhornError("tolerance must be finite and positive")
     if not isinstance(max_iter, int) or max_iter <= 0:
         raise SinkhornError("max_iter must be a positive integer")
+    if acceleration_after is not None and (
+        not isinstance(acceleration_after, int) or acceleration_after <= 0
+    ):
+        raise SinkhornError("acceleration_after must be a positive integer or None")
+    if (
+        not isinstance(acceleration_max_evaluations, int)
+        or acceleration_max_evaluations <= 0
+    ):
+        raise SinkhornError("acceleration evaluation budget must be positive")
 
     active_edges = tuple(
         edge
@@ -285,6 +390,8 @@ def sparse_log_sinkhorn(
     log_v = np.full_like(source, -np.inf)
     log_v[active_columns] = 0.0
     row_residual = column_residual = float("inf")
+    acceleration_evaluations = 0
+    accelerated = False
 
     for iteration in range(1, max_iter + 1):
         row_norm = np.full_like(target, -np.inf)
@@ -309,15 +416,70 @@ def sparse_log_sinkhorn(
         if max(row_residual, column_residual) <= tolerance:
             coupling = SparseCoupling(rows, columns, data, (len(target), len(source)))
             return coupling, ConvergenceReport(
-                iteration,
+                iteration + acceleration_evaluations,
                 row_residual,
                 column_residual,
                 True,
                 tolerance,
                 max_iter,
+                "sinkhorn-lbfgs-sinkhorn" if accelerated else "sinkhorn",
+                iteration,
+                acceleration_evaluations,
             )
+        if (
+            not accelerated
+            and acceleration_after is not None
+            and iteration == acceleration_after
+            and iteration < max_iter
+        ):
+            budget = min(acceleration_max_evaluations, max_iter - iteration)
+            log_u, log_v, acceleration_evaluations = _accelerate_sparse_dual(
+                rows,
+                columns,
+                log_kernel,
+                source,
+                target,
+                active_rows,
+                active_columns,
+                log_u,
+                log_v,
+                max_evaluations=budget,
+            )
+            accelerated = True
+            data = np.exp(log_u[rows] + log_kernel + log_v[columns])
+            row_mass = np.zeros_like(target)
+            column_mass = np.zeros_like(source)
+            np.add.at(row_mass, rows, data)
+            np.add.at(column_mass, columns, data)
+            row_residual = float(np.abs(row_mass - target).sum())
+            column_residual = float(np.abs(column_mass - source).sum())
+            if max(row_residual, column_residual) <= tolerance:
+                coupling = SparseCoupling(
+                    rows, columns, data, (len(target), len(source))
+                )
+                return coupling, ConvergenceReport(
+                    iteration + acceleration_evaluations,
+                    row_residual,
+                    column_residual,
+                    True,
+                    tolerance,
+                    max_iter,
+                    "sinkhorn-lbfgs-sinkhorn",
+                    iteration,
+                    acceleration_evaluations,
+                )
+        if iteration + acceleration_evaluations >= max_iter:
+            break
     report = ConvergenceReport(
-        max_iter, row_residual, column_residual, False, tolerance, max_iter
+        iteration + acceleration_evaluations,
+        row_residual,
+        column_residual,
+        False,
+        tolerance,
+        max_iter,
+        "sinkhorn-lbfgs-sinkhorn" if accelerated else "sinkhorn",
+        iteration,
+        acceleration_evaluations,
     )
     raise SinkhornError(f"sparse Sinkhorn did not converge: {report.to_dict()}")
 
@@ -326,7 +488,9 @@ def sparse_conditional_from_coupling(
     coupling: SparseCoupling, source_marginal: np.ndarray
 ) -> SparseCoupling:
     source = np.asarray(source_marginal)
-    if source.shape != (coupling.shape[1],) or np.any(source[coupling.column_indices] <= 0):
+    if source.shape != (coupling.shape[1],) or np.any(
+        source[coupling.column_indices] <= 0
+    ):
         raise SinkhornError("source marginal does not cover sparse coupling columns")
     return SparseCoupling(
         coupling.row_indices.copy(),
