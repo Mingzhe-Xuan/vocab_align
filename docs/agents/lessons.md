@@ -27,3 +27,7 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 ## 稀疏 OT 必须同时覆盖两侧 support
 
 逐 source 的 special/exact/span/ANN 优先级只能保证每个正质量 source 有出边，不能保证每个正质量 target 有入边；尤其 source 存在未被语料实际使用的 exact target token 时，会遮蔽语料中真实出现的细粒度 target span。构图完成后必须对缺失 target 做反向 exact-byte 与 observed-span rescue，再执行两侧 support 和连通分量质量检查；没有安全证据时应失败，不能任意连边伪造可行性。
+
+## Windows pytest 临时目录权限
+
+沙箱内外混合运行 pytest/格式化工具后，系统 `%TEMP%/pytest-of-<user>` 可能出现 ACL 拒绝，导致所有使用 `tmp_path` 的测试在 setup 阶段统一失败。这不是业务断言失败；应在仓库忽略的 `local/test-tmp/` 下先创建父目录，再用全新的 `--basetemp` 完整重跑，不能通过跳过 `tmp_path` 用例降低测试范围。MSYS Bash 的启动提示还可能混入 stdout，跨平台路径测试应只解析 `cygpath` 的最后一个非空输出行并显式指定解码策略。

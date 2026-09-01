@@ -10,3 +10,6 @@ C2C/local/transport/artifacts/
 C2C/local/transport/manifests/
 C2C/local/transport/audits/
 C2C/local/transport/results/
+C2C/local/transport/inputs/
+C2C/local/transport/logs/
+C2C/local/test-tmp/

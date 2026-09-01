@@ -156,6 +156,26 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 - Black 对实现与对应测试共 3 个文件检查通过，均无需变更。
 - `git diff --check`：通过；仅报告工作树 LF/CRLF 转换 warning。
 
+## 2026-09-01：真实预览 Slurm 作业封装单元
+
+计划范围：
+
+- 作业脚本只从 `C2C` 提交目录运行，检查 Python venv 与输入 JSONL 存在，不直接修改 Git 源码。
+- 候选构建、Sinkhorn、审计均在 Slurm allocation 内执行；登录节点仅允许 `git pull`、`sbatch`、`squeue/sacct` 和结果文件校验。
+- source/target 名称与锁定 revisions、epsilon/tolerance/max-iter/smoothing/seed、artifact/audit/log 路径均显式记录；输出只进入被忽略的 `local/transport/`。
+- `bash -n` 检查 shell 语法；离线 stub `sbatch` 环境验证路径检查、命令参数、失败传播和成功产物位置，不运行真实批量构建。
+- 输入 canonical preview JSONL 由本地忽略目录提供并通过 `scp` 传输，不提交数据集/结果；网络恢复前不提交远端作业。
+
+实际结果：
+
+- 首轮 stub 测试 1 passed/2 failed：Codex Bash 启动提示混入 `cygpath` stdout，且 Windows 默认 GBK 无法解码提示。仅修正测试适配为取最后一个路径行并显式 UTF-8 replacement，不修改作业行为。
+- `python -m pytest -o addopts= test/transport/test_preview_slurm.py -q`：3 passed（5.23s）。
+- 首次全量测试 64 passed/11 setup errors：系统 `%TEMP%/pytest-of-asus` ACL 拒绝；第二次指定 `--basetemp` 时因父目录不存在得到相同 11 个 setup errors。创建忽略目录 `C2C/local/test-tmp` 后，未减少测试范围地重跑通过。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full_20260901_2058 -q`：75 passed（29.85s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `bash -n script/transport/slurm/build_preview.sbatch`：通过。
+- Black 对 Slurm 测试文件检查通过；`git diff --check` 通过，仅有 LF/CRLF warning。
+- `git check-ignore -v --no-index`：确认 preview inputs、Slurm logs 与本地 pytest basetemp 均由精确 `.gitignore` 规则覆盖。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
 
 ## 2026-09-01：GPU 测试提交流程规范修订

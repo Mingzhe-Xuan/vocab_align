@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。candidate target-support rescue、阶段 2 精确 soft transport、wrapper 与 smoke diagnostics 已通过 72 项完整本地测试；下一步冻结真实预览输入与 Slurm 构建作业。
+正在实施 Training-free Soft-Token Transport。真实预览 Slurm 作业封装已通过 75 项完整本地测试；用户确认 Guqq pull 恢复，下一步提交脚本、同步服务器、传输忽略的 canonical preview JSONL 并提交 CPU Slurm 作业。
 
 ## 当前计划
 
-1. 冻结真实预览 artifact 的 canonical 小语料、active support 和候选 fallback 输入，并编写对应 Slurm 作业。
-2. 在 Guqq 通过 Slurm 构建并审计真实预览 artifact，确认所有正质量行列存在候选支撑。
+1. 本地实现并测试真实预览 artifact 的 Slurm 作业封装与 canonical 小语料输入约定。
+2. Guqq HTTPS 恢复后同步源码，通过 `scp` 放置忽略的输入 JSONL，再用 Slurm 构建并审计真实预览 artifact。
 3. artifact 合格后通过 Slurm 运行真实模型短序列 smoke，保存 diagnostics；失败修复使用临时验证分支，不把未验收提交合入正式分支。
 
 ## 变更记录
@@ -41,5 +41,7 @@
 - 2026-09-01 20:39 +08:00：STT 结构化生成 metrics 与 smoke CLI 完成，定向测试 19/19、完整测试 69/69；真实 GPU smoke 保持未执行，下一步先准备真实预览 artifact。
 - 2026-09-01 20:43 +08:00：真实预览构建审查发现 source 优先级可能造成正质量 target 无入边；进入 candidate target-support rescue 单元，先恢复 OT 图可行性再提交 Slurm 预览作业。
 - 2026-09-01 20:47 +08:00：target-support rescue 完成，反向 exact/span 补边与重复 ANN 拒绝通过完整测试 72/72；下一步形成验收提交并准备真实预览 Slurm 输入。
+- 2026-09-01 20:53 +08:00：Guqq `git pull` 在一次普通连接、一次 `net.sh` 后重试及一次 45 秒限时重试中连续三次无响应；已查阅现有网络经验并暂停远端任务。计划调整为先本地实现/测试无分区硬编码的 Slurm 作业封装，网络恢复后再查询并提交。
+- 2026-09-01 21:00 +08:00：真实预览 Slurm 作业封装完成，stub、Bash 语法与完整测试 75/75；用户确认 Guqq pull 恢复。下一步形成验收提交并按新连接记录同步/提交作业。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
