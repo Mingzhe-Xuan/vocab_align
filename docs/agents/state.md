@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。Guqq 已同步到 `55825e4`，全词表 ANN CPU 作业已提交为 Job 212；首次独立状态查询的 SSH 连接被远端关闭，正在按新审计记录改用首条 `git pull` 的持久会话监控。
+正在实施 Training-free Soft-Token Transport。Guqq Job 212 已正常完成双向 ANN candidate：两侧普通词表 151,655/131,069 全覆盖，134,332,695-byte JSON 的 SHA-256 为 `260f9804…e91652`。已登记单文件 scp 用途，下一步复制到本地忽略目录并独立复核。
 
 ## 当前计划
 
-1. 提交并推送 Job 212 持久监控重连记录，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
-2. 建立首条 `git pull` 的持久 Guqq 会话，监控 Job 212；完成后校验日志、结构化 candidates coverage/指纹/哈希并复制结果到本地忽略目录。
-3. ANN 产物验收后以 smoothing 和结构化 candidates 构建完整 support artifact，再通过 Slurm 运行真实模型短序列 smoke；失败修复使用临时验证分支。
+1. 提交并推送 Job 212 完成与 scp 审计记录，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
+2. 将 ANN JSON 复制到本地忽略目录，复核大小、SHA-256、schema/provenance/coverage 和候选证据有效性。
+3. 产物验收后实现并测试 smoothing + structured candidates 的完整 support artifact Slurm 作业，再提交构建；artifact 合格后运行真实模型短序列 smoke。
 
 ## 变更记录
 
@@ -51,5 +51,6 @@
 - 2026-09-01 21:32 +08:00：双向 LSH ANN 单元最终完整回归 91/91 通过，进入验收提交阶段；提交并推送后记录新连接用途并首先执行 Guqq `git pull`。
 - 2026-09-01 21:34 +08:00：ANN generator 验收提交 `8f89fb4` 已推送，已按最新网络恢复信息登记 Guqq 连接用途；下一步提交该审计文档后连接，第一项远端操作为 `git pull`。
 - 2026-09-01 21:37 +08:00：Guqq 成功同步到 `55825e4`，compute 节点 idle，Python 3.10.12/NumPy 2.2.6/Transformers 4.52.4 可用，ANN 作业已提交为 Job 212；首次状态查询连接被远端关闭，调整为审计后的持久会话监控。
+- 2026-09-01 21:43 +08:00：持久会话首条 pull 成功同步到 `280d7e3`；Job 212 已 COMPLETED/0:0，52 秒生成 134,332,695-byte JSON，两侧 ordinary vocab 全覆盖且无 partial。下一步按新记录 scp 到本地独立验收。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

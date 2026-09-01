@@ -14,6 +14,13 @@
 
 Job 212 重连记录检查：用途限定为 `squeue/sacct`、日志与 JSON 只读校验；明确持久会话首条执行 `git pull`，避免后续每次监控建立未审计的新连接。相关脚本路径仍存在，提交前重新执行 `git diff --check`。
 
+Job 212 实际结果：
+
+- Slurm `scontrol`：`COMPLETED`、Reason None、ExitCode `0:0`、RunTime 00:00:52、4 CPU、32G memory request。
+- JSON：134,332,695 bytes，schema version 1，code version `55825e4…`，锁定 source/target revisions 正确；151,655 source 与 131,069 target ordinary token 均有 candidates。
+- SHA-256：`260f98048a3d50adb667a6c0b9d23126c7d0e533fd56791c6059001104e91652`；`.partial` 不存在。
+- stderr 159 bytes，仅提示未安装 PyTorch/TensorFlow/Flax、只能使用 tokenizer/config/file utilities；与本作业 tokenizer-only 设计一致，不影响验收。
+
 ## 2026-09-01：transport 核心与 artifact 实现单元
 
 计划范围：
