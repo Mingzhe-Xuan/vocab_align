@@ -122,3 +122,43 @@ def test_target_rescue_makes_split_target_marginal_feasible(TinyTokenizer):
         result.artifact.target_marginal,
         atol=1e-9,
     )
+
+
+def test_positive_smoothing_covers_full_source_and_ordinary_target(TinyTokenizer):
+    text = "a"
+    control = "<control>"
+    source = TinyTokenizer(
+        {"a": 0, control: 1},
+        {text: [(0, 0, 1)], control: [(1, 0, len(control))]},
+        specials=(control,),
+    )
+    target = TinyTokenizer(
+        {"a": 0, "<": 1, "control": 2, ">": 3, "<bos>": 4},
+        {
+            text: [(0, 0, 1)],
+            control: [(1, 0, 1), (2, 1, 8), (3, 8, 9)],
+        },
+        specials=("<bos>",),
+        bos_token_id=4,
+    )
+    result = build_vocab_transport(
+        source,
+        target,
+        [text],
+        epsilon=0.5,
+        smoothing=0.1,
+        ann_fallback=lambda source_id, raw: [
+            (target_id, 1e-6) for target_id in range(4)
+        ],
+        seed=42,
+        code_version="test",
+    )
+    assert result.artifact.source_token_ids.tolist() == [0, 1]
+    assert result.artifact.target_token_ids.tolist() == [0, 1, 2, 3]
+    assert (
+        result.artifact.metadata["build_config"]["support_policy"]["target"]
+        == "ordinary-only"
+    )
+    report = audit_transport_artifact(result.artifact)
+    assert report["valid"]
+    assert report["candidate_source_counts"]["special_literal"] == 3

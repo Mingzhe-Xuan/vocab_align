@@ -36,6 +36,44 @@ def test_special_and_duplicate_exact_precedence(TinyTokenizer):
     ]
 
 
+def test_special_literal_fallback_uses_only_ordinary_target_tokens(TinyTokenizer):
+    control = "<control>"
+    source = TinyTokenizer(
+        {control: 0},
+        {control: [(0, 0, len(control))]},
+        specials=(control,),
+    )
+    target = TinyTokenizer(
+        {"<": 0, "control": 1, ">": 2, "<bos>": 3},
+        {control: [(0, 0, 1), (1, 1, 8), (2, 8, 9)]},
+        specials=("<bos>",),
+        bos_token_id=3,
+    )
+    graph = build_candidate_graph(
+        source,
+        target,
+        [],
+        required_source_ids=[0],
+        required_target_ids=[0, 1, 2],
+        special_literal_fallback=True,
+    )
+    assert [(edge.target_id, edge.source) for edge in graph.edges] == [
+        (0, EdgeSource.SPECIAL_LITERAL),
+        (1, EdgeSource.SPECIAL_LITERAL),
+        (2, EdgeSource.SPECIAL_LITERAL),
+    ]
+
+    target._pieces[control] = [(3, 0, len(control))]
+    with pytest.raises(CandidateGraphError, match="no ordinary literal"):
+        build_candidate_graph(
+            source,
+            target,
+            [],
+            required_source_ids=[0],
+            special_literal_fallback=True,
+        )
+
+
 def test_span_overlap_counts_multibyte_content(TinyTokenizer):
     text = "a中🙂é"
     source = TinyTokenizer(

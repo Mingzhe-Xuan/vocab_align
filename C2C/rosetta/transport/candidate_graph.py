@@ -23,6 +23,7 @@ class CandidateGraphError(ValueError):
 
 class EdgeSource(str, Enum):
     SPECIAL = "special"
+    SPECIAL_LITERAL = "special_literal"
     EXACT_BYTE = "exact_byte"
     BYTE_SPAN = "byte_span"
     ANN = "ann"
@@ -118,6 +119,20 @@ def _special_target(
     return matches[0]
 
 
+def _special_literal_candidates(
+    source_id: int,
+    source_tokenizer: Any,
+    target_tokenizer: Any,
+) -> Counter[int]:
+    source_token = special_id_to_token(source_tokenizer)[source_id]
+    target_special = set(special_id_to_kind(target_tokenizer))
+    candidates: Counter[int] = Counter()
+    for target_id, start, end in encode_with_byte_spans(target_tokenizer, source_token):
+        if target_id not in target_special:
+            candidates[target_id] += end - start
+    return candidates
+
+
 def build_candidate_graph(
     source_tokenizer: Any,
     target_tokenizer: Any,
@@ -126,6 +141,7 @@ def build_candidate_graph(
     required_source_ids: Iterable[int],
     required_target_ids: Iterable[int] = (),
     ann_fallback: AnnFallback | None = None,
+    special_literal_fallback: bool = False,
 ) -> CandidateGraph:
     texts = [text for text in texts if text]
     required_source = sorted(set(int(value) for value in required_source_ids))
@@ -154,8 +170,39 @@ def build_candidate_graph(
 
     for source_id in required_source:
         if source_id in source_special:
-            target_id = _special_target(source_id, source_tokenizer, target_tokenizer)
-            add_edge(CandidateEdge(source_id, target_id, EdgeSource.SPECIAL, 1.0))
+            if special_literal_fallback:
+                try:
+                    target_id = _special_target(
+                        source_id, source_tokenizer, target_tokenizer
+                    )
+                except CandidateGraphError:
+                    pass
+                else:
+                    add_edge(
+                        CandidateEdge(source_id, target_id, EdgeSource.SPECIAL, 1.0)
+                    )
+                literal = _special_literal_candidates(
+                    source_id, source_tokenizer, target_tokenizer
+                )
+                if not literal:
+                    raise CandidateGraphError(
+                        f"special source token {source_id} has no ordinary literal target"
+                    )
+                for target_id, evidence in sorted(literal.items()):
+                    if (source_id, target_id) not in edge_keys:
+                        add_edge(
+                            CandidateEdge(
+                                source_id,
+                                target_id,
+                                EdgeSource.SPECIAL_LITERAL,
+                                float(evidence),
+                            )
+                        )
+            else:
+                target_id = _special_target(
+                    source_id, source_tokenizer, target_tokenizer
+                )
+                add_edge(CandidateEdge(source_id, target_id, EdgeSource.SPECIAL, 1.0))
             continue
         raw_bytes = token_raw_bytes(source_tokenizer, source_id)
         exact_ids = exact_target.get(raw_bytes, [])

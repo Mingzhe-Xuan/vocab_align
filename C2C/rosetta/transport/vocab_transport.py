@@ -17,7 +17,12 @@ from typing import Any, DefaultDict, Dict, Iterable, List, Mapping, Sequence, Tu
 import numpy as np
 
 from .artifact import TransportArtifact
-from .candidate_graph import AnnFallback, CandidateGraph, EdgeSource, build_candidate_graph
+from .candidate_graph import (
+    AnnFallback,
+    CandidateGraph,
+    EdgeSource,
+    build_candidate_graph,
+)
 from .marginals import TokenMarginal, estimate_token_marginal
 from .sinkhorn import (
     ConvergenceReport,
@@ -30,6 +35,7 @@ from .sinkhorn import (
 
 from .token_metadata import (
     encode_with_byte_spans,
+    special_id_to_kind,
     special_id_to_token,
     token_raw_bytes,
     tokenizer_fingerprint,
@@ -160,11 +166,27 @@ def build_vocab_transport(
         raise ValueError("code_version is required")
     source_fingerprint = tokenizer_fingerprint(source_tokenizer)
     target_fingerprint = tokenizer_fingerprint(target_tokenizer)
+    source_vocab_ids = {
+        int(token_id) for token_id in source_tokenizer.get_vocab().values()
+    }
+    target_vocab_ids = {
+        int(token_id) for token_id in target_tokenizer.get_vocab().values()
+    }
+    target_ordinary_ids = target_vocab_ids.difference(
+        special_id_to_kind(target_tokenizer)
+    )
     source_marginal = estimate_token_marginal(
-        source_tokenizer, texts, smoothing=smoothing
+        source_tokenizer,
+        texts,
+        smoothing=smoothing,
+        excluded_special_kinds=(),
+        allowed_token_ids=source_vocab_ids,
     )
     target_marginal = estimate_token_marginal(
-        target_tokenizer, texts, smoothing=smoothing
+        target_tokenizer,
+        texts,
+        smoothing=smoothing,
+        allowed_token_ids=target_ordinary_ids,
     )
     graph = build_candidate_graph(
         source_tokenizer,
@@ -173,6 +195,7 @@ def build_vocab_transport(
         required_source_ids=source_marginal.active_ids,
         required_target_ids=target_marginal.active_ids,
         ann_fallback=ann_fallback,
+        special_literal_fallback=True,
     )
     coupling, convergence = sparse_log_sinkhorn(
         graph,
@@ -201,7 +224,9 @@ def build_vocab_transport(
             (len(target_positions), len(source_positions)), np.inf, dtype=np.float64
         )
         for edge, cost in zip(active_edges, candidate_edge_costs(active_edges)):
-            dense_cost[target_positions[edge.target_id], source_positions[edge.source_id]] = cost
+            dense_cost[
+                target_positions[edge.target_id], source_positions[edge.source_id]
+            ] = cost
         dense_coupling, _ = dense_sinkhorn(
             dense_cost,
             source_marginal.probabilities[list(source_marginal.active_ids)],
@@ -214,7 +239,9 @@ def build_vocab_transport(
         for row, column, value in zip(
             coupling.row_indices, coupling.column_indices, coupling.data
         ):
-            sparse_dense[target_positions[int(row)], source_positions[int(column)]] = value
+            sparse_dense[target_positions[int(row)], source_positions[int(column)]] = (
+                value
+            )
         dense_error = float(np.max(np.abs(dense_coupling - sparse_dense)))
 
     fingerprint_payload = json.dumps(
@@ -237,6 +264,11 @@ def build_vocab_transport(
             "tolerance": tolerance,
             "max_iter": max_iter,
             "smoothing": smoothing,
+            "support_policy": {
+                "source": "full-vocabulary-under-positive-smoothing",
+                "target": "ordinary-only",
+                "source_special_fallback": "target-tokenized-literal-bytes",
+            },
             "ann": dict(ann_config or {"enabled": ann_fallback is not None}),
         },
         "seed": seed,
@@ -274,7 +306,8 @@ def build_small_transport(
 
     source_special = special_id_to_token(source_tokenizer)
     target_special_by_token = {
-        token: token_id for token_id, token in special_id_to_token(target_tokenizer).items()
+        token: token_id
+        for token_id, token in special_id_to_token(target_tokenizer).items()
     }
     target_special_ids = set(special_id_to_token(target_tokenizer))
     target_bytes: DefaultDict[bytes, List[int]] = defaultdict(list)
@@ -294,7 +327,10 @@ def build_small_transport(
 
         target_cursor = 0
         for source_id, source_start, source_end in source_spans:
-            while target_cursor < len(target_spans) and target_spans[target_cursor][2] <= source_start:
+            while (
+                target_cursor < len(target_spans)
+                and target_spans[target_cursor][2] <= source_start
+            ):
                 target_cursor += 1
             cursor = target_cursor
             while cursor < len(target_spans) and target_spans[cursor][1] < source_end:
@@ -313,7 +349,10 @@ def build_small_transport(
         rule: str
         candidates: Mapping[int, int | float]
 
-        if source_id in source_special and source_special[source_id] in target_special_by_token:
+        if (
+            source_id in source_special
+            and source_special[source_id] in target_special_by_token
+        ):
             rule = "special"
             candidates = {target_special_by_token[source_special[source_id]]: 1.0}
         else:
@@ -333,7 +372,11 @@ def build_small_transport(
 
         total = float(sum(candidates.values()))
         target_ids = sorted(candidates)
-        weights = [float(candidates[target_id]) / total for target_id in target_ids] if total else []
+        weights = (
+            [float(candidates[target_id]) / total for target_id in target_ids]
+            if total
+            else []
+        )
         rule_counts[rule] += 1
         columns.append(
             SparseColumn(
@@ -363,7 +406,9 @@ def build_small_transport(
         "covered_occurrence_fraction": covered_occurrences / total_occurrences,
         "duplicate_exact_columns": duplicate_exact_columns,
         "max_column_sum_error": max_column_error,
-        "nonnegative": all(weight >= 0 for column in columns for weight in column.weights),
+        "nonnegative": all(
+            weight >= 0 for column in columns for weight in column.weights
+        ),
     }
     return LocalTransportArtifact(
         schema_version=1,

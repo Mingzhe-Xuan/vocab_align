@@ -38,3 +38,20 @@ def test_marginal_special_pseudocount_and_invalid_empty_input(TinyTokenizer):
     np.testing.assert_allclose(marginal.probabilities, [0.5, 0.5])
     with pytest.raises(MarginalError, match="no active"):
         estimate_token_marginal(tokenizer, [])
+
+
+def test_allowed_ids_restrict_smoothing_and_reject_invalid_support(TinyTokenizer):
+    tokenizer = TinyTokenizer(
+        {"a": 0, "unused": 1, "<control>": 2},
+        {"a": [(0, 0, 1)]},
+        specials=("<control>",),
+    )
+    marginal = estimate_token_marginal(
+        tokenizer, ["a"], smoothing=0.5, allowed_token_ids={0, 1}
+    )
+    assert marginal.active_ids == (0, 1)
+    assert marginal.probabilities[2] == 0
+    with pytest.raises(MarginalError, match="outside"):
+        estimate_token_marginal(tokenizer, ["a"], allowed_token_ids={3})
+    with pytest.raises(MarginalError, match="integers"):
+        estimate_token_marginal(tokenizer, ["a"], allowed_token_ids={True})

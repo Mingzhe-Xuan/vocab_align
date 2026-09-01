@@ -23,7 +23,7 @@ does not modify the existing C2C projector or wrapper.
 - `ann_candidates.py`: deterministic bidirectional byte-ngram LSH candidates,
   including low-evidence anchor bridges that connect the ordinary-token graph.
 - `marginals.py`: canonical-content frequency marginals, smoothing, and active
-  support filtering under shared special-token rules.
+  support filtering under explicit allowed-ID and special-token rules.
 - `audit.py`: independent invariant, cost, entropy, candidate-source, and
   dangerous-special checks with JSON/Markdown rendering.
 - `soft_transport.py`: temperature softmax, exact sparse transport, source

@@ -1,5 +1,9 @@
 # 经验记录
 
+## 非对称 tokenizer special 集合与完整 source logits
+
+正 smoothing 不能在 source/target 两侧机械激活相同类别的全部 special：两个 tokenizer 的 BOS/EOS/pad/UNK、chat 和多模态 control 集合通常不对称，强制按泛化 `special` kind 一一映射既不可行也不安全。STT source logits 又覆盖完整 source vocab，因此 source special 不能简单从 artifact 删除。安全策略是 source 边际保留完整词表，将每个 source special 的原始 token 字符串用 target tokenizer 分解为 ordinary literal-byte 候选；target 平滑边际只覆盖 ordinary token，receiver 原生 BOS/EOS 仍由 wrapper 的起始 embedding 和生成逻辑管理。若 literal 分解不能产生 ordinary target，构建应失败，不能任意落到 UNK 或无关 control token。
+
 ## Artifact 数值审计
 
 稀疏 artifact 的边际与列和容差必须至少覆盖其存储 dtype 的机器精度；用固定的 float64 级容差审计 float32 数据会误拒绝合法 artifact。实现采用 `max(配置容差, 10 * dtype epsilon)`，同时仍拒绝非有限值和真实的归一化偏差。

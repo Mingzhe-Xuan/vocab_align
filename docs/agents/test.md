@@ -1,5 +1,23 @@
 # 测试记录
 
+## 2026-09-01：全 source special 安全支撑修复单元
+
+计划范围：
+
+- 边际估计支持显式 allowed token IDs：source positive smoothing 覆盖完整 source vocab；target 只激活 ordinary token，BOS/EOS/UNK/pad/control 不因 smoothing 获得伪频率。
+- 每个 source special/control 保留可用的同功能 special 边，同时必须通过 target tokenizer 的 literal-byte 分解获得 ordinary target 边；无 ordinary literal 支撑时显式失败，不映射到任意 target special/UNK。
+- 新候选来源明确标记为 `special_literal` 并进入 artifact/audit provenance；普通 special/exact/span/ANN 优先级回归不变。
+- tiny source 含 generic control/pad/eos、target 含不匹配 BOS/EOS/UNK 的正 smoothing facade 能构建 full source artifact；source IDs 等于完整连续词表，target IDs 仅 ordinary，Sinkhorn/audit 不变量通过。
+- allowed IDs 越界或 special literal 只产生 target specials 时失败；完整离线测试保留。
+
+远端复现：Job 214 在 Slurm 内运行 18 秒后 ExitCode `1:0`；`CandidateGraphError` 指向 Qwen source ID 151644 `<|im_start|>` 无唯一 generic-special target。真实 special 审计显示 Qwen 另有 pad/eos 与视觉 control，Mistral 仅 BOS/EOS/UNK；禁止通过伪 special 映射绕过。
+
+实际结果：
+
+- `python -m pytest -o addopts="--strict-markers --strict-config" test/transport/test_marginals.py test/transport/test_candidate_graph.py test/transport/test_vocab_transport_facade.py --basetemp=local/test-tmp/special-support-targeted -q`：15 passed（5.94s）。
+- Black 对 6 个实现/测试文件检查通过；显式 workspace pycache 的 `compileall` 通过。
+- `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/special-support-final -q`：97 passed（48.09s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+
 ## 2026-09-01：全词表支撑预览 Slurm 作业单元
 
 计划范围：

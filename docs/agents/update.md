@@ -48,5 +48,7 @@
 - Job 212 ANN JSON 已 scp 到本地并通过全结构扫描（2,337,695 edges，非法/重复/乱序均为 0）；开始独立 full-support preview Slurm 作业单元，强制 positive smoothing + structured ANN，保持 preview/正式 artifact 边界。
 - 完成 full-support preview Slurm 作业：强制 ANN JSON、positive smoothing、锁定 revisions、独立 preview 产物与 64G/8h Slurm 资源；目标测试 6/6、完整测试 94/94 通过。
 - full-support preview 验收提交 `ff5af46` 已推送；已登记 canonical JSONL scp 和持久 Guqq 提交/监控用途，准备同步后通过 Slurm 运行。
+- canonical JSONL 上传与哈希验证通过；full-support preview Job 214 因 Qwen `<|im_start|>` 无安全 Mistral generic-special 对应而在 Slurm 内失败。开始 allowed marginal 与 `special_literal` ordinary-target 支撑修复，禁止任意 special/UNK 映射。
+- 完成全 source special 安全支撑：source positive smoothing 覆盖完整 vocab，target smoothing 仅 ordinary，source control 以 `special_literal` 分解到 ordinary target；定向测试 15/15、完整测试 97/97 通过。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。
