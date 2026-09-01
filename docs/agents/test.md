@@ -1,5 +1,9 @@
 # 测试记录
 
+## 2026-09-02：Guqq telemetry 重连登记文档检查
+
+计划与实际结果：检查 `docs/agents/gpu.md` 新条目的时间、用途、权限边界、首条 `git pull` 命令与目标提交；`git diff --check -- docs/agents/gpu.md` 通过，关键字段检索通过，路径和命令与当前仓库/AGENTS 规范一致。
+
 ## 2026-09-02：OpenHermes 500k deterministic materialization 单元
 
 计划范围：
