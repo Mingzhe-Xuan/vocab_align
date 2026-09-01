@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。真实预览 Slurm 作业封装已通过 75 项完整本地测试；用户确认 Guqq pull 恢复，下一步提交脚本、同步服务器、传输忽略的 canonical preview JSONL 并提交 CPU Slurm 作业。
+正在实施 Training-free Soft-Token Transport。真实预览 Slurm 作业封装已通过 75 项完整本地测试；Guqq 在用户确认恢复后仍连续三次 pull 超时，远端作业暂停。下一步本地实现全词表外部 ANN 候选生成器，为完整 support artifact 准备可审计输入。
 
 ## 当前计划
 
-1. 本地实现并测试真实预览 artifact 的 Slurm 作业封装与 canonical 小语料输入约定。
-2. Guqq HTTPS 恢复后同步源码，通过 `scp` 放置忽略的输入 JSONL，再用 Slurm 构建并审计真实预览 artifact。
+1. 本地实现并测试确定性的外部 ANN candidate JSON 生成器，覆盖 exact/span 之外的全 source support，并记录方法/参数/指纹。
+2. Guqq HTTPS 实际恢复后同步源码，通过 `scp` 放置忽略的 canonical JSONL/ANN 输入，再用 Slurm 构建并审计 artifact。
 3. artifact 合格后通过 Slurm 运行真实模型短序列 smoke，保存 diagnostics；失败修复使用临时验证分支，不把未验收提交合入正式分支。
 
 ## 变更记录
@@ -43,5 +43,6 @@
 - 2026-09-01 20:47 +08:00：target-support rescue 完成，反向 exact/span 补边与重复 ANN 拒绝通过完整测试 72/72；下一步形成验收提交并准备真实预览 Slurm 输入。
 - 2026-09-01 20:53 +08:00：Guqq `git pull` 在一次普通连接、一次 `net.sh` 后重试及一次 45 秒限时重试中连续三次无响应；已查阅现有网络经验并暂停远端任务。计划调整为先本地实现/测试无分区硬编码的 Slurm 作业封装，网络恢复后再查询并提交。
 - 2026-09-01 21:00 +08:00：真实预览 Slurm 作业封装完成，stub、Bash 语法与完整测试 75/75；用户确认 Guqq pull 恢复。下一步形成验收提交并按新连接记录同步/提交作业。
+- 2026-09-01 21:10 +08:00：用户确认恢复后，Guqq pull 又经历普通连接超时、`net.sh` 后超时和独立 60 秒超时共三次失败；已按现有经验暂停远端同步/提交。计划调整为本地继续实现全词表 ANN 候选生成器。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
