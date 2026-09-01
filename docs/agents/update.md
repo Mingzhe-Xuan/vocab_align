@@ -37,5 +37,7 @@
 - 开始真实预览 Slurm 作业封装单元，脚本不硬编码未知分区，所有生成物限定在 `local/transport/`。
 - 完成真实预览 CPU Slurm 作业封装、独立 README 与离线 stub 测试；锁定模型 revisions 和构建参数，失败码原样传播，完整测试 75/75 通过。
 - Guqq 在用户确认恢复后的新一轮审计仍连续三次 pull 超时（含 `bash net.sh` 后重试）；暂停远端作业，保留已验证脚本与本地 canonical 输入，转入全词表 ANN 候选生成器实现。
+- 开始 ANN graph augmentation 语义单元；修正 ANN 仅用于缺边 source、无法连接 exact 分量或保证 target coverage 的限制。
+- 完成 ANN 对所有 ordinary source 的低优先级增广：与 exact/span 重合时保留高优先级 evidence，内部重复/非法边仍失败；完整测试 76/76。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

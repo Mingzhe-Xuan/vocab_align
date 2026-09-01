@@ -114,3 +114,33 @@ def test_duplicate_ann_edge_is_rejected(TinyTokenizer):
             required_source_ids=[0],
             ann_fallback=lambda source_id, raw: [(0, 0.7), (0, 0.6)],
         )
+
+
+def test_ann_augments_exact_source_and_preserves_exact_precedence(TinyTokenizer):
+    source = TinyTokenizer({"x": 0}, {"x": [(0, 0, 1)]})
+    target = TinyTokenizer(
+        {"x": 0, "y": 1},
+        {"x": [(0, 0, 1)]},
+    )
+    graph = build_candidate_graph(
+        source,
+        target,
+        ["x"],
+        required_source_ids=[0],
+        required_target_ids=[0, 1],
+        ann_fallback=lambda source_id, raw: [(0, 0.9), (1, 0.5)],
+    )
+    assert [(edge.target_id, edge.source) for edge in graph.edges] == [
+        (0, EdgeSource.EXACT_BYTE),
+        (1, EdgeSource.ANN),
+    ]
+
+    exact_only = build_candidate_graph(
+        source,
+        target,
+        ["x"],
+        required_source_ids=[0],
+        ann_fallback=lambda source_id, raw: [],
+    )
+    assert len(exact_only.edges) == 1
+    assert exact_only.edges[0].source == EdgeSource.EXACT_BYTE

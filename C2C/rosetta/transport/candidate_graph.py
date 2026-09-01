@@ -159,47 +159,57 @@ def build_candidate_graph(
             continue
         raw_bytes = token_raw_bytes(source_tokenizer, source_id)
         exact_ids = exact_target.get(raw_bytes, [])
+        base_edge_added = False
         if exact_ids:
             for target_id in sorted(exact_ids):
                 add_edge(
                     CandidateEdge(source_id, target_id, EdgeSource.EXACT_BYTE, 1.0)
                 )
-            continue
-        span_candidates = spans.get(source_id, Counter())
-        if span_candidates:
-            for target_id, evidence in sorted(span_candidates.items()):
-                if target_id in target_special:
-                    continue
-                add_edge(
-                    CandidateEdge(
-                        source_id, target_id, EdgeSource.BYTE_SPAN, float(evidence)
+            base_edge_added = True
+        else:
+            span_candidates = spans.get(source_id, Counter())
+            if span_candidates:
+                for target_id, evidence in sorted(span_candidates.items()):
+                    if target_id in target_special:
+                        continue
+                    add_edge(
+                        CandidateEdge(
+                            source_id,
+                            target_id,
+                            EdgeSource.BYTE_SPAN,
+                            float(evidence),
+                        )
                     )
+                base_edge_added = bool(edges and edges[-1].source_id == source_id)
+        ann_edge_added = False
+        if ann_fallback is not None:
+            ann_targets: Set[int] = set()
+            for target_id, score in ann_fallback(source_id, raw_bytes):
+                target_id = int(target_id)
+                score = float(score)
+                if target_id in ann_targets:
+                    raise CandidateGraphError("duplicate ANN candidate edge")
+                ann_targets.add(target_id)
+                if target_id not in target_vocab or target_id in target_special:
+                    raise CandidateGraphError(
+                        "ANN fallback returned an unsafe target token"
+                    )
+                if not isfinite(score) or score <= 0:
+                    raise CandidateGraphError(
+                        "ANN fallback evidence must be finite and positive"
+                    )
+                if (source_id, target_id) in edge_keys:
+                    continue
+                add_edge(CandidateEdge(source_id, target_id, EdgeSource.ANN, score))
+                ann_edge_added = True
+        if not base_edge_added and not ann_edge_added:
+            if ann_fallback is not None:
+                raise CandidateGraphError(
+                    f"ANN fallback returned no usable edge for source {source_id}"
                 )
-            if edges and edges[-1].source_id == source_id:
-                continue
-        if ann_fallback is None:
             raise CandidateGraphError(
                 f"source token {source_id} has no exact/span edge or ANN fallback"
             )
-        ann_edges = []
-        for target_id, score in ann_fallback(source_id, raw_bytes):
-            target_id = int(target_id)
-            score = float(score)
-            if target_id not in target_vocab or target_id in target_special:
-                raise CandidateGraphError(
-                    "ANN fallback returned an unsafe target token"
-                )
-            if not isfinite(score) or score <= 0:
-                raise CandidateGraphError(
-                    "ANN fallback evidence must be finite and positive"
-                )
-            ann_edges.append(CandidateEdge(source_id, target_id, EdgeSource.ANN, score))
-        if not ann_edges:
-            raise CandidateGraphError(
-                f"ANN fallback returned no edge for source {source_id}"
-            )
-        for edge in sorted(ann_edges, key=lambda edge: edge.target_id):
-            add_edge(edge)
 
     missing_targets = sorted(
         set(required_target).difference(edge.target_id for edge in edges)

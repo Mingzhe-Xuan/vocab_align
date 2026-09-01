@@ -176,6 +176,23 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 - Black 对 Slurm 测试文件检查通过；`git diff --check` 通过，仅有 LF/CRLF warning。
 - `git check-ignore -v --no-index`：确认 preview inputs、Slurm logs 与本地 pytest basetemp 均由精确 `.gitignore` 规则覆盖。
 
+## 2026-09-01：ANN graph augmentation 语义单元
+
+计划范围：
+
+- special source 仍只走功能映射，ANN 不得连接 control/special。
+- ordinary source 保留 exact-byte 优先于 observed-span 的基础边；提供 ANN 时，对每个 ordinary source 都追加 ANN 候选，而不只处理无基础边的 source。
+- ANN 与已有 exact/span pair 重合时保留已有高优先级证据并跳过低优先级重复；ANN 返回内部重复 pair 仍显式失败。
+- 没有 exact/span 且 ANN 为空的 source 仍失败；ANN target 必须在普通 target 词表内且 evidence 有限为正。
+- 验证 ANN 增广可连接原本孤立的 exact 分量，并为双向 top-k candidate JSON 覆盖 target support 提供入口；保留完整回归。
+
+实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/ann_aug_target test/transport/test_candidate_graph.py test/transport/test_vocab_transport_facade.py test/transport/test_sparse_sinkhorn.py -q`：15 passed（4.72s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/ann_aug_full -q`：76 passed（28.49s）；除既有 pandas optional dependency warning 外，pytest cache 因工作区 ACL 无法写入的 warning 不影响测试执行或结果。
+- `python -m compileall -q rosetta/transport`：通过。
+- Black 对实现与测试检查通过；`git diff --check` 通过，仅有 LF/CRLF warning。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
 
 ## 2026-09-01：GPU 测试提交流程规范修订
