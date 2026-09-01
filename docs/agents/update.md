@@ -52,5 +52,7 @@
 - 完成全 source special 安全支撑：source positive smoothing 覆盖完整 vocab，target smoothing 仅 ordinary，source control 以 `special_literal` 分解到 ordinary target；定向测试 15/15、完整测试 97/97 通过。
 - special-support 修复验收提交 `0409679` 已推送；已登记 Guqq full-support preview Slurm 重跑用途与 Job 214 失败 checkpoint 边界。
 - Guqq 重跑连接中首次 pull 与 `bash net.sh` 后重试均长时间无响应；已退出且未提交新作业，服务器尚未同步 `0409679`。远端验证 pending，本地继续正式 transport_train 输入准备。
+- 开始 manifest-bound canonical corpus 单元：修复 OpenHermes nullable ID、未锁定 dataset revision、manifest 与 builder 裸 texts 脱节问题，以 canonical conversation SHA-256 + raw file hash 绑定 split/provenance。
+- 完成 manifest-bound canonical corpus：锁定 dataset revision，使用 canonical conversation SHA-256 去重/划分，以 raw JSONL hash 绑定 manifest并重现全部 split，正式 builder 只接受 records + manifest + build split；目标测试 26/26、完整回归 105/105 通过。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

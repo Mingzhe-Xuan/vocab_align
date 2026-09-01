@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。special-support 修复 `0409679` 已推送且本地 97 项测试通过；Guqq 首次 pull 及 `bash net.sh` 后重试均长时间无响应，已退出且未提交新作业。远端重跑 pending，本地继续推进阶段 1 正式输入/验收准备。
+正在实施 Training-free Soft-Token Transport。manifest-bound canonical corpus 已完成本地验收；远端 special-support 重跑因 Guqq pull 不稳定保持 pending，正式 OpenHermes 原始数据物化尚未开始。
 
 ## 当前计划
 
-1. 记录本轮 Guqq pull/`net.sh` 后重试仍无响应的结果，保留用户未跟踪参考文件 `docs/assets/alignment.py`。
-2. 本地对照计划审查正式 `transport_train` manifest/语料构建缺口，先实现可离线验收单元；不伪造 preview 已通过。
-3. Guqq HTTPS 恢复后重新登记连接，首条 pull 同步 `0409679`，通过 Slurm 重跑 full-support preview；合格后构建正式 artifact 与真实模型 smoke。
+1. 形成并推送 manifest-bound corpus 验收提交，保留用户未跟踪参考文件，不伪造 preview 已通过。
+2. 设计正式 OpenHermes 下载/物化 Slurm 单元，确保生成数据进入忽略目录、revision/raw hash/manifest 可复现。
+3. Guqq HTTPS 恢复后重新登记连接，首条 pull 同步最新提交，先经 Slurm 重跑 full-support preview，再提交正式数据作业。
 
 ## 变更记录
 
@@ -59,5 +59,7 @@
 - 2026-09-01 22:24 +08:00：全 source special 安全支撑完成，定向测试 15/15、完整测试 97/97；source full-vocab/target ordinary-only policy 与 `special_literal` provenance 已固定，下一步形成验收提交并登记 Guqq 重跑。
 - 2026-09-01 22:26 +08:00：special-support 验收提交 `0409679` 已推送；完成 Guqq 重跑连接审计，下一步提交该记录后用首条 pull 的持久会话经 Slurm 重试。
 - 2026-09-01 22:33 +08:00：Guqq 首次 pull 约 90 秒无响应，`bash net.sh` 成功后第二次 pull 约 60 秒仍无响应；已退出且未提交作业。远端验收保持 pending，本地转入正式 transport_train 输入缺口审查。
+- 2026-09-01 22:39 +08:00：正式输入审查确认 manifest 未绑定 canonical records，OpenHermes nullable ID 不可作为稳定身份；进入 dataset revision + canonical-content ID + raw hash + split-bound builder 单元。
+- 2026-09-01 22:59 +08:00：manifest-bound canonical corpus 完成本地验收；目标测试 26/26、完整回归 105/105，通过 raw hash、content ID 去重、split 可重现/隔离与 builder provenance 检查。下一步形成验收提交并推送。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

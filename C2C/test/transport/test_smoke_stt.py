@@ -35,6 +35,7 @@ def _config():
             },
             "data": {
                 "dataset": "tiny",
+                "revision": REVISION_A,
                 "build_splits": ["transport_train"],
                 "dev_fraction": 0.1,
             },

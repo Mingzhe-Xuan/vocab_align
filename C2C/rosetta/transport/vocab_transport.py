@@ -155,6 +155,7 @@ def build_vocab_transport(
     code_version: str,
     dense_oracle_limit: int = 10_000,
     ann_config: Mapping[str, Any] | None = None,
+    data_config: Mapping[str, Any] | None = None,
 ) -> VocabTransportBuildResult:
     """Build an auditable sparse OT transport over active tokenizer support."""
     texts = [text for text in texts if text]
@@ -270,6 +271,7 @@ def build_vocab_transport(
                 "source_special_fallback": "target-tokenized-literal-bytes",
             },
             "ann": dict(ann_config or {"enabled": ann_fallback is not None}),
+            "data": dict(data_config or {"mode": "direct-canonical-texts"}),
         },
         "seed": seed,
         "code_version": code_version,

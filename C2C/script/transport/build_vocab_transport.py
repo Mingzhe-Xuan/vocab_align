@@ -11,6 +11,7 @@ from typing import Any, Sequence
 
 from rosetta.transport.artifact import load_transport_artifact, save_transport_artifact
 from rosetta.transport.audit import audit_transport_artifact, save_audit
+from rosetta.transport.corpus import file_sha256, load_manifest_texts
 from rosetta.transport.vocab_transport import build_vocab_transport
 
 
@@ -67,7 +68,14 @@ def _toy_inputs():
         {"a": 0, "b": 1, "c": 2, "d": 3},
         {text: [(0, 0, 1), (1, 1, 2), (2, 2, 3), (3, 3, 4)]},
     )
-    return source, target, [text], None, {"enabled": False, "kind": "toy"}
+    return (
+        source,
+        target,
+        [text],
+        None,
+        {"enabled": False, "kind": "toy"},
+        {"mode": "toy"},
+    )
 
 
 def _load_ann_candidates(path: Path):
@@ -109,17 +117,20 @@ def _load_ann_candidates(path: Path):
 
 
 def _real_inputs(args: argparse.Namespace):
-    if not all(
-        (
-            args.source,
-            args.target,
-            args.source_revision,
-            args.target_revision,
-            args.texts_jsonl,
-        )
-    ):
+    if not all((args.source, args.target, args.source_revision, args.target_revision)):
         raise ValueError(
-            "real build requires --source/--target, both revisions, and --texts-jsonl"
+            "real build requires --source/--target and both pinned revisions"
+        )
+    formal_values = (args.records_jsonl, args.manifest_json, args.build_split)
+    if args.texts_jsonl and any(formal_values):
+        raise ValueError("preview texts and manifest-bound corpus modes cannot mix")
+    if args.texts_jsonl:
+        corpus_mode = "preview"
+    elif all(formal_values):
+        corpus_mode = "manifest"
+    else:
+        raise ValueError(
+            "real build requires --texts-jsonl or records/manifest/build-split"
         )
     from transformers import AutoTokenizer
 
@@ -129,23 +140,35 @@ def _real_inputs(args: argparse.Namespace):
     target = AutoTokenizer.from_pretrained(
         args.target, revision=args.target_revision, use_fast=True
     )
-    texts = []
-    for line_number, line in enumerate(
-        args.texts_jsonl.read_text(encoding="utf-8").splitlines(), 1
-    ):
-        if not line.strip():
-            continue
-        value = json.loads(line)
-        text = value if isinstance(value, str) else value.get("text")
-        if not isinstance(text, str):
-            raise ValueError(f"line {line_number} must be a string or contain text")
-        texts.append(text)
+    if corpus_mode == "manifest":
+        texts, data_config = load_manifest_texts(
+            args.records_jsonl,
+            args.manifest_json,
+            build_split=args.build_split,
+        )
+    else:
+        texts = []
+        for line_number, line in enumerate(
+            args.texts_jsonl.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            if not line.strip():
+                continue
+            value = json.loads(line)
+            text = value if isinstance(value, str) else value.get("text")
+            if not isinstance(text, str):
+                raise ValueError(f"line {line_number} must be a string or contain text")
+            texts.append(text)
+        data_config = {
+            "mode": "direct-preview-texts",
+            "texts_sha256": file_sha256(args.texts_jsonl),
+            "canonical_messages": len(texts),
+        }
     ann_fallback = None
     ann_config: dict[str, Any] = {"enabled": False}
     if args.ann_candidates_json:
         candidates, ann_config = _load_ann_candidates(args.ann_candidates_json)
         ann_fallback = lambda source_id, _: candidates.get(str(source_id), [])
-    return source, target, texts, ann_fallback, ann_config
+    return source, target, texts, ann_fallback, ann_config, data_config
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -156,6 +179,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--source-revision")
     parser.add_argument("--target-revision")
     parser.add_argument("--texts-jsonl", type=Path)
+    parser.add_argument("--records-jsonl", type=Path)
+    parser.add_argument("--manifest-json", type=Path)
+    parser.add_argument("--build-split", choices=("transport_train", "transport_dev"))
     parser.add_argument("--ann-candidates-json", type=Path)
     parser.add_argument("--artifact", required=True, type=Path)
     parser.add_argument("--audit-json", required=True, type=Path)
@@ -184,7 +210,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "resume": "restart-from-recorded-inputs" if prior_checkpoint else "fresh",
         },
     )
-    source, target, texts, ann_fallback, ann_config = (
+    source, target, texts, ann_fallback, ann_config, data_config = (
         _toy_inputs() if args.toy else _real_inputs(args)
     )
     result = build_vocab_transport(
@@ -197,6 +223,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         smoothing=args.smoothing,
         ann_fallback=ann_fallback,
         ann_config=ann_config,
+        data_config=data_config,
         seed=args.seed,
         code_version=args.code_version or _git_version(),
     )

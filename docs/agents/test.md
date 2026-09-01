@@ -1,5 +1,25 @@
 # 测试记录
 
+## 2026-09-01：manifest-bound canonical corpus 单元
+
+计划范围：
+
+- recipe/DataSpec 必须锁定 40-character dataset revision；OpenHermes nullable `id/idx/hash` 不作为唯一身份来源。
+- ShareGPT/OpenHermes `conversations[{from,value}]` 规范化为 system/user/assistant canonical messages，不使用 chat template/BOS/EOS；未知 role、空 value、损坏 schema 显式失败。
+- sample ID 为 canonical messages 的 SHA-256；相同 conversation 去重并记录 duplicate count，防止相同内容跨 train/dev；输入行顺序不改变唯一 ID 集合和 split membership。
+- manifest 记录 dataset、revision、raw split、identity scheme、raw JSONL SHA-256、unique/duplicate counts；materialization/build 时先复核 raw hash。
+- builder 的正式模式要求 records JSONL + manifest + `transport_train`/`transport_dev`，拒绝 benchmark test、split 外样本、manifest 缺样本和 preview/formal 参数混用；artifact build config 纳入 manifest/raw/split provenance。
+- tiny JSONL 覆盖稳定 manifest、去重、hash tamper、split 隔离、canonical text 提取和 builder toy integration；完整离线测试不访问网络。
+
+数据 schema 依据：Hugging Face 官方 `teknium/OpenHermes-2.5` 页面显示 train 约 1M rows，列包含 nullable `id/idx/hash` 和 `conversations` list；当前仓库 revision 选择必须写入 recipe 后再用于下载/构建。
+
+实际结果：
+
+- `python -m pytest ... test_corpus.py/test_config.py/test_smoke_stt.py/test_build_vocab_transport_cli.py/test_vocab_transport_facade.py`：26 passed（19.35s）；覆盖 canonical role、content ID/去重、raw hash、split 完整性/隔离、CLI 与正式 builder provenance。
+- 首次从仓库根目录无路径约束运行 pytest 时误收集历史 `local/test-tmp` 与 playground 脚本；改为 `C2C` 项目目录后，首次完整回归为 102 passed/2 failed，定位到旧 smoke fixture 缺少新增的 dataset revision。补齐同一锁定 SHA 后，目标测试 25/25 通过。
+- 提交前复核补充“全部 raw canonical IDs 必须精确重现 manifest train/dev”校验与遗漏样本测试；最终 `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/corpus-final-repro -q`：105 passed（48.86s），仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `python -m compileall -q -f -b ...`：通过。设置任务本地 cache 后，Black 对最终变动的 corpus 实现、corpus 测试与 smoke fixture 检查通过（3 files unchanged）；此前本单元其余 Python 文件检查也已通过。
+
 ## 2026-09-01：全 source special 安全支撑修复单元
 
 计划范围：

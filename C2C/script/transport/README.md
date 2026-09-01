@@ -11,7 +11,9 @@ in this folder.
 - `audit_vocab_transport.py`: independently reload and audit an artifact into
   machine-readable JSON and a compact Markdown report.
 - `build_vocab_transport.py`: atomic formal artifact builder with checkpoint
-  status, valid-artifact resume, external ANN candidates, and offline toy mode.
+  status, valid-artifact resume, external ANN candidates, manifest-bound raw
+  conversation mode, direct preview texts, and offline toy mode. Formal runs
+  require `--records-jsonl`, `--manifest-json`, and `--build-split` together.
 - `smoke_stt.py`: one pinned STT prompt with fingerprint-checked transport,
   atomic JSON shapes, quality statistics, segmented metrics, and receiver text.
 - `build_ann_candidates.py`: deterministic bidirectional byte-ngram LSH

@@ -37,6 +37,7 @@ def _payload():
         },
         "data": {
             "dataset": "openhermes",
+            "revision": REVISION_A,
             "build_splits": ["transport_train"],
             "dev_fraction": 0.01,
         },
@@ -74,6 +75,11 @@ def test_config_rejects_unpinned_revision_and_test_split():
     with pytest.raises(ConfigError, match="test splits"):
         TransportConfig.from_dict(payload)
 
+    payload = _payload()
+    payload["data"]["revision"] = "main"
+    with pytest.raises(ConfigError, match="dataset revision"):
+        TransportConfig.from_dict(payload)
+
 
 def test_pending_checkpoint_cannot_be_loaded():
     model = ModelSpec.from_dict(_payload()["target"])
@@ -84,7 +90,7 @@ def test_pending_checkpoint_cannot_be_loaded():
 
 def test_data_and_seed_validation_are_not_coerced():
     with pytest.raises(ConfigError, match="dev_fraction"):
-        DataSpec("dataset", dev_fraction=0).validate()
+        DataSpec("dataset", REVISION_A, dev_fraction=0).validate()
     payload = _payload()
     payload["seed"] = True
     with pytest.raises(ConfigError, match="seed"):

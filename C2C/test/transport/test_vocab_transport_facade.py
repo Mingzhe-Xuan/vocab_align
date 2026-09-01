@@ -150,6 +150,7 @@ def test_positive_smoothing_covers_full_source_and_ordinary_target(TinyTokenizer
         ann_fallback=lambda source_id, raw: [
             (target_id, 1e-6) for target_id in range(4)
         ],
+        data_config={"mode": "manifest-bound-canonical-conversations"},
         seed=42,
         code_version="test",
     )
@@ -158,6 +159,9 @@ def test_positive_smoothing_covers_full_source_and_ordinary_target(TinyTokenizer
     assert (
         result.artifact.metadata["build_config"]["support_policy"]["target"]
         == "ordinary-only"
+    )
+    assert result.artifact.metadata["build_config"]["data"]["mode"] == (
+        "manifest-bound-canonical-conversations"
     )
     report = audit_transport_artifact(result.artifact)
     assert report["valid"]

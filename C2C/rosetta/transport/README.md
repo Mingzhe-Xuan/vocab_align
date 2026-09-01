@@ -14,6 +14,8 @@ does not modify the existing C2C projector or wrapper.
 - `config.py`: immutable model/data/runtime configuration with pinned revision
   and cross-field validation.
 - `manifest.py`: order-independent train/dev splits based on stable sample IDs.
+- `corpus.py`: pinned raw-corpus hashing, canonical conversation identities,
+  exact-content deduplication, and manifest-bound split loading.
 - `token_metadata.py`: raw token bytes, character-to-byte offsets, tokenizer
   fingerprints, and special/control classification shared by builders/audits.
 - `baseline.py`: deterministic baseline snapshots that keep canonical messages

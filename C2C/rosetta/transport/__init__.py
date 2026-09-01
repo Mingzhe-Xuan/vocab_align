@@ -40,6 +40,14 @@ from .config import (
     TransportConfig,
     TransportInferenceSpec,
 )
+from .corpus import (
+    CorpusError,
+    build_corpus_manifest,
+    canonical_messages,
+    canonical_sample_id,
+    file_sha256,
+    load_manifest_texts,
+)
 from .manifest import (
     ManifestError,
     build_transport_manifest,
@@ -102,6 +110,7 @@ __all__ = [
     "CandidateGraphError",
     "ConvergenceReport",
     "ConfigError",
+    "CorpusError",
     "DataSpec",
     "EdgeSource",
     "LocalTransportArtifact",
@@ -135,6 +144,9 @@ __all__ = [
     "candidate_edge_costs",
     "build_candidate_graph",
     "build_bidirectional_lsh_candidates",
+    "build_corpus_manifest",
+    "canonical_messages",
+    "canonical_sample_id",
     "conditional_from_coupling",
     "collect_runtime_info",
     "dense_sinkhorn",
@@ -142,8 +154,10 @@ __all__ = [
     "exact_byte_matches",
     "estimate_token_marginal",
     "freeze_baseline",
+    "file_sha256",
     "iter_token_metadata",
     "load_transport",
+    "load_manifest_texts",
     "load_transport_artifact",
     "ordinary_bytes_index",
     "save_transport",

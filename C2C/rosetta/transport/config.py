@@ -80,12 +80,17 @@ class ModelSpec:
 @dataclass(frozen=True)
 class DataSpec:
     dataset: str
+    revision: str
     build_splits: Tuple[str, ...] = ("transport_train",)
     dev_fraction: float = 0.01
 
     def validate(self) -> None:
         if not self.dataset.strip():
             raise ConfigError("dataset name is required")
+        if not PINNED_REVISION.fullmatch(self.revision):
+            raise ConfigError(
+                "dataset revision must be a pinned 40-character commit SHA"
+            )
         if not self.build_splits:
             raise ConfigError("at least one transport build split is required")
         if any("test" in split.lower() for split in self.build_splits):
@@ -95,7 +100,9 @@ class DataSpec:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "DataSpec":
-        _only_fields(payload, {"dataset", "build_splits", "dev_fraction"}, "data")
+        _only_fields(
+            payload, {"dataset", "revision", "build_splits", "dev_fraction"}, "data"
+        )
         normalized = dict(payload)
         if "build_splits" in normalized:
             normalized["build_splits"] = tuple(normalized["build_splits"])
