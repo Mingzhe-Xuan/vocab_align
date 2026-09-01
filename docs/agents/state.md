@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。全 source special 安全支撑修复已完成并通过 97 项完整本地测试：source positive smoothing 覆盖完整 vocab，target 仅 ordinary；source control 通过显式 `special_literal` 分解，禁止任意 special/UNK 映射。正在形成验收提交供 Guqq 重跑 Job 214 场景。
+正在实施 Training-free Soft-Token Transport。special-support 修复验收提交 `0409679` 已推送，97 项本地测试通过。已登记 Guqq full-support preview 重跑用途，准备首条 pull 同步后通过 Slurm 验证真实 tokenizer/Sinkhorn/audit。
 
 ## 当前计划
 
-1. 形成并推送 special-support 修复验收提交，保留用户未跟踪参考文件 `docs/assets/alignment.py`。
-2. 登记新 Guqq 重试连接，首条 pull 同步修复后通过 Slurm 重跑 full-support preview 并检查 convergence/audit。
+1. 提交/push Guqq 重跑连接审计，保留用户未跟踪参考文件 `docs/assets/alignment.py`。
+2. 建立首条 `git pull` 的持久会话，同步 `0409679` 后通过 Slurm 重跑 full-support preview 并检查 convergence/audit。
 3. 预览合格后准备正式 transport_train artifact 与真实模型 smoke。
 
 ## 变更记录
@@ -57,5 +57,6 @@
 - 2026-09-01 22:07 +08:00：full-support preview 验收提交 `ff5af46` 已推送；登记 1,094-byte canonical JSONL scp 与首条 pull 的持久 Guqq 作业会话，下一步提交记录后执行传输/同步/Slurm 提交。
 - 2026-09-01 22:14 +08:00：canonical JSONL 上传/双哈希校验通过；Job 214 在 Slurm 内安全失败，根因是 source generic/vision/pad specials 与 target BOS/EOS/UNK 集合不对称。进入 allowed marginal + `special_literal` ordinary 支撑修复，不伪造 special 映射。
 - 2026-09-01 22:24 +08:00：全 source special 安全支撑完成，定向测试 15/15、完整测试 97/97；source full-vocab/target ordinary-only policy 与 `special_literal` provenance 已固定，下一步形成验收提交并登记 Guqq 重跑。
+- 2026-09-01 22:26 +08:00：special-support 验收提交 `0409679` 已推送；完成 Guqq 重跑连接审计，下一步提交该记录后用首条 pull 的持久会话经 Slurm 重试。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

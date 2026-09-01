@@ -58,3 +58,10 @@
 - 连接用途 B（持久 SSH）：同步 full-support preview 作业提交 `ff5af46`，校验上传输入哈希与既有 ANN JSON，查询 Slurm 后提交 `build_full_support_preview.sbatch` 并监控。
 - 权限判断：scp 输入、`git pull`、哈希/Slurm 查询和 `sbatch` 属于许可操作；2.3M-edge graph、Sinkhorn 与 audit 只在 64G/8h Slurm 作业内执行，不在登录节点运行。
 - 计划顺序：先完成单文件 scp；随后新持久 SSH 会话第一条命令为 `cd vocab_align && git pull`，同步成功后才校验输入并提交作业。网络异常时执行 `bash net.sh` 后重试 pull。
+
+## 2026-09-01 22:26 +08:00
+
+- 连接用途：同步 special-support 修复提交 `0409679`，复核 canonical JSONL/ANN JSON 哈希，通过 Slurm 重跑 full-support preview 并监控 convergence/audit 结果。
+- 权限判断：登录节点只执行 `git pull`、SHA-256、`squeue/scontrol`、`sbatch` 与日志/产物只读检查；2.3M-edge graph、Sinkhorn 和 audit 仍全部在 64G/8h Slurm 作业中运行。
+- 失败背景：Job 214 已安全失败且仅留下 48-byte building checkpoint；不把该 checkpoint 当有效 artifact。新作业使用独立 Slurm job ID，builder 按既有 checkpoint 语义从记录输入重新构建，不在服务器改源码。
+- 计划顺序：持久会话第一条命令为 `cd vocab_align && git pull`；网络异常时执行 `bash net.sh` 后重试。同步/哈希成功后提交作业，保留并检查新的日志与 checkpoint。

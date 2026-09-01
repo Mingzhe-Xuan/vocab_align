@@ -18,6 +18,8 @@
 - Black 对 6 个实现/测试文件检查通过；显式 workspace pycache 的 `compileall` 通过。
 - `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/special-support-final -q`：97 passed（48.09s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
 
+Guqq 重跑审计检查：记录锁定提交 `0409679`、首条 `git pull`、Job 214 非有效 checkpoint、Slurm-only 计算边界和新 job 日志/产物验收范围；`git diff --check` 在提交前执行。
+
 ## 2026-09-01：全词表支撑预览 Slurm 作业单元
 
 计划范围：
