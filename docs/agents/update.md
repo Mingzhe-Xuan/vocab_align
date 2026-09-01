@@ -63,5 +63,6 @@
 - memory telemetry 提交 `0cf07e6` 已推送；Guqq pull 在普通 60 秒与 `net.sh` 后 90 秒重试中均无输出，未提交新作业。本地继续计划缺口审查。
 - 开始 OpenHermes 500k deterministic materialization 单元：补齐计划要求的固定样本规模、pinned source-prefix selection、raw-hash manifest 与 Slurm 正式数据入口；复核 adapter 后将 seed 限定为 99/1 split，避免改变 C2C 语料集合。
 - 完成 OpenHermes 500k pinned-prefix materialization：单次流式原子保存、canonical duplicate-safe raw-hash manifest、selection/filter provenance、离线/HF CLI 与 Slurm 入口；定向 20/20、完整 117/117，Bash/Black/diff 检查通过。
+- OpenHermes 物化验收提交 `a4bd39b` 已推送并同步 Guqq；既有 preview/ANN 输入哈希及 NumPy/SciPy 环境通过复核，64G memory-bounded telemetry 重跑已提交为 Job 229 并进入 RUNNING。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

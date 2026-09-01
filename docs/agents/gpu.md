@@ -101,3 +101,10 @@
 - 连接用途：按用户确认 Git pull 已恢复，同步至 OpenHermes 物化验收提交 `a4bd39b`（同时包含尚未同步的 memory-bounded telemetry），复核既有 preview/ANN 输入，并通过 Slurm 重跑 64G full-support preview。
 - 权限判断：登录节点只执行首条 `git pull`、版本/输入/环境轻量检查、`sinfo/squeue/sacct`、`sbatch` 与结果只读验收；2.3M+ graph、Sinkhorn、artifact 构建和 audit 全部在 compute allocation 内运行。
 - 计划顺序：新 SSH 会话第一条远端命令严格为 `cd vocab_align && git pull`；若出现网络连接问题，才执行 `bash net.sh` 后重试。同步成功后确认提交、输入哈希和无同名运行作业，再提交新的 preview job；不复用失败作业的 building checkpoint，不在服务器修改源码。
+- 实际结果：pull 成功 fast-forward 到 `4e947f9`；canonical preview/ANN SHA-256 分别为 `05ca0628…207a3a`、`260f9804…e91652`，NumPy/SciPy 为 2.2.6/1.15.3，无同名运行作业。已提交 Job 229；首次查询为 `RUNNING`（node221），Slurm accounting storage disabled，需从作业 stderr 的 GNU time 获取 MaxRSS。
+
+## 2026-09-02 02:12 +08:00
+
+- 连接用途：建立持久 SSH 会话监控 Job 229，等待终态后读取 stdout/stderr、GNU time MaxRSS、checkpoint、artifact 与 audit；避免为每次轮询重复建立连接。
+- 权限判断：登录节点仅执行首条 `git pull`、`squeue` 轮询和终态结果只读检查，不直接运行计算或修改服务器源码/产物。
+- 计划顺序：持久会话第一条命令为 `cd vocab_align && git pull`；随后进入 `C2C`，每次间隔约一分钟查询 Job 229。完成后验证 artifact/audit；失败则保留原始日志与 building checkpoint 证据。
