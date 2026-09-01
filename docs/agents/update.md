@@ -15,3 +15,5 @@
 - 服务器第二次审计 revision 已正确，但 completion audit 发现通用 artifact provenance 字段缺失；继续本地补齐 schema/input fingerprint/build config/seed/code version。
 - provenance 修复已推送，但服务器 HTTPS pull 连续三次失败；已记录网络经验并切换到 SSH transport，未直接修改服务器源码。
 - GitHub SSH transport 也因服务器无 public-key 权限失败；退出服务器并保留 audit pending，转入可离线推进的阶段 1。
+- 开始阶段 1 候选图与边际实现单元，接口固定 required active support 与候选来源证据。
+- 完成 special/exact/span/ANN 候选优先级、双侧正质量支撑验证和 canonical 内容边际估计；完整本地测试 33/33 通过。

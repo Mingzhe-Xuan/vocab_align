@@ -33,6 +33,25 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 
 网络经验与计划调整文档检查：`git diff --check` 通过。
 
+## 2026-09-01：候选图与边际实现单元
+
+计划范围：
+
+- special 功能映射优先于 exact/span/ANN，无法安全映射的 required special 显式失败。
+- duplicate exact bytes 产生按 target ID 排序的确定候选，不任意挑选。
+- ASCII、中文、emoji 与组合字符的 byte-span overlap 计数正确。
+- ordinary source 按 exact→span→ANN 逐级 fallback；无安全 fallback 时失败。
+- required source/target 正质量支撑缺边时显式失败。
+- marginal 只调用 `add_special_tokens=False` 的 canonical 内容 tokenizer；平滑后 active 概率严格为正、归一化为 1，零质量 token 留在有效支撑外。
+- 完整离线测试保留既有 27 个用例。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_candidate_graph.py test/transport/test_marginals.py -q`：6 passed（1.04s）。
+- `python -m pytest -o addopts= -q`：33 passed（26.84s）。
+- `python -m compileall -q rosetta/transport`：通过。
+- `git diff --check`：通过。
+
 ## 2026-09-01：真实 tokenizer 审计（服务器集成）
 
 计划范围：

@@ -14,6 +14,14 @@ from .baseline import (
     freeze_baseline,
     save_baseline,
 )
+from .candidate_graph import (
+    CandidateEdge,
+    CandidateGraph,
+    CandidateGraphError,
+    EdgeSource,
+    accumulate_byte_span_counts,
+    build_candidate_graph,
+)
 from .config import ConfigError, DataSpec, ModelSpec, TransportConfig
 from .manifest import (
     ManifestError,
@@ -21,6 +29,7 @@ from .manifest import (
     save_manifest,
     serialize_manifest,
 )
+from .marginals import MarginalError, TokenMarginal, estimate_token_marginal
 from .sinkhorn import (
     ConvergenceReport,
     SinkhornError,
@@ -49,24 +58,33 @@ __all__ = [
     "ArtifactError",
     "BaselineError",
     "BaselineSnapshot",
+    "CandidateEdge",
+    "CandidateGraph",
+    "CandidateGraphError",
     "ConvergenceReport",
     "ConfigError",
     "DataSpec",
+    "EdgeSource",
     "LocalTransportArtifact",
     "ManifestError",
+    "MarginalError",
     "ModelSpec",
     "SinkhornError",
     "TransportArtifact",
     "TransportConfig",
     "TokenMetadata",
+    "TokenMarginal",
+    "accumulate_byte_span_counts",
     "artifact_from_dense",
     "build_small_transport",
     "build_transport_manifest",
+    "build_candidate_graph",
     "conditional_from_coupling",
     "collect_runtime_info",
     "dense_sinkhorn",
     "encode_with_byte_spans",
     "exact_byte_matches",
+    "estimate_token_marginal",
     "freeze_baseline",
     "iter_token_metadata",
     "load_transport",

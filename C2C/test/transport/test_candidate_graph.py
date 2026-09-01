@@ -1,0 +1,79 @@
+import pytest
+
+from rosetta.transport.candidate_graph import (
+    CandidateGraphError,
+    EdgeSource,
+    accumulate_byte_span_counts,
+    build_candidate_graph,
+)
+
+
+def test_special_and_duplicate_exact_precedence(TinyTokenizer):
+    source = TinyTokenizer(
+        {"<eos-a>": 0, "x": 1},
+        {"x": [(1, 0, 1)]},
+        specials=("<eos-a>",),
+        eos_token_id=0,
+    )
+    target = TinyTokenizer(
+        {"<eos-b>": 0, "x": 1, "x-duplicate": 2},
+        {"x": [(1, 0, 1)]},
+        specials=("<eos-b>",),
+        eos_token_id=0,
+    )
+    # Give ID 2 the same bytes without relying on its visible spelling.
+    target._by_id[2] = "x"
+    graph = build_candidate_graph(source, target, ["x"], required_source_ids=[0, 1])
+    by_source = {source_id: [] for source_id in (0, 1)}
+    for edge in graph.edges:
+        by_source[edge.source_id].append(edge)
+    assert [(edge.target_id, edge.source) for edge in by_source[0]] == [(0, EdgeSource.SPECIAL)]
+    assert [(edge.target_id, edge.source) for edge in by_source[1]] == [
+        (1, EdgeSource.EXACT_BYTE),
+        (2, EdgeSource.EXACT_BYTE),
+    ]
+
+
+def test_span_overlap_counts_multibyte_content(TinyTokenizer):
+    text = "a中🙂é"
+    source = TinyTokenizer(
+        {"a中": 0, "🙂é": 1},
+        {text: [(0, 0, 2), (1, 2, 5)]},
+    )
+    target = TinyTokenizer(
+        {"a": 0, "中🙂": 1, "é": 2},
+        {text: [(0, 0, 1), (1, 1, 3), (2, 3, 5)]},
+    )
+    counts = accumulate_byte_span_counts(source, target, [text])
+    assert counts[0] == {0: 1, 1: 3}
+    assert counts[1] == {1: 4, 2: 3}
+
+
+def test_ann_fallback_and_required_target_support(TinyTokenizer):
+    source = TinyTokenizer({"missing": 0}, {"q": [(0, 0, 1)]})
+    target = TinyTokenizer({"target": 0, "other": 1}, {"q": [(1, 0, 1)]})
+    graph = build_candidate_graph(
+        source,
+        target,
+        [],
+        required_source_ids=[0],
+        required_target_ids=[0],
+        ann_fallback=lambda source_id, raw: [(0, 0.7)],
+    )
+    assert graph.edges[0].source == EdgeSource.ANN
+    with pytest.raises(CandidateGraphError, match="target tokens"):
+        build_candidate_graph(
+            source,
+            target,
+            [],
+            required_source_ids=[0],
+            required_target_ids=[1],
+            ann_fallback=lambda source_id, raw: [(0, 0.7)],
+        )
+
+
+def test_missing_safe_fallback_fails(TinyTokenizer):
+    source = TinyTokenizer({"missing": 0}, {"q": [(0, 0, 1)]})
+    target = TinyTokenizer({"target": 0}, {"q": [(0, 0, 1)]})
+    with pytest.raises(CandidateGraphError, match="no exact/span edge"):
+        build_candidate_graph(source, target, [], required_source_ids=[0])

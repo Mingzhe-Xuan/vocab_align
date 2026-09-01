@@ -18,6 +18,10 @@ does not modify the existing C2C projector or wrapper.
   fingerprints, and special/control classification shared by builders/audits.
 - `baseline.py`: deterministic baseline snapshots that keep canonical messages
   separate from each model's rendered prompt and mark unavailable resources.
+- `candidate_graph.py`: prioritized special/exact/span/ANN sparse support with
+  raw evidence and explicit positive-mass row/column checks.
+- `marginals.py`: canonical-content frequency marginals, smoothing, and active
+  support filtering under shared special-token rules.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.
