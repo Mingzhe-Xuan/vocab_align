@@ -88,3 +88,9 @@
 - 权限判断：登录节点只执行首条 `git pull`、哈希/环境检查、Slurm 提交/监控和结果只读校验；候选构建、标准 scaling、L-BFGS 对偶加速及 artifact/audit 均只在 64G/8h compute allocation 内执行。
 - 计划顺序：新会话第一条远端命令为 `cd vocab_align && git pull`；异常时运行 `bash net.sh` 后重试。同步/哈希确认后提交新 job，不复用 Job 220 的 `building` checkpoint，不在服务器修改源码或放宽 `1e-9`。
 - 实际结果：首条 pull 成功同步到 `bade800`；发现 venv 缺少 SciPy，按 `environment.yml` 安装缓存 wheel `scipy==1.15.3` 并验证 NumPy 2.2.6/SciPy 1.15.3，输入哈希一致后提交 Job 226。作业运行 24:54 后被 SIGKILL，ExitCode `137:0`；stderr 仅记录 shell `Killed`，无 Python traceback，checkpoint 仍为 `building`。节点当时 swap 2G 已满但作业缺少 MaxRSS 遥测；已退出并转回本地限制 optimizer history、增加 GNU time 记录。
+
+## 2026-09-02 01:46 +08:00
+
+- 连接用途：同步 memory-bounded dual telemetry 验收提交 `0cf07e6`，在相同 64G/8h allocation 与相同输入上重跑 full-support preview，读取 GNU time 的 MaxRSS/elapsed/exit status 并验收 residual/artifact/audit。
+- 权限判断：登录节点只执行首条 `git pull`、版本/哈希检查、Slurm 提交/监控及结果只读检查；候选构建、`maxcor=3` 对偶加速和 OT 审计全部在 compute allocation 内执行。
+- 计划顺序：新会话第一条命令为 `cd vocab_align && git pull`；同步/哈希确认后提交新 job。若仍 SIGKILL，必须依据 GNU time MaxRSS 决定代码或资源调整；不复用 building checkpoint、不修改服务器源码、不放宽容差。
