@@ -4,6 +4,8 @@
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。
 
+重连调整检查：记录 PowerShell 提前展开 Bash substitution 的失败边界，下一连接改为持久会话逐条字面命令；检查无新 job 的结论、首条 pull 和权限范围，相关文档 `git diff --check` 通过。
+
 ## 2026-09-02：sparse OT convergence follow-up 单元
 
 计划范围：

@@ -110,8 +110,15 @@
 - 计划顺序：持久会话第一条命令为 `cd vocab_align && git pull`；随后进入 `C2C`，每次间隔约一分钟查询 Job 229。完成后验证 artifact/audit；失败则保留原始日志与 building checkpoint 证据。
 - 实际结果：Job 229 在 node221 运行 `00:38:24` 后 `FAILED`、ExitCode `1:0`；不是 SIGKILL。GNU time 记录 MaxRSS `1,846,656 KiB`、swaps `0`，证明 `maxcor=3` 已将内存远降至 64G 配额内。失败为总预算 10,000（standard 8,999 + acceleration evaluations 1,001）后 row residual `4.071621136e-4`、column residual `4.996e-14`，未达到 `1e-9`。checkpoint 保持 `building/restart-from-recorded-inputs`，artifact/audit 均不存在；已退出持久会话，下一步本地诊断收敛算法，不放宽容差。
 
-## 2026-09-02 03:05 +08:00
+## 2026-09-02 03:01 +08:00
 
 - 连接用途：同步 marginal-scaled dual 验收提交 `f5ba846`，复核相同 preview/ANN 输入与无同名运行作业，通过 Slurm 在相同 64G/8h、`1e-9` 配置下重跑 full-support preview。
 - 权限判断：远端连接中先 `git pull`，随后仅做哈希/队列轻量检查和 `sbatch`；候选加载、scaled L-BFGS、标准缩放、artifact/audit 全部在 compute allocation 内运行，不修改服务器源码。
 - 计划顺序：连接后的第一项操作为 `cd vocab_align && git pull`；同步到 `f5ba846` 且输入哈希一致后提交新 job。失败的 building checkpoint 仅用于 restart provenance，不作为 resume artifact；不改变 epsilon、tolerance、max-iter 或资源以保证与 Job 229 可比。
+- 实际结果：本地 PowerShell 在启动 SSH 时提前展开了 Bash `$(squeue ...)`，本地报 `squeue` 不存在，远端连接随即关闭；未完成提交/哈希检查，未提交 Slurm 作业。下一次不再把跨 shell substitutions 放入 `ssh` 命令字符串。
+
+## 2026-09-02 03:02 +08:00
+
+- 连接用途：使用持久 SSH 会话逐条同步并提交 scaled-dual preview，消除 PowerShell/Bash substitution 歧义；后续在同一会话监控新 job。
+- 权限判断：第一条纯命令为 `cd vocab_align && git pull`；随后仅执行字面提交/哈希比较、`squeue`、`sbatch` 和状态/结果只读检查，计算仍只在 Slurm。
+- 计划顺序：不使用本地可展开的 `$()`/反引号；pull 成功后逐条 `git rev-parse`、`sha256sum`、`squeue`，确认无误才 `sbatch`。
