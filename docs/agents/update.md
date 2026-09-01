@@ -17,3 +17,5 @@
 - GitHub SSH transport 也因服务器无 public-key 权限失败；退出服务器并保留 audit pending，转入可离线推进的阶段 1。
 - 开始阶段 1 候选图与边际实现单元，接口固定 required active support 与候选来源证据。
 - 完成 special/exact/span/ANN 候选优先级、双侧正质量支撑验证和 canonical 内容边际估计；完整本地测试 33/33 通过。
+- 开始 sparse/log-domain Sinkhorn 与候选证据代价实现，使用小图对照 dense oracle。
+- 完成直接在候选边上运行的 sparse/log-domain Sinkhorn、连通分量可行性检查和稀疏条件矩阵转换；完整测试 38/38 通过。

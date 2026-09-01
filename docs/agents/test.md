@@ -18,6 +18,23 @@
 - 对测试目录执行 `compileall` 时因沙箱拒绝创建其 `__pycache__` 而失败；测试文件已由 pytest 成功导入执行，因此不作为源码编译失败。
 - `git diff --check`：通过。
 
+## 2026-09-01：sparse/log-domain Sinkhorn 实现单元
+
+计划范围：
+
+- 候选证据转为 `[V_B,V_A]` 稀疏边代价，图外 kernel 质量严格为零。
+- 2×3、3×2 稀疏结果与 dense oracle 在容忍度内一致并满足两侧边际。
+- 极小 epsilon 与极端正边际不产生 NaN/Inf。
+- 重复边、缺 row/column 支撑、不可行图或 max_iter 未收敛均显式失败。
+- 稀疏 convergence report 与 dense 口径一致，包含迭代数和 row/column residual。
+
+实际结果：
+
+- `python -m pytest -o addopts= test/transport/test_sparse_sinkhorn.py -q`：5 passed（0.67s）。
+- `python -m pytest -o addopts= -q`：38 passed（29.67s）。
+- `python -m compileall -q rosetta/transport`：通过。
+- `git diff --check`：通过。
+
 第二次服务器运行：revision 字段已正确回填，但 completion audit 发现 JSON 缺少所有 artifact 通用的 schema/input fingerprint/build config/seed/code version，故仍不标记阶段 0 审计完成。已补 provenance 字段与输入敏感性测试，待最终重跑。
 
 provenance 修复本地结果：

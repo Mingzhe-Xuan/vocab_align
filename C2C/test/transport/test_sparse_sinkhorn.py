@@ -1,0 +1,108 @@
+import numpy as np
+import pytest
+
+from rosetta.transport.candidate_graph import CandidateEdge, CandidateGraph, EdgeSource
+from rosetta.transport.sinkhorn import (
+    SinkhornError,
+    candidate_edge_costs,
+    dense_sinkhorn,
+    sparse_conditional_from_coupling,
+    sparse_log_sinkhorn,
+)
+
+
+def _complete_graph(target_size, source_size):
+    return CandidateGraph(
+        source_size,
+        target_size,
+        tuple(
+            CandidateEdge(column, row, EdgeSource.BYTE_SPAN, row + column + 1.0)
+            for column in range(source_size)
+            for row in range(target_size)
+        ),
+    )
+
+
+@pytest.mark.parametrize("shape", [(2, 3), (3, 2)])
+def test_sparse_matches_dense_oracle_on_non_square_graph(shape):
+    graph = _complete_graph(*shape)
+    source = np.full(shape[1], 1 / shape[1])
+    target = np.full(shape[0], 1 / shape[0])
+    costs = candidate_edge_costs(graph.edges)
+    dense_cost = np.full(shape, np.inf)
+    for edge, cost in zip(graph.edges, costs):
+        dense_cost[edge.target_id, edge.source_id] = cost
+    dense, _ = dense_sinkhorn(
+        dense_cost, source, target, epsilon=0.7, tolerance=1e-10
+    )
+    sparse, report = sparse_log_sinkhorn(
+        graph, source, target, epsilon=0.7, tolerance=1e-10
+    )
+    np.testing.assert_allclose(sparse.to_dense(), dense, atol=1e-10)
+    assert report.converged
+    transport = sparse_conditional_from_coupling(sparse, source).to_dense()
+    np.testing.assert_allclose(transport.sum(axis=0), 1.0, atol=1e-10)
+    np.testing.assert_allclose(transport @ source, target, atol=1e-10)
+
+
+def test_sparse_small_epsilon_is_finite_and_graph_outside_is_zero():
+    graph = CandidateGraph(
+        2,
+        2,
+        (
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(1, 1, EdgeSource.EXACT_BYTE, 1.0),
+        ),
+    )
+    sparse, _ = sparse_log_sinkhorn(
+        graph,
+        np.array([1e-9, 1 - 1e-9]),
+        np.array([1e-9, 1 - 1e-9]),
+        epsilon=1e-9,
+    )
+    dense = sparse.to_dense()
+    assert np.all(np.isfinite(dense))
+    assert dense[0, 1] == dense[1, 0] == 0
+
+
+def test_sparse_rejects_infeasible_component_and_duplicate_edges():
+    disconnected = CandidateGraph(
+        2,
+        2,
+        (
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(1, 1, EdgeSource.EXACT_BYTE, 1.0),
+        ),
+    )
+    with pytest.raises(SinkhornError, match="infeasible component"):
+        sparse_log_sinkhorn(
+            disconnected,
+            np.array([0.8, 0.2]),
+            np.array([0.5, 0.5]),
+            epsilon=1.0,
+        )
+    duplicate = CandidateGraph(
+        1,
+        1,
+        (
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 2.0),
+        ),
+    )
+    with pytest.raises(SinkhornError, match="duplicate"):
+        sparse_log_sinkhorn(
+            duplicate, np.array([1.0]), np.array([1.0]), epsilon=1.0
+        )
+
+
+def test_sparse_max_iter_failure_is_explicit():
+    graph = _complete_graph(2, 2)
+    with pytest.raises(SinkhornError, match="did not converge"):
+        sparse_log_sinkhorn(
+            graph,
+            np.array([0.9, 0.1]),
+            np.array([0.2, 0.8]),
+            epsilon=0.01,
+            tolerance=1e-15,
+            max_iter=1,
+        )

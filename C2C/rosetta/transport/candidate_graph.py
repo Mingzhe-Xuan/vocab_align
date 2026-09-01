@@ -173,8 +173,8 @@ def build_candidate_graph(
             score = float(score)
             if target_id not in target_vocab or target_id in target_special:
                 raise CandidateGraphError("ANN fallback returned an unsafe target token")
-            if not isfinite(score):
-                raise CandidateGraphError("ANN fallback evidence must be finite")
+            if not isfinite(score) or score <= 0:
+                raise CandidateGraphError("ANN fallback evidence must be finite and positive")
             ann_edges.append(CandidateEdge(source_id, target_id, EdgeSource.ANN, score))
         if not ann_edges:
             raise CandidateGraphError(f"ANN fallback returned no edge for source {source_id}")

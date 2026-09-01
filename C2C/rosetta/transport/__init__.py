@@ -32,9 +32,13 @@ from .manifest import (
 from .marginals import MarginalError, TokenMarginal, estimate_token_marginal
 from .sinkhorn import (
     ConvergenceReport,
+    SparseCoupling,
     SinkhornError,
+    candidate_edge_costs,
     conditional_from_coupling,
     dense_sinkhorn,
+    sparse_conditional_from_coupling,
+    sparse_log_sinkhorn,
 )
 from .token_metadata import (
     TokenMetadata,
@@ -70,6 +74,7 @@ __all__ = [
     "MarginalError",
     "ModelSpec",
     "SinkhornError",
+    "SparseCoupling",
     "TransportArtifact",
     "TransportConfig",
     "TokenMetadata",
@@ -78,6 +83,7 @@ __all__ = [
     "artifact_from_dense",
     "build_small_transport",
     "build_transport_manifest",
+    "candidate_edge_costs",
     "build_candidate_graph",
     "conditional_from_coupling",
     "collect_runtime_info",
@@ -99,4 +105,6 @@ __all__ = [
     "special_id_to_token",
     "token_raw_bytes",
     "tokenizer_fingerprint",
+    "sparse_conditional_from_coupling",
+    "sparse_log_sinkhorn",
 ]

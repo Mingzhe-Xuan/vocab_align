@@ -2,12 +2,12 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 1 候选图与边际已通过测试；下一步实现候选代价和 sparse/log-domain Sinkhorn。真实 tokenizer audit 因服务器同步故障保持 pending。
+正在实施 Training-free Soft-Token Transport。阶段 1 的候选图、边际、dense/sparse Sinkhorn 与 artifact 基础已通过测试；下一步实现 facade 构建与独立 audit CLI，产出 toy oracle artifact。
 
 ## 当前计划
 
-1. 实现候选代价与 sparse/log-domain Sinkhorn，并对照 dense oracle。
-2. 产出 toy oracle audit 后进入精确 STT 推理原型。
+1. 实现 vocab transport facade 与 audit 模块/CLI，产出 toy oracle artifact。
+2. 完成阶段 1 resume/checkpoint 构建脚本后进入精确 STT 推理原型。
 3. 服务器网络恢复后 pull 并最终重跑真实 tokenizer 审计。
 
 ## 变更记录
@@ -28,3 +28,5 @@
 - 2026-09-01 18:30 +08:00：SSH transport 亦无权限，退出服务器；该外部验收保持 pending，计划调整为先推进阶段 1 本地模块。
 - 2026-09-01 18:38 +08:00：进入候选图/边际实现；先固定 special/exact/span/ANN 优先级与正质量支撑失败语义。
 - 2026-09-01 18:55 +08:00：候选图与边际完成，完整测试 33/33；下一步 sparse/log-domain Sinkhorn 与 dense oracle 对照。
+- 2026-09-01 19:02 +08:00：进入 sparse Sinkhorn 实现；保持 `[target, source]` 方向与相同收敛报告协议。
+- 2026-09-01 19:16 +08:00：sparse Sinkhorn 完成并与 dense oracle 对齐，完整测试 38/38；下一步 facade/audit/toy artifact。
