@@ -86,6 +86,14 @@ provenance 修复本地结果：
 
 SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git main` 因服务器无 GitHub public-key 权限失败。已退出会话；不以 scp 覆盖源码，真实审计保持 pending。
 
+最终服务器集成结果：
+
+- Guqq 已通过 HTTPS `git pull` 从 `4ecd48b` fast-forward 到 `36e6224`，未触发 `bash net.sh`。
+- 使用 `/home/xmz/vocab_align/C2C/.venv`（Python venv）及两个锁定 revision 完成真实 tokenizer 审计；未安装/加载 PyTorch 或模型权重。
+- 产物 provenance 验收通过：`schema_version=1`，input fingerprint、build config、seed、code version、source/target revision 与 tokenizer fingerprint 均存在且 revision 等于 recipe 锁定 SHA。
+- 指标：共享唯一 byte strings 67,858；source/target exact-byte 词表覆盖率分别为 0.4474498038/0.5177273039；样本 occurrence 覆盖率 0.8641975309；target/source 平均长度比 1.2177489177。
+- 本地接收的忽略目录产物 `C2C/local/transport/audits/qwen3_8b_to_mistral_nemo_instruct_2407.json` SHA-256 为 `31E69CCC0EEBE322FD1D2A278683DADD0493E821C9846E9C64482CC4CAE5BAC5`。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
 
 ## 2026-09-01：候选图与边际实现单元

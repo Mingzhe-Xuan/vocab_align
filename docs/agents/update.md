@@ -24,3 +24,5 @@
 - 开始阶段 2 exact soft transport/top-m/metrics，实现前先修正全词表平滑与 active support 语义。
 - 完成阶段 2 精确稀疏 `Tp`、embedding expectation、source top-m 质量报告和分段 metrics；补充无 PyTorch tokenizer-only 导入回归，完整本地测试 51/51 通过。
 - 接受最新开发规范：服务器网络异常时先运行 `bash net.sh` 再重试 HTTPS `git pull`；`AGENTS.md` 纳入本次提交。
+- Guqq HTTPS pull 已恢复并同步到 `36e6224`；真实 Qwen3-8B → Mistral-Nemo-Instruct-2407 tokenizer 审计完成，provenance 与产物哈希验收通过，JSON 已复制到本地忽略目录。
+- 下一实现单元将参考 `docs/assets/alignment.py` 中 row-vector 约定、完整 logits（含 bias）温度缩放、分块计算与非有限值检查，接入 vocab transport，而不复制其等词表假设。
