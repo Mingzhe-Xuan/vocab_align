@@ -60,5 +60,6 @@
 - 完成 sparse dual acceleration：标准 log-domain warm-up、gauge-fixed L-BFGS 对偶加速和严格 residual 复验共享同一 kernel/OT 目标；病态图与完整回归 110/110 通过。
 - Guqq venv 补装锁定 SciPy 1.15.3 后提交 Job 226；作业 24:54 被 SIGKILL（137），无 traceback/有效产物。开始限制 L-BFGS history 并为 Slurm 增加 MaxRSS 遥测。
 - 完成 memory-bounded dual telemetry：默认 L-BFGS `maxcor=3`、evaluation budget 1,000，Slurm 以可选 GNU time 记录 MaxRSS 并保留失败码；完整回归 112/112 通过。
+- memory telemetry 提交 `0cf07e6` 已推送；Guqq pull 在普通 60 秒与 `net.sh` 后 90 秒重试中均无输出，未提交新作业。本地继续计划缺口审查。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

@@ -94,3 +94,4 @@
 - 连接用途：同步 memory-bounded dual telemetry 验收提交 `0cf07e6`，在相同 64G/8h allocation 与相同输入上重跑 full-support preview，读取 GNU time 的 MaxRSS/elapsed/exit status 并验收 residual/artifact/audit。
 - 权限判断：登录节点只执行首条 `git pull`、版本/哈希检查、Slurm 提交/监控及结果只读检查；候选构建、`maxcor=3` 对偶加速和 OT 审计全部在 compute allocation 内执行。
 - 计划顺序：新会话第一条命令为 `cd vocab_align && git pull`；同步/哈希确认后提交新 job。若仍 SIGKILL，必须依据 GNU time MaxRSS 决定代码或资源调整；不复用 building checkpoint、不修改服务器源码、不放宽容差。
+- 实际结果：首条 pull 60 秒无输出；中断后 `bash net.sh` 成功，但第二次 pull 等待 90 秒仍无输出。已中断并退出，未执行哈希检查或提交作业；服务器尚未同步 `0cf07e6/1830353`，MaxRSS 重跑保持 pending。

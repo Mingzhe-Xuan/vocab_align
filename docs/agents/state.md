@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。memory-bounded dual telemetry 已完成本地验收：L-BFGS history 限为 3、evaluation 默认 1,000，Slurm 将记录 GNU time MaxRSS。等待提交并在相同 64G allocation 获取证据。
+正在实施 Training-free Soft-Token Transport。memory-bounded dual telemetry 已提交，但 Guqq pull 在 `net.sh` 后仍超时，服务器尚未同步，64G MaxRSS 重跑 pending。本地继续按计划审查下一项可独立推进工作。
 
 ## 当前计划
 
-1. 形成并推送 memory-bounded telemetry 验收提交，保留 Job 226 失败与环境记录。
-2. 登记 Guqq 连接，在相同 64G allocation 重跑并读取 GNU time MaxRSS/elapsed/exit status。
-3. 根据终态与 MaxRSS 决定是否继续算法内存优化或合理提高资源；严格 residual 与 OT 目标不变。
+1. 记录本轮 pull 超时并推送；保留 telemetry 重跑 pending，不重复占用不稳定会话。
+2. 对照两份计划审查阶段 1 后续缺口，选择不依赖远端的最小完整实现单元并先写测试计划。
+3. 下一次实质提交后重新登记 Guqq，首条 pull 同步 telemetry/新代码，再执行 64G MaxRSS 重跑。
 
 ## 变更记录
 
@@ -67,5 +67,6 @@
 - 2026-09-02 01:07 +08:00：sparse dual acceleration 完成本地验收；有限差分梯度、病态图严格收敛与完整回归 110/110 通过。下一步形成验收提交并经 Slurm 验证真实图。
 - 2026-09-02 01:35 +08:00：Job 226 安装 SciPy 1.15.3 后运行 24:54，以 SIGKILL/137 结束且无 Python traceback；无有效 artifact/audit。进入 memory-bounded history + GNU time telemetry 单元，先测量再调整资源。
 - 2026-09-02 01:44 +08:00：memory-bounded dual telemetry 完成本地验收；显式 `maxcor=3`/1,000 evaluations、GNU time wrapper、Bash/stub 与完整回归 112/112 通过。下一步同 64G 重跑获取 MaxRSS。
+- 2026-09-02 01:49 +08:00：Guqq 首条 pull 60 秒无输出，`net.sh` 后重试 90 秒仍超时；未提交作业，telemetry 重跑 pending。转入本地计划缺口审查，等待下一实质提交后再同步。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
