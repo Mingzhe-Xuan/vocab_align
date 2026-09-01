@@ -109,3 +109,9 @@
 - 权限判断：登录节点仅执行首条 `git pull`、`squeue` 轮询和终态结果只读检查，不直接运行计算或修改服务器源码/产物。
 - 计划顺序：持久会话第一条命令为 `cd vocab_align && git pull`；随后进入 `C2C`，每次间隔约一分钟查询 Job 229。完成后验证 artifact/audit；失败则保留原始日志与 building checkpoint 证据。
 - 实际结果：Job 229 在 node221 运行 `00:38:24` 后 `FAILED`、ExitCode `1:0`；不是 SIGKILL。GNU time 记录 MaxRSS `1,846,656 KiB`、swaps `0`，证明 `maxcor=3` 已将内存远降至 64G 配额内。失败为总预算 10,000（standard 8,999 + acceleration evaluations 1,001）后 row residual `4.071621136e-4`、column residual `4.996e-14`，未达到 `1e-9`。checkpoint 保持 `building/restart-from-recorded-inputs`，artifact/audit 均不存在；已退出持久会话，下一步本地诊断收敛算法，不放宽容差。
+
+## 2026-09-02 03:05 +08:00
+
+- 连接用途：同步 marginal-scaled dual 验收提交 `f5ba846`，复核相同 preview/ANN 输入与无同名运行作业，通过 Slurm 在相同 64G/8h、`1e-9` 配置下重跑 full-support preview。
+- 权限判断：远端连接中先 `git pull`，随后仅做哈希/队列轻量检查和 `sbatch`；候选加载、scaled L-BFGS、标准缩放、artifact/audit 全部在 compute allocation 内运行，不修改服务器源码。
+- 计划顺序：连接后的第一项操作为 `cd vocab_align && git pull`；同步到 `f5ba846` 且输入哈希一致后提交新 job。失败的 building checkpoint 仅用于 restart provenance，不作为 resume artifact；不改变 epsilon、tolerance、max-iter 或资源以保证与 Job 229 可比。
