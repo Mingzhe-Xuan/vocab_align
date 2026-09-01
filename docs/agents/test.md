@@ -18,6 +18,15 @@
 - 对测试目录执行 `compileall` 时因沙箱拒绝创建其 `__pycache__` 而失败；测试文件已由 pytest 成功导入执行，因此不作为源码编译失败。
 - `git diff --check`：通过。
 
+第二次服务器运行：revision 字段已正确回填，但 completion audit 发现 JSON 缺少所有 artifact 通用的 schema/input fingerprint/build config/seed/code version，故仍不标记阶段 0 审计完成。已补 provenance 字段与输入敏感性测试，待最终重跑。
+
+provenance 修复本地结果：
+
+- `python -m pytest -o addopts= test/transport/test_tokenizer_audit.py -q`：3 passed（23.51s）。
+- `python -m pytest -o addopts= -q`：27 passed（26.64s）。
+- `python -m compileall -q script/transport`：通过。
+- `git diff --check`：通过。
+
 ## 2026-09-01：真实 tokenizer 审计（服务器集成）
 
 计划范围：

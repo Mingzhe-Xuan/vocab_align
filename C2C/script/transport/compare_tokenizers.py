@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,29 @@ def reported_revision(tokenizer: Any, requested_revision: str | None) -> str | N
     return tokenizer.init_kwargs.get("_commit_hash") or requested_revision
 
 
+def code_version() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False
+    )
+    return result.stdout.strip() if result.returncode == 0 else "unavailable"
+
+
+def audit_input_fingerprint(
+    source_fingerprint: str, target_fingerprint: str, texts: list[str]
+) -> str:
+    payload = json.dumps(
+        {
+            "source_fingerprint": source_fingerprint,
+            "target_fingerprint": target_fingerprint,
+            "texts": texts,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('--source-revision')
@@ -71,6 +95,8 @@ def main() -> None:
     parser.add_argument("--source", default="Qwen/Qwen3-8B")
     parser.add_argument("--target", default="mistralai/Mistral-Nemo-Instruct-2407")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--code-version")
     args = parser.parse_args()
 
     source_kwargs = {'use_fast': True}
@@ -125,7 +151,22 @@ def main() -> None:
     source_special = {token: token_id for token_id, token in special_id_to_token(source).items()}
     target_special = {token: token_id for token_id, token in special_id_to_token(target).items()}
     common_control = sorted(set(source_special) & set(target_special))
+    source_fingerprint = tokenizer_fingerprint(source)
+    target_fingerprint = tokenizer_fingerprint(target)
     report = {
+        "schema_version": 1,
+        "input_fingerprint": audit_input_fingerprint(
+            source_fingerprint, target_fingerprint, DEFAULT_TEXTS
+        ),
+        "build_config": {
+            "source": args.source,
+            "source_revision": args.source_revision,
+            "target": args.target,
+            "target_revision": args.target_revision,
+            "text_set": "built-in-multilingual-audit-v1",
+        },
+        "seed": args.seed,
+        "code_version": args.code_version or code_version(),
         'requested_revisions': {
             'source': args.source_revision,
             'target': args.target_revision,
@@ -137,7 +178,7 @@ def main() -> None:
             "ordinary_vocab_size": len(source_vocab),
             "added_token_count": len(source_added),
             "ordinary_vocab_fingerprint": fingerprint(source_vocab),
-            "tokenizer_fingerprint": tokenizer_fingerprint(source),
+            "tokenizer_fingerprint": source_fingerprint,
         },
         "target": {
             "name": args.target,
@@ -146,7 +187,7 @@ def main() -> None:
             "ordinary_vocab_size": len(target_vocab),
             "added_token_count": len(target_added),
             "ordinary_vocab_fingerprint": fingerprint(target_vocab),
-            "tokenizer_fingerprint": tokenizer_fingerprint(target),
+            "tokenizer_fingerprint": target_fingerprint,
         },
         "ordinary_byte_overlap": {
             "shared_unique_byte_strings": len(shared_bytes),
