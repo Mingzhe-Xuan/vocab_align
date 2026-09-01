@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from rosetta.transport.artifact import load_transport_artifact, save_transport_artifact
-from rosetta.transport.audit import audit_transport_artifact
+from rosetta.transport.audit import audit_transport_artifact, transport_to_dense
 from rosetta.transport.vocab_transport import build_vocab_transport
 
 
@@ -94,3 +94,31 @@ def test_facade_compacts_zero_mass_tokens_and_preserves_original_ids(TinyTokeniz
     assert result.artifact.shape == (2, 1)
     np.testing.assert_array_equal(result.artifact.source_token_ids, [1])
     np.testing.assert_array_equal(result.artifact.target_token_ids, [2, 3])
+
+
+def test_target_rescue_makes_split_target_marginal_feasible(TinyTokenizer):
+    text = "ab"
+    source = TinyTokenizer({"ab": 0}, {text: [(0, 0, 2)]})
+    target = TinyTokenizer(
+        {"ab-unused": 0, "a": 1, "b": 2},
+        {text: [(1, 0, 1), (2, 1, 2)]},
+    )
+    target._by_id[0] = "ab"
+    result = build_vocab_transport(
+        source,
+        target,
+        [text],
+        epsilon=0.5,
+        tolerance=1e-9,
+        max_iter=10_000,
+        smoothing=0.0,
+        seed=42,
+        code_version="test",
+    )
+    assert result.artifact.source_token_ids.tolist() == [0]
+    assert result.artifact.target_token_ids.tolist() == [1, 2]
+    np.testing.assert_allclose(
+        transport_to_dense(result.artifact) @ result.artifact.source_marginal,
+        result.artifact.target_marginal,
+        atol=1e-9,
+    )

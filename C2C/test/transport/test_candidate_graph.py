@@ -27,7 +27,9 @@ def test_special_and_duplicate_exact_precedence(TinyTokenizer):
     by_source = {source_id: [] for source_id in (0, 1)}
     for edge in graph.edges:
         by_source[edge.source_id].append(edge)
-    assert [(edge.target_id, edge.source) for edge in by_source[0]] == [(0, EdgeSource.SPECIAL)]
+    assert [(edge.target_id, edge.source) for edge in by_source[0]] == [
+        (0, EdgeSource.SPECIAL)
+    ]
     assert [(edge.target_id, edge.source) for edge in by_source[1]] == [
         (1, EdgeSource.EXACT_BYTE),
         (2, EdgeSource.EXACT_BYTE),
@@ -61,7 +63,7 @@ def test_ann_fallback_and_required_target_support(TinyTokenizer):
         ann_fallback=lambda source_id, raw: [(0, 0.7)],
     )
     assert graph.edges[0].source == EdgeSource.ANN
-    with pytest.raises(CandidateGraphError, match="target tokens"):
+    with pytest.raises(CandidateGraphError, match="target token"):
         build_candidate_graph(
             source,
             target,
@@ -77,3 +79,38 @@ def test_missing_safe_fallback_fails(TinyTokenizer):
     target = TinyTokenizer({"target": 0}, {"q": [(0, 0, 1)]})
     with pytest.raises(CandidateGraphError, match="no exact/span edge"):
         build_candidate_graph(source, target, [], required_source_ids=[0])
+
+
+def test_required_target_rescue_adds_observed_span_edges(TinyTokenizer):
+    text = "ab"
+    source = TinyTokenizer({"ab": 0}, {text: [(0, 0, 2)]})
+    target = TinyTokenizer(
+        {"ab-unused": 0, "a": 1, "b": 2},
+        {text: [(1, 0, 1), (2, 1, 2)]},
+    )
+    target._by_id[0] = "ab"
+    graph = build_candidate_graph(
+        source,
+        target,
+        [text],
+        required_source_ids=[0],
+        required_target_ids=[1, 2],
+    )
+    assert [(edge.target_id, edge.source) for edge in graph.edges] == [
+        (0, EdgeSource.EXACT_BYTE),
+        (1, EdgeSource.BYTE_SPAN),
+        (2, EdgeSource.BYTE_SPAN),
+    ]
+
+
+def test_duplicate_ann_edge_is_rejected(TinyTokenizer):
+    source = TinyTokenizer({"missing": 0}, {"q": [(0, 0, 1)]})
+    target = TinyTokenizer({"target": 0}, {"q": [(0, 0, 1)]})
+    with pytest.raises(CandidateGraphError, match="duplicate"):
+        build_candidate_graph(
+            source,
+            target,
+            [],
+            required_source_ids=[0],
+            ann_fallback=lambda source_id, raw: [(0, 0.7), (0, 0.6)],
+        )

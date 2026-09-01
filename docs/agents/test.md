@@ -136,6 +136,26 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 - `git diff --check`：通过；仅报告工作树 LF/CRLF 转换 warning。
 - 当前仅验收 CPU tiny 离线诊断管线；真实模型 GPU smoke 尚未执行，不进入正式 latency 结果。
 
+## 2026-09-01：candidate target-support rescue 实现单元
+
+计划范围：
+
+- source 主路径继续保持 special → exact-byte → span → ANN 优先级，不改变已有边选择。
+- 若正质量 target 因 source exact 优先级而无入边，先从正质量 source 中增加反向 exact-byte 边，再使用 canonical 文本已观测的 byte-span overlap 补边。
+- rescue 只使用 required source support，拒绝 special/ordinary 混合、越界 ID、零/非有限 evidence 和重复边。
+- 无安全 exact/span/既有 ANN 证据的 target 仍显式失败，不用任意 token 静默兜底。
+- 构造 source 单 token 与 target 多 token 的真实分词形态 toy case，验证原实现会缺 target、rescue 后 Sinkhorn 可行且 artifact 两侧边际通过审计。
+- 保留所有既有 candidate graph、sparse Sinkhorn、artifact 与全量回归测试。
+
+实际结果：
+
+- 首轮定向测试 13 passed/1 failed；失败仅因既有错误消息正则要求复数 `target tokens`，新实现报告具体 `target token <id>`。更新正则后保持同一失败语义。
+- `python -m pytest -o addopts= test/transport/test_candidate_graph.py test/transport/test_vocab_transport_facade.py test/transport/test_sparse_sinkhorn.py -q`：14 passed（5.35s）。
+- `python -m pytest -o addopts= -q`：72 passed（24.94s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `python -m compileall -q rosetta/transport`：通过。
+- Black 对实现与对应测试共 3 个文件检查通过，均无需变更。
+- `git diff --check`：通过；仅报告工作树 LF/CRLF 转换 warning。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
 
 ## 2026-09-01：GPU 测试提交流程规范修订

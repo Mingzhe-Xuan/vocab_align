@@ -31,5 +31,7 @@
 - 接受最新测试规范：GPU 依赖验证仅允许在临时分支的未验收提交上经 Slurm 执行，正式分支仍只接收测试通过的验收提交。
 - 开始 STT smoke diagnostics 单元，测试计划覆盖结构化生成 metrics、tokenizer/artifact 指纹、锁定 recipe、无网络导入和原子 JSON 输出。
 - 完成结构化 STT generation output 与 `smoke_stt.py`：保留默认 tensor API，新增四段同步计时、有效 token 质量统计、fingerprint-checked artifact 加载和原子 diagnostics JSON；完整测试 69/69 通过。
+- 开始 candidate target-support rescue 单元；真实分词中 source exact 优先级可能遮蔽 span target，必须补齐所有正质量 target 入边后才能运行 Sinkhorn 预览。
+- 完成正质量 target 的反向 exact-byte/observed-span rescue 与重复 ANN 边拒绝；source 单 token/target 多 token 的 toy Sinkhorn artifact 通过两侧边际验收，完整测试 72/72。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

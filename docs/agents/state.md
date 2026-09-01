@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 2 的精确 soft transport、wrapper 与 smoke diagnostics 管线已通过 69 项完整本地测试，Guqq 真实 tokenizer provenance 审计也已验收；下一步准备真实预览 transport artifact，并按 Slurm 规则执行真实模型短序列验证。
+正在实施 Training-free Soft-Token Transport。candidate target-support rescue、阶段 2 精确 soft transport、wrapper 与 smoke diagnostics 已通过 72 项完整本地测试；下一步冻结真实预览输入与 Slurm 构建作业。
 
 ## 当前计划
 
@@ -39,5 +39,7 @@
 - 2026-09-01 20:27 +08:00：TrainingFreeTransportModel wrapper、独立 transport 配置块与 recipe 默认值完成，定向测试 25/25、完整测试 65/65；下一步形成验收提交后进入 smoke CLI 单元。
 - 2026-09-01 20:31 +08:00：进入 STT smoke diagnostics 单元；先扩展结构化生成结果与分段 metrics，再实现无网络导入的模型加载 CLI 和原子 JSON 产物。
 - 2026-09-01 20:39 +08:00：STT 结构化生成 metrics 与 smoke CLI 完成，定向测试 19/19、完整测试 69/69；真实 GPU smoke 保持未执行，下一步先准备真实预览 artifact。
+- 2026-09-01 20:43 +08:00：真实预览构建审查发现 source 优先级可能造成正质量 target 无入边；进入 candidate target-support rescue 单元，先恢复 OT 图可行性再提交 Slurm 预览作业。
+- 2026-09-01 20:47 +08:00：target-support rescue 完成，反向 exact/span 补边与重复 ANN 拒绝通过完整测试 72/72；下一步形成验收提交并准备真实预览 Slurm 输入。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

@@ -23,3 +23,7 @@ source 位置 `t` 的 logits 预测下一 token，因此等长 virtual prompt �
 ## GPU 分段计时与 padding 统计
 
 CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的阶段边界若不显式 `synchronize`，计时会被错误归入后续阶段；CPU 路径不应伪造显存峰值。transport 的 retained/dropped mass 张量覆盖 batch 的物理 shape，但 smoke 汇总只能选择 attention mask 中的有效位置，否则 padding logits 会污染近似质量统计。
+
+## 稀疏 OT 必须同时覆盖两侧 support
+
+逐 source 的 special/exact/span/ANN 优先级只能保证每个正质量 source 有出边，不能保证每个正质量 target 有入边；尤其 source 存在未被语料实际使用的 exact target token 时，会遮蔽语料中真实出现的细粒度 target span。构图完成后必须对缺失 target 做反向 exact-byte 与 observed-span rescue，再执行两侧 support 和连通分量质量检查；没有安全证据时应失败，不能任意连边伪造可行性。

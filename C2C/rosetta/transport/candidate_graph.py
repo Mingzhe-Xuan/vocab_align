@@ -106,7 +106,11 @@ def _special_target(
             if token == source_token
         ]
     else:
-        matches = [target_id for target_id, target_kind in target_kinds.items() if target_kind == kind]
+        matches = [
+            target_id
+            for target_id, target_kind in target_kinds.items()
+            if target_kind == kind
+        ]
     if len(matches) != 1:
         raise CandidateGraphError(
             f"required special source token {source_id} has no unambiguous {kind!r} target"
@@ -136,31 +140,41 @@ def build_candidate_graph(
     source_special = special_id_to_kind(source_tokenizer)
     target_special = set(special_id_to_kind(target_tokenizer))
     exact_target = ordinary_bytes_index(target_tokenizer)
+    exact_source = ordinary_bytes_index(source_tokenizer)
     spans = accumulate_byte_span_counts(source_tokenizer, target_tokenizer, texts)
     edges: List[CandidateEdge] = []
+    edge_keys: Set[Tuple[int, int]] = set()
+
+    def add_edge(edge: CandidateEdge) -> None:
+        key = (edge.source_id, edge.target_id)
+        if key in edge_keys:
+            raise CandidateGraphError("duplicate candidate edge")
+        edge_keys.add(key)
+        edges.append(edge)
 
     for source_id in required_source:
         if source_id in source_special:
             target_id = _special_target(source_id, source_tokenizer, target_tokenizer)
-            edges.append(CandidateEdge(source_id, target_id, EdgeSource.SPECIAL, 1.0))
+            add_edge(CandidateEdge(source_id, target_id, EdgeSource.SPECIAL, 1.0))
             continue
         raw_bytes = token_raw_bytes(source_tokenizer, source_id)
         exact_ids = exact_target.get(raw_bytes, [])
         if exact_ids:
-            edges.extend(
-                CandidateEdge(source_id, target_id, EdgeSource.EXACT_BYTE, 1.0)
-                for target_id in sorted(exact_ids)
-            )
+            for target_id in sorted(exact_ids):
+                add_edge(
+                    CandidateEdge(source_id, target_id, EdgeSource.EXACT_BYTE, 1.0)
+                )
             continue
         span_candidates = spans.get(source_id, Counter())
         if span_candidates:
-            edges.extend(
-                CandidateEdge(
-                    source_id, target_id, EdgeSource.BYTE_SPAN, float(evidence)
+            for target_id, evidence in sorted(span_candidates.items()):
+                if target_id in target_special:
+                    continue
+                add_edge(
+                    CandidateEdge(
+                        source_id, target_id, EdgeSource.BYTE_SPAN, float(evidence)
+                    )
                 )
-                for target_id, evidence in sorted(span_candidates.items())
-                if target_id not in target_special
-            )
             if edges and edges[-1].source_id == source_id:
                 continue
         if ann_fallback is None:
@@ -172,13 +186,82 @@ def build_candidate_graph(
             target_id = int(target_id)
             score = float(score)
             if target_id not in target_vocab or target_id in target_special:
-                raise CandidateGraphError("ANN fallback returned an unsafe target token")
+                raise CandidateGraphError(
+                    "ANN fallback returned an unsafe target token"
+                )
             if not isfinite(score) or score <= 0:
-                raise CandidateGraphError("ANN fallback evidence must be finite and positive")
+                raise CandidateGraphError(
+                    "ANN fallback evidence must be finite and positive"
+                )
             ann_edges.append(CandidateEdge(source_id, target_id, EdgeSource.ANN, score))
         if not ann_edges:
-            raise CandidateGraphError(f"ANN fallback returned no edge for source {source_id}")
-        edges.extend(sorted(ann_edges, key=lambda edge: edge.target_id))
+            raise CandidateGraphError(
+                f"ANN fallback returned no edge for source {source_id}"
+            )
+        for edge in sorted(ann_edges, key=lambda edge: edge.target_id):
+            add_edge(edge)
+
+    missing_targets = sorted(
+        set(required_target).difference(edge.target_id for edge in edges)
+    )
+    source_required = set(required_source)
+    target_kinds = special_id_to_kind(target_tokenizer)
+    source_tokens = special_id_to_token(source_tokenizer)
+    target_tokens = special_id_to_token(target_tokenizer)
+    for target_id in missing_targets:
+        if target_id in target_kinds:
+            kind = target_kinds[target_id]
+            special_sources = [
+                source_id
+                for source_id in required_source
+                if source_id in source_special
+                and source_special[source_id] == kind
+                and (
+                    kind != "special"
+                    or source_tokens[source_id] == target_tokens[target_id]
+                )
+            ]
+            if len(special_sources) == 1:
+                add_edge(
+                    CandidateEdge(
+                        special_sources[0], target_id, EdgeSource.SPECIAL, 1.0
+                    )
+                )
+                continue
+        else:
+            raw_bytes = token_raw_bytes(target_tokenizer, target_id)
+            exact_sources = [
+                source_id
+                for source_id in exact_source.get(raw_bytes, [])
+                if source_id in source_required and source_id not in source_special
+            ]
+            if exact_sources:
+                for source_id in sorted(exact_sources):
+                    add_edge(
+                        CandidateEdge(source_id, target_id, EdgeSource.EXACT_BYTE, 1.0)
+                    )
+                continue
+            span_sources = [
+                (source_id, counts[target_id])
+                for source_id, counts in spans.items()
+                if source_id in source_required
+                and source_id not in source_special
+                and counts[target_id] > 0
+            ]
+            if span_sources:
+                for source_id, evidence in sorted(span_sources):
+                    add_edge(
+                        CandidateEdge(
+                            source_id,
+                            target_id,
+                            EdgeSource.BYTE_SPAN,
+                            float(evidence),
+                        )
+                    )
+                continue
+        raise CandidateGraphError(
+            f"positive-mass target token {target_id} has no safe rescue edge"
+        )
 
     graph = CandidateGraph(
         source_vocab_size=max(source_vocab, default=-1) + 1,
