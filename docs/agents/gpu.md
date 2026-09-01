@@ -73,3 +73,4 @@
 - 权限判断：登录节点只执行 `git pull`、输入/环境轻量校验、`sinfo/squeue/sacct`、`sbatch` 与结果只读检查；候选图加载、Sinkhorn、artifact 构建和审计全部在 64G/8h Slurm 作业中运行。
 - 作业边界：不复用 Job 214 的 48-byte building checkpoint 作为有效产物；新作业允许按记录输入重新构建，并使用新的 Slurm job ID/log。所有生成物继续位于 `C2C/local/transport/` 忽略目录。
 - 计划顺序：新 SSH 会话的第一条远端命令为 `cd vocab_align && git pull`；如发生网络问题，才执行 `bash net.sh` 后重试。同步成功后再核对输入并提交/监控作业，不在服务器修改 Git 源码。
+- 实际结果：首条 pull 等待 60 秒无输出；`bash net.sh` 成功后重试约 90 秒完成并 fast-forward 到 `5c37b39`。preview/ANN SHA-256 与既有记录一致，提交 Job 215；作业在 compute 节点运行 46:03 后 `FAILED`、ExitCode `1:0`。失败为 sparse Sinkhorn 10,000 次未收敛（row residual `0.2651238722`、column residual `7.215e-12`），checkpoint 仍为 71-byte `building`，无有效 artifact/audit。已退出服务器，源码修复转回本地。

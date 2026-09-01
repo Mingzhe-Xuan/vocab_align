@@ -1,5 +1,24 @@
 # 测试记录
 
+## 2026-09-02：marginal-capacity feasibility support 单元
+
+计划范围：
+
+- 以 source/target 正边际构造确定性的 northwest-corner 稀疏可行耦合支撑，边数不超过 `n_source + n_target - 1`，总质量和两侧边际在浮点容差内严格一致。
+- 只把原候选图缺少的可行支撑边标记为独立 `feasibility` 来源；保留 exact/span/ANN/special 边与证据，不覆盖或伪装语义证据。
+- feasibility evidence 必须有限、为正且低于正常 ANN evidence；输入 shape、负值、非有限值、总质量不一致和重复 token IDs 显式失败。
+- 构造一个“节点均有边且图连通、但违反容量 Hall 条件”的 toy graph：补边前 Sinkhorn 不收敛，补边后通过两侧 residual 与 artifact audit；已有可行图不新增边。
+- artifact/build config 记录 feasibility edge count/method，候选来源 schema 可往返保存；完整离线回归不访问网络。
+
+远端失败依据：Slurm Job 215 在 2,337,695-edge 图上运行 46:03 后退出 1；10,000 次迭代的 row residual `0.2651238722`、column residual `7.215e-12`，证明仅拓扑连通不足以保证当前 marginals 可行，不能通过增加迭代或放宽容差修复。
+
+实际结果：
+
+- `python -m pytest ... test_sparse_sinkhorn.py/test_candidate_graph.py/test_vocab_transport_facade.py/test_artifact.py/test_audit.py`：25 passed（5.93s）。
+- facade 不平衡边际与 sparse capacity 用例最终 12 passed（5.88s）：补边前连通图在 100 次内按预期不收敛；补边后两侧 residual 小于 `1e-9`，artifact audit 记录独立 `feasibility` 来源与 edge count；已可行图不新增边。
+- `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/feasibility-full -q`：108 passed（52.72s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- Black 对 5 个实现/测试文件检查通过；`python -m compileall -q -f -b ...` 与 `git diff --check` 通过。
+
 ## 2026-09-01：manifest-bound canonical corpus 单元
 
 计划范围：

@@ -54,5 +54,7 @@
 - Guqq 重跑连接中首次 pull 与 `bash net.sh` 后重试均长时间无响应；已退出且未提交新作业，服务器尚未同步 `0409679`。远端验证 pending，本地继续正式 transport_train 输入准备。
 - 开始 manifest-bound canonical corpus 单元：修复 OpenHermes nullable ID、未锁定 dataset revision、manifest 与 builder 裸 texts 脱节问题，以 canonical conversation SHA-256 + raw file hash 绑定 split/provenance。
 - 完成 manifest-bound canonical corpus：锁定 dataset revision，使用 canonical conversation SHA-256 去重/划分，以 raw JSONL hash 绑定 manifest并重现全部 split，正式 builder 只接受 records + manifest + build split；目标测试 26/26、完整回归 105/105 通过。
+- manifest-bound corpus 验收提交 `4876adb` 已推送；Guqq 最终成功 pull 到 `5c37b39` 并提交 Job 215。作业运行 46:03 后以 row residual `0.2651` 失败，确认拓扑 bridge 不足以满足边际容量；开始 marginal-aware feasibility support 单元。
+- 完成 marginal-aware feasibility support：为所有已有 active edge 预留正 interior mass，再以 residual northwest-corner 支撑补充独立低证据边；不平衡 facade/audit 与完整回归 108/108 通过。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

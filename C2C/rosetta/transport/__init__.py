@@ -31,6 +31,7 @@ from .candidate_graph import (
     CandidateGraphError,
     EdgeSource,
     accumulate_byte_span_counts,
+    augment_candidate_graph_for_marginals,
     build_candidate_graph,
 )
 from .config import (
@@ -138,6 +139,7 @@ __all__ = [
     "artifact_from_dense",
     "audit_markdown",
     "audit_transport_artifact",
+    "augment_candidate_graph_for_marginals",
     "build_small_transport",
     "build_vocab_transport",
     "build_transport_manifest",

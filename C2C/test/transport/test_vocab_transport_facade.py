@@ -166,3 +166,40 @@ def test_positive_smoothing_covers_full_source_and_ordinary_target(TinyTokenizer
     report = audit_transport_artifact(result.artifact)
     assert report["valid"]
     assert report["candidate_source_counts"]["special_literal"] == 3
+
+
+def test_facade_adds_audited_feasibility_edges_for_skewed_marginals(TinyTokenizer):
+    text = "abcdefghij"
+    source = TinyTokenizer(
+        {"a": 0, "b": 1, "c": 2},
+        {text: [(0, index, index + 1) for index in range(8)] + [(1, 8, 9), (2, 9, 10)]},
+    )
+    target = TinyTokenizer(
+        {"a": 0, "b": 1, "c": 2},
+        {
+            text: [(0, 0, 1), (1, 1, 2)]
+            + [(2, index, index + 1) for index in range(2, 10)]
+        },
+    )
+    ann = {
+        0: [],
+        1: [(0, 0.5), (2, 0.5)],
+        2: [],
+    }
+    result = build_vocab_transport(
+        source,
+        target,
+        [text],
+        epsilon=0.5,
+        ann_fallback=lambda source_id, raw: ann[source_id],
+        seed=42,
+        code_version="test",
+    )
+    feasibility = result.artifact.metadata["build_config"]["feasibility_support"]
+    assert feasibility["method"] == "positive-interior-plus-northwest-corner-v1"
+    assert feasibility["edge_count"] > 0
+    report = audit_transport_artifact(result.artifact)
+    assert report["valid"]
+    assert report["candidate_source_counts"]["feasibility"] == feasibility["edge_count"]
+    assert report["row_marginal_l1"] < 1e-9
+    assert report["column_marginal_l1"] < 1e-9

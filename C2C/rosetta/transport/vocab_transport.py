@@ -21,6 +21,7 @@ from .candidate_graph import (
     AnnFallback,
     CandidateGraph,
     EdgeSource,
+    augment_candidate_graph_for_marginals,
     build_candidate_graph,
 )
 from .marginals import TokenMarginal, estimate_token_marginal
@@ -198,6 +199,11 @@ def build_vocab_transport(
         ann_fallback=ann_fallback,
         special_literal_fallback=True,
     )
+    graph, feasibility_edge_count = augment_candidate_graph_for_marginals(
+        graph,
+        source_marginal.probabilities,
+        target_marginal.probabilities,
+    )
     coupling, convergence = sparse_log_sinkhorn(
         graph,
         source_marginal.probabilities,
@@ -271,6 +277,11 @@ def build_vocab_transport(
                 "source_special_fallback": "target-tokenized-literal-bytes",
             },
             "ann": dict(ann_config or {"enabled": ann_fallback is not None}),
+            "feasibility_support": {
+                "method": "positive-interior-plus-northwest-corner-v1",
+                "edge_count": feasibility_edge_count,
+                "evidence": 1e-8,
+            },
             "data": dict(data_config or {"mode": "direct-canonical-texts"}),
         },
         "seed": seed,

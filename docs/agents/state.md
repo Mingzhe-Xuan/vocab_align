@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。manifest-bound canonical corpus 已完成本地验收；远端 special-support 重跑因 Guqq pull 不稳定保持 pending，正式 OpenHermes 原始数据物化尚未开始。
+正在实施 Training-free Soft-Token Transport。marginal-capacity feasibility support 已完成本地验收；full-support preview Job 215 的非收敛结果保持失败，等待新提交经 Slurm 重跑。
 
 ## 当前计划
 
-1. 形成并推送 manifest-bound corpus 验收提交，保留用户未跟踪参考文件，不伪造 preview 已通过。
-2. 设计正式 OpenHermes 下载/物化 Slurm 单元，确保生成数据进入忽略目录、revision/raw hash/manifest 可复现。
-3. Guqq HTTPS 恢复后重新登记连接，首条 pull 同步最新提交，先经 Slurm 重跑 full-support preview，再提交正式数据作业。
+1. 形成并推送 feasibility support 验收提交，保留 Job 215 失败记录与用户未跟踪参考文件。
+2. 登记 Guqq 连接，首条 pull 同步提交，经 Slurm 重跑 full-support preview 并验收收敛/产物。
+3. preview 成功后设计正式 OpenHermes 下载/物化作业；若仍失败，依据新 residual/资源数据继续修正，不降低标准。
 
 ## 变更记录
 
@@ -61,5 +61,7 @@
 - 2026-09-01 22:33 +08:00：Guqq 首次 pull 约 90 秒无响应，`bash net.sh` 成功后第二次 pull 约 60 秒仍无响应；已退出且未提交作业。远端验收保持 pending，本地转入正式 transport_train 输入缺口审查。
 - 2026-09-01 22:39 +08:00：正式输入审查确认 manifest 未绑定 canonical records，OpenHermes nullable ID 不可作为稳定身份；进入 dataset revision + canonical-content ID + raw hash + split-bound builder 单元。
 - 2026-09-01 22:59 +08:00：manifest-bound canonical corpus 完成本地验收；目标测试 26/26、完整回归 105/105，通过 raw hash、content ID 去重、split 可重现/隔离与 builder provenance 检查。下一步形成验收提交并推送。
+- 2026-09-02 00:00 +08:00：manifest-bound corpus 已以 `4876adb` 推送；Guqq pull 到 `5c37b39` 后提交 preview Job 215。作业运行 46:03 后因支撑图容量不可行而非 special 映射失败：row residual `0.2651`、column residual `7.2e-12`。进入 marginal-aware feasibility support 单元，不降低收敛标准。
+- 2026-09-02 00:08 +08:00：marginal-aware feasibility support 完成本地验收；不平衡容量用例与 artifact audit 通过，完整回归 108/108。下一步形成验收提交并登记 Slurm 重跑。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

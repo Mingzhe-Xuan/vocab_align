@@ -1,5 +1,9 @@
 # 经验记录
 
+## 二部候选图连通不等于边际容量可行
+
+每个正质量 source/target 都有边且整个二部图连通，只能排除孤立节点和分量总质量不等，不能满足所有子集的 Hall 型容量条件。此时 log-domain Sinkhorn 可能把一侧 residual 降到机器精度，另一侧仍长期停在大残差；增加迭代或放宽容差会掩盖结构错误。构图后应先在每条已有 active edge 上预留统一的小正质量，再用 source/target 剩余边际的 northwest-corner coupling 补充缺失 pair。这样新增边至多为两侧 active token 数之和减一，并提供一个对所有候选边严格为正的可行耦合作为存在性证明；新增 pair 必须标记为独立低证据 `feasibility` 来源，不能伪装成语义 ANN/exact 证据。
+
 ## 非对称 tokenizer special 集合与完整 source logits
 
 正 smoothing 不能在 source/target 两侧机械激活相同类别的全部 special：两个 tokenizer 的 BOS/EOS/pad/UNK、chat 和多模态 control 集合通常不对称，强制按泛化 `special` kind 一一映射既不可行也不安全。STT source logits 又覆盖完整 source vocab，因此 source special 不能简单从 artifact 删除。安全策略是 source 边际保留完整词表，将每个 source special 的原始 token 字符串用 target tokenizer 分解为 ordinary literal-byte 候选；target 平滑边际只覆盖 ordinary token，receiver 原生 BOS/EOS 仍由 wrapper 的起始 embedding 和生成逻辑管理。若 literal 分解不能产生 ordinary target，构建应失败，不能任意落到 UNK 或无关 control token。

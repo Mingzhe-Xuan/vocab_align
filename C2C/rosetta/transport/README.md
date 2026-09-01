@@ -20,8 +20,9 @@ does not modify the existing C2C projector or wrapper.
   fingerprints, and special/control classification shared by builders/audits.
 - `baseline.py`: deterministic baseline snapshots that keep canonical messages
   separate from each model's rendered prompt and mark unavailable resources.
-- `candidate_graph.py`: prioritized special/exact/span/ANN sparse support with
-  raw evidence and explicit positive-mass row/column checks.
+- `candidate_graph.py`: prioritized special/exact/span/ANN sparse support,
+  followed by marginal-aware low-evidence feasibility edges that guarantee a
+  strictly positive sparse coupling support rather than mere connectivity.
 - `ann_candidates.py`: deterministic bidirectional byte-ngram LSH candidates,
   including low-evidence anchor bridges that connect the ordinary-token graph.
 - `marginals.py`: canonical-content frequency marginals, smoothing, and active

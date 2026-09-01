@@ -1,7 +1,13 @@
 import numpy as np
 import pytest
 
-from rosetta.transport.candidate_graph import CandidateEdge, CandidateGraph, EdgeSource
+from rosetta.transport.candidate_graph import (
+    CandidateEdge,
+    CandidateGraph,
+    CandidateGraphError,
+    EdgeSource,
+    augment_candidate_graph_for_marginals,
+)
 from rosetta.transport.sinkhorn import (
     SinkhornError,
     candidate_edge_costs,
@@ -9,6 +15,59 @@ from rosetta.transport.sinkhorn import (
     sparse_conditional_from_coupling,
     sparse_log_sinkhorn,
 )
+
+
+def test_marginal_augmentation_repairs_connected_capacity_infeasibility():
+    graph = CandidateGraph(
+        3,
+        3,
+        (
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(1, 0, EdgeSource.ANN, 0.5),
+            CandidateEdge(1, 1, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(1, 2, EdgeSource.ANN, 0.5),
+            CandidateEdge(2, 2, EdgeSource.EXACT_BYTE, 1.0),
+        ),
+    )
+    source = np.array([0.8, 0.1, 0.1])
+    target = np.array([0.1, 0.1, 0.8])
+    with pytest.raises(SinkhornError, match="did not converge"):
+        sparse_log_sinkhorn(
+            graph, source, target, epsilon=0.5, tolerance=1e-9, max_iter=100
+        )
+
+    augmented, added = augment_candidate_graph_for_marginals(graph, source, target)
+    assert 0 < added <= len(source) + len(target) - 1
+    assert (
+        sum(edge.source == EdgeSource.FEASIBILITY for edge in augmented.edges) == added
+    )
+    coupling, report = sparse_log_sinkhorn(
+        augmented, source, target, epsilon=0.5, tolerance=1e-9, max_iter=10_000
+    )
+    dense = coupling.to_dense()
+    np.testing.assert_allclose(dense.sum(axis=0), source, atol=1e-9)
+    np.testing.assert_allclose(dense.sum(axis=1), target, atol=1e-9)
+    assert report.converged
+
+
+def test_marginal_augmentation_preserves_already_feasible_support_and_validates():
+    graph = CandidateGraph(
+        2,
+        2,
+        (
+            CandidateEdge(0, 0, EdgeSource.EXACT_BYTE, 1.0),
+            CandidateEdge(1, 1, EdgeSource.EXACT_BYTE, 1.0),
+        ),
+    )
+    source = np.array([0.5, 0.5])
+    target = np.array([0.5, 0.5])
+    unchanged, added = augment_candidate_graph_for_marginals(graph, source, target)
+    assert unchanged is graph
+    assert added == 0
+    with pytest.raises(CandidateGraphError, match="sum to one"):
+        augment_candidate_graph_for_marginals(graph, source * 0.9, target)
+    with pytest.raises(CandidateGraphError, match="below ANN"):
+        augment_candidate_graph_for_marginals(graph, source, target, evidence=1e-5)
 
 
 def _complete_graph(target_size, source_size):
@@ -32,9 +91,7 @@ def test_sparse_matches_dense_oracle_on_non_square_graph(shape):
     dense_cost = np.full(shape, np.inf)
     for edge, cost in zip(graph.edges, costs):
         dense_cost[edge.target_id, edge.source_id] = cost
-    dense, _ = dense_sinkhorn(
-        dense_cost, source, target, epsilon=0.7, tolerance=1e-10
-    )
+    dense, _ = dense_sinkhorn(dense_cost, source, target, epsilon=0.7, tolerance=1e-10)
     sparse, report = sparse_log_sinkhorn(
         graph, source, target, epsilon=0.7, tolerance=1e-10
     )
@@ -90,9 +147,7 @@ def test_sparse_rejects_infeasible_component_and_duplicate_edges():
         ),
     )
     with pytest.raises(SinkhornError, match="duplicate"):
-        sparse_log_sinkhorn(
-            duplicate, np.array([1.0]), np.array([1.0]), epsilon=1.0
-        )
+        sparse_log_sinkhorn(duplicate, np.array([1.0]), np.array([1.0]), epsilon=1.0)
 
 
 def test_sparse_max_iter_failure_is_explicit():

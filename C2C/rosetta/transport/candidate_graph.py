@@ -8,6 +8,8 @@ from enum import Enum
 from math import isfinite
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Sequence, Set, Tuple
 
+import numpy as np
+
 from .token_metadata import (
     encode_with_byte_spans,
     ordinary_bytes_index,
@@ -27,6 +29,7 @@ class EdgeSource(str, Enum):
     EXACT_BYTE = "exact_byte"
     BYTE_SPAN = "byte_span"
     ANN = "ann"
+    FEASIBILITY = "feasibility"
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,130 @@ class CandidateGraph:
 
 
 AnnFallback = Callable[[int, bytes], Sequence[Tuple[int, float]]]
+
+
+def augment_candidate_graph_for_marginals(
+    graph: CandidateGraph,
+    source_marginal: np.ndarray,
+    target_marginal: np.ndarray,
+    *,
+    evidence: float = 1e-8,
+    interior_fraction: float = 0.5,
+) -> Tuple[CandidateGraph, int]:
+    """Add deterministic low-evidence edges with strictly feasible capacity.
+
+    A small positive mass is first reserved on every existing active edge.  A
+    northwest-corner construction then couples the residual marginals.  Adding
+    its missing pairs guarantees that the final support admits a coupling that
+    is positive on every active edge, which is stronger than graph connectivity.
+    """
+    source = np.asarray(source_marginal, dtype=np.float64)
+    target = np.asarray(target_marginal, dtype=np.float64)
+    if source.shape != (graph.source_vocab_size,) or target.shape != (
+        graph.target_vocab_size,
+    ):
+        raise CandidateGraphError(
+            "marginal shapes must match candidate graph vocabularies"
+        )
+    if (
+        not np.all(np.isfinite(source))
+        or not np.all(np.isfinite(target))
+        or np.any(source < 0)
+        or np.any(target < 0)
+    ):
+        raise CandidateGraphError("marginals must be finite and nonnegative")
+    if not np.isclose(source.sum(), 1.0, rtol=1e-12, atol=1e-12) or not np.isclose(
+        target.sum(), 1.0, rtol=1e-12, atol=1e-12
+    ):
+        raise CandidateGraphError("source and target marginals must each sum to one")
+    if not np.isfinite(evidence) or not 0 < evidence < 1e-6:
+        raise CandidateGraphError(
+            "feasibility evidence must be finite, positive, and below ANN bridge evidence"
+        )
+    if not np.isfinite(interior_fraction) or not 0 < interior_fraction < 1:
+        raise CandidateGraphError("interior fraction must be between zero and one")
+
+    active_source = np.flatnonzero(source > 0)
+    active_target = np.flatnonzero(target > 0)
+    active_source_set = set(active_source.tolist())
+    active_target_set = set(active_target.tolist())
+    pairs = set()
+    source_degree = np.zeros_like(source, dtype=np.int64)
+    target_degree = np.zeros_like(target, dtype=np.int64)
+    for edge in graph.edges:
+        if not 0 <= edge.source_id < graph.source_vocab_size or not (
+            0 <= edge.target_id < graph.target_vocab_size
+        ):
+            raise CandidateGraphError("candidate edge is outside graph vocabulary")
+        pair = (edge.source_id, edge.target_id)
+        if pair in pairs:
+            raise CandidateGraphError("duplicate candidate edge")
+        pairs.add(pair)
+        if edge.source_id in active_source_set and edge.target_id in active_target_set:
+            source_degree[edge.source_id] += 1
+            target_degree[edge.target_id] += 1
+    if np.any(source_degree[active_source] == 0) or np.any(
+        target_degree[active_target] == 0
+    ):
+        raise CandidateGraphError("positive-mass token lacks an active candidate edge")
+
+    source_capacity = source[active_source] / source_degree[active_source]
+    target_capacity = target[active_target] / target_degree[active_target]
+    interior_mass = interior_fraction * float(
+        min(source_capacity.min(), target_capacity.min())
+    )
+    residual_source = source.copy()
+    residual_target = target.copy()
+    for source_id, target_id in pairs:
+        if source_id in active_source_set and target_id in active_target_set:
+            residual_source[source_id] -= interior_mass
+            residual_target[target_id] -= interior_mass
+
+    additions: List[CandidateEdge] = []
+    source_index = target_index = 0
+    while source_index < len(active_source) and target_index < len(active_target):
+        source_id = int(active_source[source_index])
+        target_id = int(active_target[target_index])
+        source_mass = residual_source[source_id]
+        target_mass = residual_target[target_id]
+        if min(source_mass, target_mass) > 0 and (source_id, target_id) not in pairs:
+            additions.append(
+                CandidateEdge(
+                    source_id,
+                    target_id,
+                    EdgeSource.FEASIBILITY,
+                    float(evidence),
+                )
+            )
+            pairs.add((source_id, target_id))
+        if source_mass < target_mass:
+            residual_target[target_id] -= source_mass
+            residual_source[source_id] = 0.0
+            source_index += 1
+        elif target_mass < source_mass:
+            residual_source[source_id] -= target_mass
+            residual_target[target_id] = 0.0
+            target_index += 1
+        else:
+            residual_source[source_id] = 0.0
+            residual_target[target_id] = 0.0
+            source_index += 1
+            target_index += 1
+    if residual_source.sum() > 1e-10 or residual_target.sum() > 1e-10:
+        raise CandidateGraphError("failed to construct residual feasible support")
+    if not additions:
+        return graph, 0
+    augmented = CandidateGraph(
+        graph.source_vocab_size,
+        graph.target_vocab_size,
+        tuple(
+            sorted(
+                (*graph.edges, *additions),
+                key=lambda edge: (edge.source_id, edge.target_id),
+            )
+        ),
+    )
+    return augmented, len(additions)
 
 
 def accumulate_byte_span_counts(
