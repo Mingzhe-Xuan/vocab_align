@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 2 的精确 soft transport、source top-m 和 metrics 已通过 51 项完整本地测试，Guqq 真实 tokenizer provenance 审计也已验收；下一步参考 `docs/assets/alignment.py` 实现 tiny 模型上的 TrainingFreeTransportModel prefill/generate 协议。
+正在实施 Training-free Soft-Token Transport。阶段 2 的精确 soft transport、metrics 与 TrainingFreeTransportModel wrapper 已通过 65 项完整本地测试，Guqq 真实 tokenizer provenance 审计也已验收；下一步实现可复现的 STT smoke CLI，并准备按临时分支 + Slurm 规则进行真实模型短序列验证。
 
 ## 当前计划
 
-1. 实现阶段 2 精确 soft transport、source top-m 与分段 metrics。
-2. 使用 tiny 随机模型实现 TrainingFreeTransportModel 的 prefill/generate 协议。
-3. 服务器网络恢复后 pull 并最终重跑真实 tokenizer 审计及真实预览 artifact。
+1. 实现 `script/transport/smoke_stt.py` 的加载、短样本执行与 diagnostics 落盘，并用 tiny fixtures 离线验收。
+2. 在临时验证分支提交真实模型 smoke 所需代码，通过 Guqq `git pull` 同步并使用 Slurm 验证。
+3. 使用训练语料构建真实预览 transport artifact，审计所有正质量行列支撑与构建 provenance。
 
 ## 变更记录
 
@@ -35,3 +35,7 @@
 - 2026-09-01 19:54 +08:00：进入 exact soft transport/metrics 单元；完整 active support 是 exact 推理前置条件，截断或缺失质量必须显式报告。
 - 2026-09-01 20:02 +08:00：阶段 2 精确 soft transport/top-m/metrics 单元完成，完整本地测试 51/51；用户确认 Guqq `git pull` 已恢复，网络异常时先执行 `bash net.sh`，并授权将 `AGENTS.md` 纳入提交。下一步提交并同步服务器审计。
 - 2026-09-01 20:12 +08:00：Guqq 成功同步并完成真实 tokenizer provenance 审计，最终 JSON 的 schema、锁定 revisions、指纹与 SHA-256 均通过验收；用户补充 `docs/assets/alignment.py` 作为 align 实现参考。下一步先据此冻结 wrapper 测试协议，再实现 prefill/generate。
+- 2026-09-01 20:18 +08:00：进入 TrainingFreeTransportModel wrapper 实现单元；冻结 receiver 起始 embedding + shifted source logits、mask/position/cache 与 receiver-only 独立路径的测试协议。
+- 2026-09-01 20:27 +08:00：TrainingFreeTransportModel wrapper、独立 transport 配置块与 recipe 默认值完成，定向测试 25/25、完整测试 65/65；下一步形成验收提交后进入 smoke CLI 单元。
+- 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
+- 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

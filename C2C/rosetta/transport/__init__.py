@@ -23,7 +23,13 @@ from .candidate_graph import (
     accumulate_byte_span_counts,
     build_candidate_graph,
 )
-from .config import ConfigError, DataSpec, ModelSpec, TransportConfig
+from .config import (
+    ConfigError,
+    DataSpec,
+    ModelSpec,
+    TransportConfig,
+    TransportInferenceSpec,
+)
 from .manifest import (
     ManifestError,
     build_transport_manifest,
@@ -67,6 +73,12 @@ from .vocab_transport import (
     load_transport,
     save_transport,
 )
+from .wrapper import (
+    TrainingFreeTransportModel,
+    TransportModelError,
+    TransportPrefill,
+    VirtualPrompt,
+)
 
 __all__ = [
     "ArtifactError",
@@ -90,7 +102,12 @@ __all__ = [
     "SoftTransportStats",
     "TransportArtifact",
     "TransportConfig",
+    "TransportInferenceSpec",
     "TransportMetrics",
+    "TrainingFreeTransportModel",
+    "TransportModelError",
+    "TransportPrefill",
+    "VirtualPrompt",
     "VocabTransportBuildResult",
     "TokenMetadata",
     "TokenMarginal",

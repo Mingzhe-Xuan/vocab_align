@@ -27,6 +27,8 @@ does not modify the existing C2C projector or wrapper.
 - `soft_transport.py`: temperature softmax, exact sparse transport, source
   top-m accounting, and receiver embedding expectation.
 - `metrics.py`: evaluator-compatible segmented latency, length, and memory data.
+- `wrapper.py`: no-grad source prefill, explicit causal-shift virtual prompts,
+  receiver KV-cache decoding, and an independent receiver-only baseline path.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.

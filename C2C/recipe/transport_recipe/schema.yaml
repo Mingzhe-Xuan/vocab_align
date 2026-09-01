@@ -7,6 +7,7 @@ required:
   - seed
   - output_path
   - output_schema
+  - transport
 model:
   required: [name, revision, tokenizer_revision]
   revision: 40-character hexadecimal commit SHA
@@ -15,3 +16,7 @@ model:
 data:
   build_splits_forbid_substring: test
   dev_fraction: exclusive range (0, 1)
+transport:
+  tau: finite positive number distinct from generation temperature
+  causal_shift: boolean
+  source_top_m: null or positive integer

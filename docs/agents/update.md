@@ -26,3 +26,8 @@
 - 接受最新开发规范：服务器网络异常时先运行 `bash net.sh` 再重试 HTTPS `git pull`；`AGENTS.md` 纳入本次提交。
 - Guqq HTTPS pull 已恢复并同步到 `36e6224`；真实 Qwen3-8B → Mistral-Nemo-Instruct-2407 tokenizer 审计完成，provenance 与产物哈希验收通过，JSON 已复制到本地忽略目录。
 - 下一实现单元将参考 `docs/assets/alignment.py` 中 row-vector 约定、完整 logits（含 bias）温度缩放、分块计算与非有限值检查，接入 vocab transport，而不复制其等词表假设。
+- 开始 TrainingFreeTransportModel wrapper 单元，先冻结因果 shift、padding、position、KV cache、EOS 和 receiver-only 对照的离线 tiny-model 测试范围。
+- 完成 TrainingFreeTransportModel：source no-grad prefill、receiver 原生起始 embedding + causal shift、左右 padding/position、receiver KV-cache decode、分批 EOS 与 receiver-only 直通；通信参数使用独立 recipe 配置块。完整本地测试 65/65 通过。
+- 接受最新测试规范：GPU 依赖验证仅允许在临时分支的未验收提交上经 Slurm 执行，正式分支仍只接收测试通过的验收提交。
+- 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
+- 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。

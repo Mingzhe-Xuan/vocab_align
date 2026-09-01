@@ -94,7 +94,43 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 - 指标：共享唯一 byte strings 67,858；source/target exact-byte 词表覆盖率分别为 0.4474498038/0.5177273039；样本 occurrence 覆盖率 0.8641975309；target/source 平均长度比 1.2177489177。
 - 本地接收的忽略目录产物 `C2C/local/transport/audits/qwen3_8b_to_mistral_nemo_instruct_2407.json` SHA-256 为 `31E69CCC0EEBE322FD1D2A278683DADD0493E821C9846E9C64482CC4CAE5BAC5`。
 
+## 2026-09-01：TrainingFreeTransportModel wrapper 实现单元
+
+计划范围：
+
+- source forward 必须运行于 `no_grad`，wrapper 不创建 optimizer state，调用后 source 参数无梯度。
+- shift 模式按每条 mask 的首个有效位置注入 receiver 起始 token embedding，其余有效位置使用前一 source 时刻 logits；no-shift 使用同位置 logits，二者长度均与 source prompt 一致。
+- 验证 batch size 1/2、单 token prompt、左右 padding；拒绝内部不连续 mask，并检查 position IDs、attention mask 与 cache 长度。
+- transport 生成首步使用最后有效 virtual prompt 位置的 receiver logits；后续 decode 仅使用 receiver 原生 token ID/embedding 与 KV cache，不再调用 source。
+- EOS 批次可分别提前结束，已结束序列后续补 PAD；生成 token 属于 receiver 词表。
+- transport 关闭时走独立 receiver-only 路径，调用结果与 receiver 自身 `generate` 完全一致。
+- temperature、top-m、起始 token、输入 shape/vocab 不匹配和缺失 cache 等非法协议显式失败。
+- 参考 `docs/assets/alignment.py` 的 row-vector、完整 logits（含 bias）、浮点校验与分块原则；测试确保跨词表 artifact 映射仍生效。
+
+实际结果：
+
+- 首轮定向测试 13 passed/1 failed；失败因左 padding oracle 错把另一行 token 当作前一有效 token。按原因果时序修正测试数据，不修改实现或降低断言。
+- 最终 `python -m pytest -o addopts= test/transport/test_config.py test/transport/test_wrapper.py test/transport/test_soft_transport.py test/transport/test_optional_torch_import.py -q`：25 passed（5.88s）。
+- `python -m pytest -o addopts= -q`：65 passed（35.86s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `python -m compileall -q rosetta/transport`：通过。
+- Black 对 4 个本单元 Python 文件检查通过，均无需变更。
+- `git diff --check`：通过；仅报告工作树 LF/CRLF 转换 warning。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
+
+## 2026-09-01：GPU 测试提交流程规范修订
+
+计划范围：
+
+- 检查临时验证提交、验收提交和正式分支的边界是否明确。
+- 检查服务器仍只通过 `git pull` 同步受 Git 管理的源码，GPU 测试仍通过 Slurm 执行。
+- 检查 Markdown 格式、文档路径和 Git diff。
+
+实际结果：
+
+- 语义检查通过：规范明确临时验证提交必须位于临时分支且标记为未验收，GPU 测试通过后才能形成验收提交或合并。
+- 路径检查通过：`docs/agents/test.md`、`docs/agents/gpu.md`、`docs/agents/state.md` 和 `docs/agents/update.md` 均存在。
+- `git diff --check`：通过；仅报告工作区既有的 LF/CRLF 转换 warning，无空白错误。
 
 ## 2026-09-01：候选图与边际实现单元
 

@@ -15,3 +15,7 @@ Guqq 登录节点可能能解析 GitHub，却在 `git pull` 时出现 GnuTLS `re
 ## OT active support 与 artifact 坐标
 
 零质量 token 必须在 `Diag(a)^-1` 前移出 OT active support，但 artifact 仍需保留原 tokenizer 方向。实现将正质量 source/target 压缩为连续矩阵坐标，同时保存唯一的 `source_token_ids`/`target_token_ids` 映射；候选边也使用压缩坐标结构化保存。不得假设压缩坐标等于原 token ID，也不得对零质量列做条件化除法。
+
+## 跨词表 causal shift 与生成边界
+
+source 位置 `t` 的 logits 预测下一 token，因此等长 virtual prompt 的首个有效位置必须由 receiver 原生起始 token embedding 注入，其余位置使用前一有效 source logits；padding 位置不能参与 transport 时序。source 与 receiver 的 token ID 空间不同，生成结果不得把 source prompt IDs 与 receiver token IDs 拼成一条伪序列；wrapper 只返回 receiver 新生成 token，receiver-only 基线则独立直通 receiver 原生 `generate`。模型并行时 source logits、receiver embedding 和 receiver 输出 logits 可能位于不同设备，索引与 transport 前必须显式对齐设备。

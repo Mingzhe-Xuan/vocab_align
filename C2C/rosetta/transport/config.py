@@ -59,7 +59,14 @@ class ModelSpec:
     def from_dict(cls, payload: Mapping[str, Any]) -> "ModelSpec":
         _only_fields(
             payload,
-            {"name", "revision", "tokenizer_revision", "dtype", "device_map", "checkpoint"},
+            {
+                "name",
+                "revision",
+                "tokenizer_revision",
+                "dtype",
+                "device_map",
+                "checkpoint",
+            },
             "model",
         )
         try:
@@ -101,6 +108,37 @@ class DataSpec:
 
 
 @dataclass(frozen=True)
+class TransportInferenceSpec:
+    tau: float = 1.0
+    causal_shift: bool = True
+    source_top_m: Optional[int] = None
+
+    def validate(self) -> None:
+        if not isinstance(self.tau, (int, float)) or isinstance(self.tau, bool):
+            raise ConfigError("transport tau must be numeric")
+        if not 0 < float(self.tau) < float("inf"):
+            raise ConfigError("transport tau must be finite and positive")
+        if not isinstance(self.causal_shift, bool):
+            raise ConfigError("causal_shift must be boolean")
+        if self.source_top_m is not None and (
+            isinstance(self.source_top_m, bool)
+            or not isinstance(self.source_top_m, int)
+            or self.source_top_m <= 0
+        ):
+            raise ConfigError("source_top_m must be null or a positive integer")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "TransportInferenceSpec":
+        _only_fields(payload, {"tau", "causal_shift", "source_top_m"}, "transport")
+        try:
+            value = cls(**payload)
+        except TypeError as exc:
+            raise ConfigError(f"invalid transport configuration: {exc}") from exc
+        value.validate()
+        return value
+
+
+@dataclass(frozen=True)
 class TransportConfig:
     schema_version: int
     source: ModelSpec
@@ -109,6 +147,7 @@ class TransportConfig:
     seed: int
     output_path: str
     output_schema: str
+    transport: TransportInferenceSpec = field(default_factory=TransportInferenceSpec)
     generation: Dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
@@ -117,7 +156,12 @@ class TransportConfig:
         self.source.validate()
         self.target.validate()
         self.data.validate()
-        if isinstance(self.seed, bool) or not isinstance(self.seed, int) or self.seed < 0:
+        self.transport.validate()
+        if (
+            isinstance(self.seed, bool)
+            or not isinstance(self.seed, int)
+            or self.seed < 0
+        ):
             raise ConfigError("seed must be a nonnegative integer")
         if not str(self.output_path).strip():
             raise ConfigError("output_path is required")
@@ -149,6 +193,7 @@ class TransportConfig:
                 "seed",
                 "output_path",
                 "output_schema",
+                "transport",
                 "generation",
             },
             "transport",
@@ -162,10 +207,15 @@ class TransportConfig:
                 seed=payload["seed"],
                 output_path=payload["output_path"],
                 output_schema=payload["output_schema"],
+                transport=TransportInferenceSpec.from_dict(
+                    payload.get("transport", {})
+                ),
                 generation=dict(payload.get("generation", {})),
             )
         except KeyError as exc:
-            raise ConfigError(f"missing required configuration field: {exc.args[0]}") from exc
+            raise ConfigError(
+                f"missing required configuration field: {exc.args[0]}"
+            ) from exc
         value.validate()
         return value
 

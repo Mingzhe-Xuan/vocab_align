@@ -20,6 +20,10 @@ data:
 seed: 42
 output_path: local/transport/artifacts/qwen3_8b_to_mistral_nemo_instruct_2407.npz
 output_schema: stt-result-v1
+transport:
+  tau: 1.0
+  causal_shift: true
+  source_top_m: null
 generation:
   do_sample: false
   max_new_tokens: 128

@@ -1,4 +1,7 @@
+from pathlib import Path
+
 import pytest
+import yaml
 
 from rosetta.transport.config import (
     ConfigError,
@@ -6,6 +9,7 @@ from rosetta.transport.config import (
     ModelSpec,
     PENDING_CHECKPOINT,
     TransportConfig,
+    TransportInferenceSpec,
 )
 
 
@@ -39,6 +43,7 @@ def _payload():
         "seed": 42,
         "output_path": "local/transport/artifacts/main.npz",
         "output_schema": "stt-result-v1",
+        "transport": {"tau": 0.7, "causal_shift": True, "source_top_m": 128},
         "generation": {"max_new_tokens": 64, "do_sample": False},
     }
 
@@ -84,3 +89,34 @@ def test_data_and_seed_validation_are_not_coerced():
     payload["seed"] = True
     with pytest.raises(ConfigError, match="seed"):
         TransportConfig.from_dict(payload)
+
+
+def test_transport_inference_defaults_and_validation():
+    payload = _payload()
+    del payload["transport"]
+    assert TransportConfig.from_dict(payload).transport == TransportInferenceSpec()
+
+    payload = _payload()
+    payload["transport"]["causal_shift"] = "yes"
+    with pytest.raises(ConfigError, match="causal_shift"):
+        TransportConfig.from_dict(payload)
+
+    payload = _payload()
+    payload["transport"]["tau"] = float("inf")
+    with pytest.raises(ConfigError, match="finite"):
+        TransportConfig.from_dict(payload)
+
+
+def test_pinned_recipe_explicitly_enables_causal_shift():
+    recipe = (
+        Path(__file__).resolve().parents[2]
+        / "recipe"
+        / "transport_recipe"
+        / ("qwen3_8b_to_mistral_nemo_instruct_2407.yaml")
+    )
+    config = TransportConfig.from_dict(
+        yaml.safe_load(recipe.read_text(encoding="utf-8"))
+    )
+    assert config.transport.causal_shift is True
+    assert config.transport.tau == 1.0
+    assert config.transport.source_top_m is None
