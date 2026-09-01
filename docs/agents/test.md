@@ -193,7 +193,29 @@ SSH transport 结果：`git pull git@github.com:Mingzhe-Xuan/vocab_align.git mai
 - `python -m compileall -q rosetta/transport`：通过。
 - Black 对实现与测试检查通过；`git diff --check` 通过，仅有 LF/CRLF warning。
 
+## 2026-09-01：双向 LSH ANN candidate 生成器单元
+
+计划范围：
+
+- 对 source/target ordinary token raw bytes 使用相同 seeded hashed byte-ngram 特征，归一化后以 LSH bucket 近似检索；special/control IDs 从候选中排除。
+- 每个 ordinary source 至少有 forward top-k，每个 ordinary target 至少通过 reverse top-k 获得入边；候选 pair 去重且按 target ID 稳定排序。
+- 增加低 evidence 的 source→target anchor 与 source anchor→all target bridge，保证普通二部图单连通；bridge evidence 必须严格小于正常 ANN evidence，并在 metadata 显式记录，不能伪装成语义近邻。
+- 相同 token bytes/seed/config 产生字节级一致 JSON；改变输入、seed 或配置会改变 input fingerprint。
+- 输出 schema、tokenizer fingerprints、method、ngram/dimension/signature bits/top-k/pool/bridge 参数、coverage 与代码版本完整；CLI 原子写入且 Transformers 仅在执行入口加载。
+- builder 同时接受旧版纯 mapping JSON 与新版结构化 `{metadata,candidates}`，将候选 metadata 纳入 artifact build config；损坏 schema/重复/非法 evidence 显式失败。
+- tiny tokenizers 验证双向覆盖、连通性、确定性和 builder 集成；全量测试不访问网络。
+
 网络经验与计划调整文档检查：`git diff --check` 通过。
+
+实际结果：
+
+- `python -m pytest -o addopts="--strict-markers --strict-config" test/transport/test_ann_candidates.py test/transport/test_build_vocab_transport_cli.py --basetemp=local/test-tmp/ann-targeted-2 -q`：16 passed（12.04s），覆盖双向 support、图连通、确定性、参数边界、结构化/旧版 loader、原子 CLI 与 Slurm stub。
+- 首轮完整回归在新增最后两个边界用例前为 87 passed（32.60s）；最终完整回归结果记录在本单元验收前的后续条目。
+- 当前系统 `python` 未安装项目可选的 `pytest-cov`，首次 pytest 在收集前因 pyproject 中未知 `--cov` 参数退出；后续显式保留 `--strict-markers --strict-config` 并覆盖全部测试路径，不把启动环境问题记为用例失败。
+- `$env:PYTHONPYCACHEPREFIX='local/pycache'; python -m compileall -q rosetta/transport script/transport test/transport/test_ann_candidates.py test/transport/test_build_vocab_transport_cli.py`：通过；显式缓存目录规避测试目录既有 `__pycache__` ACL。
+- `$env:BLACK_CACHE_DIR='local/black-cache'; python -m black --check --workers 1 ...`：6 个本单元 Python 文件均无需修改；显式缓存目录规避用户级 Black cache 锁等待。
+- `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/ann-final -q`：91 passed（34.97s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+- `git diff --check`：通过；仅报告工作区 LF/CRLF 转换 warning。生成的 Black/pyc cache 已加入任务本地忽略路径。
 
 ## 2026-09-01：GPU 测试提交流程规范修订
 

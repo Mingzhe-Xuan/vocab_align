@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。真实预览 Slurm 作业封装已通过 75 项完整本地测试；Guqq 在用户确认恢复后仍连续三次 pull 超时，远端作业暂停。下一步本地实现全词表外部 ANN 候选生成器，为完整 support artifact 准备可审计输入。
+正在实施 Training-free Soft-Token Transport。确定性双向 byte-ngram LSH 候选生成器、结构化 provenance loader 与 CPU Slurm 作业入口已通过 91 项完整本地测试，正在形成验收提交。用户再次确认 Guqq `git pull` 可用；提交推送后将按连接审计重新同步并提交全词表 ANN 批处理作业。
 
 ## 当前计划
 
-1. 本地实现并测试确定性的外部 ANN candidate JSON 生成器，覆盖 exact/span 之外的全 source support，并记录方法/参数/指纹。
-2. Guqq HTTPS 实际恢复后同步源码，通过 `scp` 放置忽略的 canonical JSONL/ANN 输入，再用 Slurm 构建并审计 artifact。
-3. artifact 合格后通过 Slurm 运行真实模型短序列 smoke，保存 diagnostics；失败修复使用临时验证分支，不把未验收提交合入正式分支。
+1. 完成 ANN generator 单元最终回归、验收提交与 GitHub push，排除用户提供的未跟踪参考文件 `docs/assets/alignment.py`。
+2. 记录 Guqq 连接用途，连接后首先 `git pull`；查询 Slurm 后提交全词表 ANN candidate 作业，并从本地传输任务约定的忽略输入（如需要）。
+3. ANN 产物验收后以 smoothing 和结构化 candidates 构建完整 support artifact，再通过 Slurm 运行真实模型短序列 smoke；失败修复使用临时验证分支。
 
 ## 变更记录
 
@@ -46,5 +46,8 @@
 - 2026-09-01 21:10 +08:00：用户确认恢复后，Guqq pull 又经历普通连接超时、`net.sh` 后超时和独立 60 秒超时共三次失败；已按现有经验暂停远端同步/提交。计划调整为本地继续实现全词表 ANN 候选生成器。
 - 2026-09-01 21:14 +08:00：进入 ANN graph augmentation 语义单元；先使外部 ANN 对所有 ordinary source 增广候选并保持 evidence 优先级，再实现双向 top-k 生成器。
 - 2026-09-01 21:15 +08:00：ANN graph augmentation 语义完成，完整测试 76/76；下一步实现确定性双向 top-k candidate JSON 生成器，保证普通 source/target 两侧覆盖。
+- 2026-09-01 21:18 +08:00：进入双向 LSH ANN candidate 生成器单元；采用共享 hashed byte-ngram 特征与显式低 evidence bridge，目标是确定性全 support/连通候选 JSON。
+- 2026-09-01 21:30 +08:00：双向 LSH ANN generator、结构化 provenance loader 与 CPU Slurm 入口实现完成，目标/边界测试 16/16 通过；下一步完成最终全量回归并形成验收提交，再按用户确认重连 Guqq。
+- 2026-09-01 21:32 +08:00：双向 LSH ANN 单元最终完整回归 91/91 通过，进入验收提交阶段；提交并推送后记录新连接用途并首先执行 Guqq `git pull`。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

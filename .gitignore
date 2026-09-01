@@ -13,3 +13,5 @@ C2C/local/transport/results/
 C2C/local/transport/inputs/
 C2C/local/transport/logs/
 C2C/local/test-tmp/
+C2C/local/black-cache/
+C2C/local/pycache/

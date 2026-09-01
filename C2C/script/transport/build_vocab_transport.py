@@ -17,7 +17,12 @@ from rosetta.transport.vocab_transport import build_vocab_transport
 class _ToyTokenizer:
     is_fast = True
 
-    def __init__(self, name: str, vocab: dict[str, int], pieces: dict[str, list[tuple[int, int, int]]]):
+    def __init__(
+        self,
+        name: str,
+        vocab: dict[str, int],
+        pieces: dict[str, list[tuple[int, int, int]]],
+    ):
         self.name_or_path = name
         self._vocab = vocab
         self._by_id = {value: key for key, value in vocab.items()}
@@ -65,8 +70,54 @@ def _toy_inputs():
     return source, target, [text], None, {"enabled": False, "kind": "toy"}
 
 
+def _load_ann_candidates(path: Path):
+    raw = path.read_bytes()
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise ValueError("ANN candidate JSON root must be an object")
+    if "candidates" in payload:
+        if payload.get("schema_version") != 1:
+            raise ValueError("unsupported ANN candidate schema_version")
+        candidates = payload["candidates"]
+        required = {
+            "input_fingerprint",
+            "source_fingerprint",
+            "target_fingerprint",
+            "build_config",
+            "seed",
+            "code_version",
+            "coverage",
+        }
+        missing = required.difference(payload)
+        if missing:
+            raise ValueError(f"ANN candidate provenance missing: {sorted(missing)}")
+        provenance = {
+            key: value for key, value in payload.items() if key != "candidates"
+        }
+    else:
+        candidates = payload
+        provenance = {"schema_version": 0, "kind": "legacy-mapping"}
+    if not isinstance(candidates, dict):
+        raise ValueError("ANN candidates must be an object keyed by source token ID")
+    ann_config = {
+        "enabled": True,
+        "kind": "external-shared-embedding-candidates",
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "provenance": provenance,
+    }
+    return candidates, ann_config
+
+
 def _real_inputs(args: argparse.Namespace):
-    if not all((args.source, args.target, args.source_revision, args.target_revision, args.texts_jsonl)):
+    if not all(
+        (
+            args.source,
+            args.target,
+            args.source_revision,
+            args.target_revision,
+            args.texts_jsonl,
+        )
+    ):
         raise ValueError(
             "real build requires --source/--target, both revisions, and --texts-jsonl"
         )
@@ -92,14 +143,8 @@ def _real_inputs(args: argparse.Namespace):
     ann_fallback = None
     ann_config: dict[str, Any] = {"enabled": False}
     if args.ann_candidates_json:
-        raw = args.ann_candidates_json.read_bytes()
-        candidates = json.loads(raw)
+        candidates, ann_config = _load_ann_candidates(args.ann_candidates_json)
         ann_fallback = lambda source_id, _: candidates.get(str(source_id), [])
-        ann_config = {
-            "enabled": True,
-            "kind": "external-shared-embedding-candidates",
-            "sha256": hashlib.sha256(raw).hexdigest(),
-        }
     return source, target, texts, ann_fallback, ann_config
 
 
@@ -127,7 +172,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.resume and args.artifact.exists():
         report = audit_transport_artifact(load_transport_artifact(args.artifact))
         save_audit(report, args.audit_json, args.audit_markdown)
-        _write_checkpoint(checkpoint, {"status": "complete", "resume": "loaded-valid-artifact"})
+        _write_checkpoint(
+            checkpoint, {"status": "complete", "resume": "loaded-valid-artifact"}
+        )
         return 0
     prior_checkpoint = checkpoint.exists()
     _write_checkpoint(

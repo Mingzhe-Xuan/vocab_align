@@ -20,6 +20,8 @@ does not modify the existing C2C projector or wrapper.
   separate from each model's rendered prompt and mark unavailable resources.
 - `candidate_graph.py`: prioritized special/exact/span/ANN sparse support with
   raw evidence and explicit positive-mass row/column checks.
+- `ann_candidates.py`: deterministic bidirectional byte-ngram LSH candidates,
+  including low-evidence anchor bridges that connect the ordinary-token graph.
 - `marginals.py`: canonical-content frequency marginals, smoothing, and active
   support filtering under shared special-token rules.
 - `audit.py`: independent invariant, cost, entropy, candidate-source, and

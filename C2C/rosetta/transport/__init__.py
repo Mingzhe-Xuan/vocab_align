@@ -7,6 +7,11 @@ from .artifact import (
     load_transport_artifact,
     save_transport_artifact,
 )
+from .ann_candidates import (
+    AnnCandidateError,
+    ByteLshConfig,
+    build_bidirectional_lsh_candidates,
+)
 from .baseline import (
     BaselineError,
     BaselineSnapshot,
@@ -14,7 +19,12 @@ from .baseline import (
     freeze_baseline,
     save_baseline,
 )
-from .audit import audit_markdown, audit_transport_artifact, save_audit, transport_to_dense
+from .audit import (
+    audit_markdown,
+    audit_transport_artifact,
+    save_audit,
+    transport_to_dense,
+)
 from .candidate_graph import (
     CandidateEdge,
     CandidateGraph,
@@ -82,9 +92,11 @@ from .wrapper import (
 )
 
 __all__ = [
+    "AnnCandidateError",
     "ArtifactError",
     "BaselineError",
     "BaselineSnapshot",
+    "ByteLshConfig",
     "CandidateEdge",
     "CandidateGraph",
     "CandidateGraphError",
@@ -122,6 +134,7 @@ __all__ = [
     "build_transport_manifest",
     "candidate_edge_costs",
     "build_candidate_graph",
+    "build_bidirectional_lsh_candidates",
     "conditional_from_coupling",
     "collect_runtime_info",
     "dense_sinkhorn",

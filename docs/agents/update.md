@@ -39,5 +39,8 @@
 - Guqq 在用户确认恢复后的新一轮审计仍连续三次 pull 超时（含 `bash net.sh` 后重试）；暂停远端作业，保留已验证脚本与本地 canonical 输入，转入全词表 ANN 候选生成器实现。
 - 开始 ANN graph augmentation 语义单元；修正 ANN 仅用于缺边 source、无法连接 exact 分量或保证 target coverage 的限制。
 - 完成 ANN 对所有 ordinary source 的低优先级增广：与 exact/span 重合时保留高优先级 evidence，内部重复/非法边仍失败；完整测试 76/76。
+- 开始双向 LSH ANN candidate 生成器单元，冻结共享 byte-ngram 特征、seeded signature、双向 top-k、连通 bridge 与结构化 provenance 测试协议。
+- 完成确定性双向 byte-ngram LSH candidate generator、低证据连通 bridge、结构化 provenance/旧 mapping loader、原子 CLI 与无硬编码分区的 CPU Slurm 入口；目标测试 16/16 通过，进入最终全量回归。
+- 双向 LSH ANN candidate 单元最终完整回归 91/91 通过；准备形成验收提交并同步 Guqq。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。
