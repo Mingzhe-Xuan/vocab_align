@@ -1,0 +1,200 @@
+"""Compare two fast byte-level tokenizers without downloading model weights."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any
+
+from transformers import AutoTokenizer
+
+
+DEFAULT_TEXTS = [
+    "Explain why the sky appears blue in one sentence.",
+    "What is 17 × 23? Show the essential calculation.",
+    "请用一句话解释为什么天空看起来是蓝色的。",
+    "新加坡的官方语言有哪些？请简洁回答。",
+    "Python code: for i in range(3): print(i)",
+    "Unicode audit: café, naïve, 中文，emoji 🙂, tabs\tand newlines\nend.",
+]
+
+
+def bytes_to_unicode() -> dict[int, str]:
+    values = list(range(ord("!"), ord("~") + 1))
+    values += list(range(ord("¡"), ord("¬") + 1))
+    values += list(range(ord("®"), ord("ÿ") + 1))
+    chars = values[:]
+    extra = 0
+    for byte in range(256):
+        if byte not in values:
+            values.append(byte)
+            chars.append(256 + extra)
+            extra += 1
+    return dict(zip(values, (chr(value) for value in chars)))
+
+
+UNICODE_TO_BYTE = {char: byte for byte, char in bytes_to_unicode().items()}
+
+
+def raw_bytes(token: str) -> bytes:
+    if all(char in UNICODE_TO_BYTE for char in token):
+        return bytes(UNICODE_TO_BYTE[char] for char in token)
+    return token.encode("utf-8")
+
+
+def added_tokens(tokenizer: Any) -> dict[int, dict[str, Any]]:
+    decoder = tokenizer.backend_tokenizer.get_added_tokens_decoder()
+    return {
+        int(token_id): {"token": str(token), "special": bool(token.special)}
+        for token_id, token in decoder.items()
+    }
+
+
+def ordinary_vocab(tokenizer: Any) -> dict[str, int]:
+    excluded = set(added_tokens(tokenizer))
+    return {
+        token: int(token_id)
+        for token, token_id in tokenizer.get_vocab().items()
+        if int(token_id) not in excluded
+    }
+
+
+def fingerprint(vocab: dict[str, int]) -> str:
+    payload = json.dumps(sorted(vocab.items(), key=lambda item: item[1]), ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def token_spans(tokenizer: Any, text: str) -> list[tuple[int, int, int]]:
+    encoded = tokenizer(text, add_special_tokens=False, return_offsets_mapping=True)
+    return [
+        (int(token_id), int(start), int(end))
+        for token_id, (start, end) in zip(encoded["input_ids"], encoded["offset_mapping"])
+        if start != end
+    ]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source-revision')
+    parser.add_argument('--target-revision')
+    parser.add_argument("--source", default="Qwen/Qwen3-8B")
+    parser.add_argument("--target", default="mistralai/Mistral-Nemo-Instruct-2407")
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+
+    source_kwargs = {'use_fast': True}
+    target_kwargs = {'use_fast': True}
+    if args.source_revision:
+        source_kwargs['revision'] = args.source_revision
+    if args.target_revision:
+        target_kwargs['revision'] = args.target_revision
+    source = AutoTokenizer.from_pretrained(args.source, **source_kwargs)
+    target = AutoTokenizer.from_pretrained(args.target, **target_kwargs)
+    source_vocab = ordinary_vocab(source)
+    target_vocab = ordinary_vocab(target)
+    source_bytes: dict[bytes, list[int]] = defaultdict(list)
+    target_bytes: dict[bytes, list[int]] = defaultdict(list)
+    for token, token_id in source_vocab.items():
+        source_bytes[raw_bytes(token)].append(token_id)
+    for token, token_id in target_vocab.items():
+        target_bytes[raw_bytes(token)].append(token_id)
+
+    shared_bytes = set(source_bytes) & set(target_bytes)
+    source_exact_ids = {token_id for value in shared_bytes for token_id in source_bytes[value]}
+    target_exact_ids = {token_id for value in shared_bytes for token_id in target_bytes[value]}
+    source_added = added_tokens(source)
+    target_added = added_tokens(target)
+
+    sample_rows = []
+    source_occurrences: Counter[int] = Counter()
+    exact_occurrences = 0
+    total_occurrences = 0
+    for text in DEFAULT_TEXTS:
+        source_spans = token_spans(source, text)
+        target_spans = token_spans(target, text)
+        source_ids = [token_id for token_id, _, _ in source_spans]
+        target_ids = [token_id for token_id, _, _ in target_spans]
+        source_occurrences.update(source_ids)
+        total_occurrences += len(source_ids)
+        exact_occurrences += sum(token_id in source_exact_ids for token_id in source_ids)
+        sample_rows.append(
+            {
+                "text": text,
+                "source_length": len(source_ids),
+                "target_length": len(target_ids),
+                "length_ratio_target_over_source": len(target_ids) / max(len(source_ids), 1),
+                "same_id_sequence": source_ids == target_ids,
+                "source_tokens": source.convert_ids_to_tokens(source_ids),
+                "target_tokens": target.convert_ids_to_tokens(target_ids),
+            }
+        )
+
+    source_special = {item["token"]: token_id for token_id, item in source_added.items()}
+    target_special = {item["token"]: token_id for token_id, item in target_added.items()}
+    common_control = sorted(set(source_special) & set(target_special))
+    report = {
+        'requested_revisions': {
+            'source': args.source_revision,
+            'target': args.target_revision,
+        },
+        "source": {
+            "name": args.source,
+            "revision": source.init_kwargs.get("_commit_hash"),
+            "total_vocab_size": len(source),
+            "ordinary_vocab_size": len(source_vocab),
+            "added_token_count": len(source_added),
+            "ordinary_vocab_fingerprint": fingerprint(source_vocab),
+        },
+        "target": {
+            "name": args.target,
+            "revision": target.init_kwargs.get("_commit_hash"),
+            "total_vocab_size": len(target),
+            "ordinary_vocab_size": len(target_vocab),
+            "added_token_count": len(target_added),
+            "ordinary_vocab_fingerprint": fingerprint(target_vocab),
+        },
+        "ordinary_byte_overlap": {
+            "shared_unique_byte_strings": len(shared_bytes),
+            "source_token_coverage": len(source_exact_ids) / len(source_vocab),
+            "target_token_coverage": len(target_exact_ids) / len(target_vocab),
+            "source_tokens_with_exact_target": len(source_exact_ids),
+            "target_tokens_with_exact_source": len(target_exact_ids),
+            "duplicate_byte_strings_source": sum(len(ids) > 1 for ids in source_bytes.values()),
+            "duplicate_byte_strings_target": sum(len(ids) > 1 for ids in target_bytes.values()),
+        },
+        "control_tokens": {
+            "common_count": len(common_control),
+            "common": [
+                {
+                    "token": token,
+                    "source_id": source_special[token],
+                    "target_id": target_special[token],
+                }
+                for token in common_control
+            ],
+            "source_only_count": len(set(source_special) - set(target_special)),
+            "target_only_count": len(set(target_special) - set(source_special)),
+            "source_only": sorted(set(source_special) - set(target_special)),
+            "target_only_sample": sorted(set(target_special) - set(source_special))[:40],
+        },
+        "sample_audit": {
+            "text_count": len(DEFAULT_TEXTS),
+            "unique_source_tokens": len(source_occurrences),
+            "source_occurrence_exact_byte_coverage": exact_occurrences / total_occurrences,
+            "mean_length_ratio_target_over_source": sum(
+                row["length_ratio_target_over_source"] for row in sample_rows
+            ) / len(sample_rows),
+            "rows": sample_rows,
+        },
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({**report["ordinary_byte_overlap"], **report["sample_audit"]}, ensure_ascii=False, indent=2))
+    print(f"Saved report to {args.output}")
+
+
+if __name__ == "__main__":
+    main()

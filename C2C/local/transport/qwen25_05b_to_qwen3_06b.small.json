@@ -1,0 +1,919 @@
+{
+  "schema_version": 1,
+  "source_tokenizer": "Qwen/Qwen2.5-0.5B-Instruct",
+  "target_tokenizer": "Qwen/Qwen3-0.6B",
+  "source_fingerprint": "cf5b132ce81912f86f06668d3990a0cf922275a49de11da2391c6b4d8cf62f43",
+  "target_fingerprint": "976733b7eb884ac9a205745fa1893db12eedeadadc4ad9304f7fd1ad38c659b4",
+  "text_count": 6,
+  "observed_source_tokens": 69,
+  "observed_target_tokens": 69,
+  "columns": [
+    {
+      "source_id": 7,
+      "source_token": "(",
+      "source_bytes_hex": "28",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        7
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 8,
+      "source_token": ")",
+      "source_bytes_hex": "29",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        8
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 11,
+      "source_token": ",",
+      "source_bytes_hex": "2c",
+      "source_count": 3,
+      "rule": "exact_byte",
+      "target_ids": [
+        11
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 13,
+      "source_token": ".",
+      "source_bytes_hex": "2e",
+      "source_count": 3,
+      "rule": "exact_byte",
+      "target_ids": [
+        13
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 16,
+      "source_token": "1",
+      "source_bytes_hex": "31",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        16
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 17,
+      "source_token": "2",
+      "source_bytes_hex": "32",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        17
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 18,
+      "source_token": "3",
+      "source_bytes_hex": "33",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        18
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 22,
+      "source_token": "7",
+      "source_bytes_hex": "37",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        22
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 25,
+      "source_token": ":",
+      "source_bytes_hex": "3a",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        25
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 30,
+      "source_token": "?",
+      "source_bytes_hex": "3f",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        30
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 198,
+      "source_token": "Ċ",
+      "source_bytes_hex": "0a",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        198
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 220,
+      "source_token": "Ġ",
+      "source_bytes_hex": "20",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        220
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 279,
+      "source_token": "Ġthe",
+      "source_bytes_hex": "20746865",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        279
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 304,
+      "source_token": "Ġin",
+      "source_bytes_hex": "20696e",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        304
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 369,
+      "source_token": "Ġfor",
+      "source_bytes_hex": "20666f72",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        369
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 374,
+      "source_token": "Ġis",
+      "source_bytes_hex": "206973",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        374
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 408,
+      "source_token": "end",
+      "source_bytes_hex": "656e64",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        408
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 501,
+      "source_token": "Ġnew",
+      "source_bytes_hex": "206e6577",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        501
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 586,
+      "source_token": "ve",
+      "source_bytes_hex": "7665",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        586
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 600,
+      "source_token": "Ġi",
+      "source_bytes_hex": "2069",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        600
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 825,
+      "source_token": "Ġone",
+      "source_bytes_hex": "206f6e65",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        825
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 840,
+      "source_token": "Ex",
+      "source_bytes_hex": "4578",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        840
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 1173,
+      "source_token": "Ġprint",
+      "source_bytes_hex": "207072696e74",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        1173
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 1648,
+      "source_token": "):",
+      "source_bytes_hex": "293a",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        1648
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 1773,
+      "source_token": "ãĢĤ",
+      "source_bytes_hex": "e38082",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        1773
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 1956,
+      "source_token": "(i",
+      "source_bytes_hex": "2869",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        1956
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 2038,
+      "source_token": "Ġcode",
+      "source_bytes_hex": "20636f6465",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        2038
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 2088,
+      "source_token": "Ġrange",
+      "source_bytes_hex": "2072616e6765",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        2088
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 3170,
+      "source_token": "Ġwhy",
+      "source_bytes_hex": "20776879",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        3170
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 3837,
+      "source_token": "ï¼Į",
+      "source_bytes_hex": "efbc8c",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        3837
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 3838,
+      "source_token": "What",
+      "source_bytes_hex": "57686174",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        3838
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 6303,
+      "source_token": "Ġblue",
+      "source_bytes_hex": "20626c7565",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        6303
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 6928,
+      "source_token": "ĠShow",
+      "source_bytes_hex": "2053686f77",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        6928
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 7565,
+      "source_token": "Ġessential",
+      "source_bytes_hex": "20657373656e7469616c",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        7565
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 7952,
+      "source_token": "Ġappears",
+      "source_bytes_hex": "2061707065617273",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        7952
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 7969,
+      "source_token": "lines",
+      "source_bytes_hex": "6c696e6573",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        7969
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 9370,
+      "source_token": "çļĦ",
+      "source_bytes_hex": "e79a84",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        9370
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 11319,
+      "source_token": "ï¼Ł",
+      "source_bytes_hex": "efbc9f",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        11319
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 11622,
+      "source_token": "çĶ¨",
+      "source_bytes_hex": "e794a8",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        11622
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 11652,
+      "source_token": "Ġsentence",
+      "source_bytes_hex": "2073656e74656e6365",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        11652
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 12884,
+      "source_token": "Ġsky",
+      "source_bytes_hex": "20736b79",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        12884
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 14880,
+      "source_token": "è¯·",
+      "source_bytes_hex": "e8afb7",
+      "source_count": 2,
+      "rule": "exact_byte",
+      "target_ids": [
+        14880
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 16744,
+      "source_token": "æĸĩ",
+      "source_bytes_hex": "e69687",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        16744
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 20412,
+      "source_token": "æĺ¯",
+      "source_bytes_hex": "e698af",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        20412
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 20772,
+      "source_token": "plain",
+      "source_bytes_hex": "706c61696e",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        20772
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 21937,
+      "source_token": "Ġcalculation",
+      "source_bytes_hex": "2063616c63756c6174696f6e",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        21937
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 22398,
+      "source_token": "Ġtabs",
+      "source_bytes_hex": "2074616273",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        22398
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 24275,
+      "source_token": "Ġaudit",
+      "source_bytes_hex": "206175646974",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        24275
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 24768,
+      "source_token": "ĠÃĹ",
+      "source_bytes_hex": "20c397",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        24768
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 27484,
+      "source_token": "ĠðŁĻĤ",
+      "source_bytes_hex": "20f09f9982",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        27484
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 30280,
+      "source_token": "Python",
+      "source_bytes_hex": "507974686f6e",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        30280
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 33920,
+      "source_token": "Unicode",
+      "source_bytes_hex": "556e69636f6465",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        33920
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 37523,
+      "source_token": "emoji",
+      "source_bytes_hex": "656d6f6a69",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        37523
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 51950,
+      "source_token": "ĠcafÃ©",
+      "source_bytes_hex": "20636166c3a9",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        51950
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 52477,
+      "source_token": "ĉand",
+      "source_bytes_hex": "09616e64",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        52477
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 72858,
+      "source_token": "Ġä¸Ń",
+      "source_bytes_hex": "20e4b8ad",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        72858
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 94880,
+      "source_token": "ĠnaÃ¯",
+      "source_bytes_hex": "206e61c3af",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        94880
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 100678,
+      "source_token": "ä¸ºä»Ģä¹Ī",
+      "source_bytes_hex": "e4b8bae4bb80e4b988",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        100678
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 100777,
+      "source_token": "å®ĺæĸ¹",
+      "source_bytes_hex": "e5ae98e696b9",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        100777
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 101916,
+      "source_token": "å¤©ç©º",
+      "source_bytes_hex": "e5a4a9e7a9ba",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        101916
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 102064,
+      "source_token": "è¯Ńè¨Ģ",
+      "source_bytes_hex": "e8afade8a880",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        102064
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 102104,
+      "source_token": "åĽŀçŃĶ",
+      "source_bytes_hex": "e59b9ee7ad94",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        102104
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 104136,
+      "source_token": "è§£éĩĬ",
+      "source_bytes_hex": "e8a7a3e9878a",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        104136
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 104544,
+      "source_token": "çľĭèµ·æĿ¥",
+      "source_bytes_hex": "e79c8be8b5b7e69da5",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        104544
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 104719,
+      "source_token": "æľīåĵªäºĽ",
+      "source_bytes_hex": "e69c89e593aae4ba9b",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        104719
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 105321,
+      "source_token": "ä¸Ģåı¥è¯Ŀ",
+      "source_bytes_hex": "e4b880e58fa5e8af9d",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        105321
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 105394,
+      "source_token": "æĸ°åĬłåĿ¡",
+      "source_bytes_hex": "e696b0e58aa0e59da1",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        105394
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 105681,
+      "source_token": "èĵĿèī²",
+      "source_bytes_hex": "e8939de889b2",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        105681
+      ],
+      "weights": [
+        1.0
+      ]
+    },
+    {
+      "source_id": 110485,
+      "source_token": "ç®Ģæ´ģ",
+      "source_bytes_hex": "e7ae80e6b481",
+      "source_count": 1,
+      "rule": "exact_byte",
+      "target_ids": [
+        110485
+      ],
+      "weights": [
+        1.0
+      ]
+    }
+  ],
+  "audit": {
+    "rule_column_counts": {
+      "exact_byte": 69
+    },
+    "covered_column_fraction": 1.0,
+    "covered_occurrence_fraction": 1.0,
+    "duplicate_exact_columns": 0,
+    "max_column_sum_error": 0.0,
+    "nonnegative": true
+  }
+}
