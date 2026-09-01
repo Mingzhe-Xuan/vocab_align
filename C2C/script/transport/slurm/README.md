@@ -14,6 +14,11 @@ use the cluster default or pass an approved partition to `sbatch` after checking
 candidate JSON used by smoothed full-support builds. Run it through Slurm
 because hashing both complete vocabularies is batch processing.
 
+`build_full_support_preview.sbatch` combines that structured ANN JSON with a
+small canonical JSONL corpus and positive smoothing. It activates both complete
+ordinary vocabularies to exercise sparse Sinkhorn and artifact auditing, but is
+explicitly a preview rather than the formal `transport_train` artifact.
+
 Example:
 
 ```bash
@@ -22,4 +27,8 @@ sbatch script/transport/slurm/build_ann_candidates.sbatch
 
 TEXTS_JSONL=local/transport/inputs/preview_texts.jsonl \
   sbatch script/transport/slurm/build_preview.sbatch
+
+TEXTS_JSONL=local/transport/inputs/preview_texts.jsonl \
+ANN_CANDIDATES_JSON=local/transport/artifacts/qwen3_8b_to_mistral_nemo_ann.json \
+  sbatch script/transport/slurm/build_full_support_preview.sbatch
 ```

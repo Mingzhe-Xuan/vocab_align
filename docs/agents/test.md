@@ -1,5 +1,23 @@
 # 测试记录
 
+## 2026-09-01：全词表支撑预览 Slurm 作业单元
+
+计划范围：
+
+- 新作业必须使用锁定 source/target revisions、canonical preview JSONL、Job 212 结构化 ANN candidates 和严格为正的 smoothing，产物命名明确为 full-support preview。
+- 作业不硬编码未知 partition；候选构建/Sinkhorn/audit 全部由 Slurm 执行，登录节点只负责 `sbatch` 与状态/文件检查。
+- Python venv、输入和 ANN JSON 缺失时在启动计算前失败；artifact、checkpoint、logs 和 audits 均位于 `local/transport/` 忽略目录。
+- Bash 语法与 stub Python 参数传播测试覆盖 revisions、ANN 路径、smoothing、code version 和失败码；完整离线测试不访问网络。
+
+前置 ANN 本地独立验收：scp 文件大小 134,332,695 bytes 且 SHA-256 与服务器一致；全 JSON 扫描得到 151,655 source、131,069 target、2,337,695 edges，0 个非法 evidence、0 个重复/乱序 source adjacency，evidence 范围 `[1e-6, 1.0000001192092896]`。最大值是 float32 余弦舍入产生的约 `1.2e-7` 上溢；raw evidence 在每个 source 内归一化后才转为代价，不作为概率直接使用。
+
+实际结果：
+
+- `python -m pytest -o addopts="--strict-markers --strict-config" test/transport/test_full_support_preview_slurm.py test/transport/test_preview_slurm.py --basetemp=local/test-tmp/full-preview-targeted -q`：6 passed（11.79s）。
+- `bash -n script/transport/slurm/build_full_support_preview.sbatch`：通过；作业无硬编码 partition。
+- Black 检查与显式本地 pycache 的 `compileall`：通过。
+- `python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/full-preview-final -q`：94 passed（50.18s）；仅有本机 pandas 对既有 numexpr/bottleneck 版本的两条 warning。
+
 ## 2026-09-01：ANN Slurm 连接审计文档
 
 计划范围：
