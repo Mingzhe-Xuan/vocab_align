@@ -66,3 +66,10 @@
 - 失败背景：Job 214 已安全失败且仅留下 48-byte building checkpoint；不把该 checkpoint 当有效 artifact。新作业使用独立 Slurm job ID，builder 按既有 checkpoint 语义从记录输入重新构建，不在服务器改源码。
 - 计划顺序：持久会话第一条命令为 `cd vocab_align && git pull`；网络异常时执行 `bash net.sh` 后重试。同步/哈希成功后提交作业，保留并检查新的日志与 checkpoint。
 - 实际结果：首次 `git pull` 等待约 90 秒无响应；中断后 `bash net.sh` 成功刷新网络登录，但第二次 pull 等待约 60 秒仍无响应。已中断并退出，未执行哈希查询、`sbatch` 或任何计算；服务器仍未获得 `0409679`。
+
+## 2026-09-01 23:06 +08:00
+
+- 连接用途：按用户确认同步 manifest-bound corpus 验收提交 `4876adb`（包含待重跑所需的 special-support 修复），复核既有 canonical preview/ANN 输入，并通过 Slurm 重跑 full-support preview。
+- 权限判断：登录节点只执行 `git pull`、输入/环境轻量校验、`sinfo/squeue/sacct`、`sbatch` 与结果只读检查；候选图加载、Sinkhorn、artifact 构建和审计全部在 64G/8h Slurm 作业中运行。
+- 作业边界：不复用 Job 214 的 48-byte building checkpoint 作为有效产物；新作业允许按记录输入重新构建，并使用新的 Slurm job ID/log。所有生成物继续位于 `C2C/local/transport/` 忽略目录。
+- 计划顺序：新 SSH 会话的第一条远端命令为 `cd vocab_align && git pull`；如发生网络问题，才执行 `bash net.sh` 后重试。同步成功后再核对输入并提交/监控作业，不在服务器修改 Git 源码。
