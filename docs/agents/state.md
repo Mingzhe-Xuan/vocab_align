@@ -143,5 +143,6 @@
 - 2026-09-03 05:50 +08:00：Guqq 已同步 provenance 修正，artifact/空输出/空队列门禁通过，固定 5 题真实评测提交为 Slurm Job 246。下一步只读监控终态并验收逐题 records、summary、资源、哈希和无 partial。
 - 2026-09-03 06:01 +08:00：Job 246 离线数据和双模型加载成功，但 sequential `device_map:auto` 占用约 30.3GiB，5 个长 prompt 均在额外 1.4—1.7GiB 分配时 OOM；失败逐题记录完整且无 summary，判定未验收。修复调整为 source CPU/receiver GPU-auto、16-token greedy 与显式 provenance，保持同一 GPU 资源，完成本地回归后重试 failed records。
 - 2026-09-03 06:05 +08:00：source CPU/receiver auto override、16-token recipe 和 allocator 配置完成，默认 smoke loader 行为不变；定向 25/25、完整 168/168 通过。下一步推送未验收修复，Guqq pull 后用原 records 验证 failed-only resume。
+- 2026-09-03 06:17 +08:00：Guqq 经有界 pull 同步 `d98a85e`，Job 246 failed records/无 partial/空队列门禁通过，断点复验提交为 Job 247。下一步只读验收 source CPU placement、5 条成功追加、summary 与资源。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
