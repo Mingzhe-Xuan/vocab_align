@@ -392,3 +392,4 @@
 - 权限判断与顺序：连接后第一项必须 `git pull --ff-only`；源码只通过兼容分支快进同步，不在服务器编辑。数据下载/缓存检查属于轻量操作；模型加载和推理只经 `sbatch script/transport/slurm/evaluate_stt_mmlu_redux.sbatch`，不在登录节点运行。
 - 验收边界：要求 Job Exit 0、5 条逐题 success 或显式失败记录、summary 只统计 success、canonical/prompt metadata、分段 latency/长度/显存、transport quality、正式 artifact/runtime provenance、无 `.partial`，并记录 GNU time/MaxRSS/日志与产物 SHA。真实通过前分支保持 `[UNACCEPTED]`。
 - 首次连接结果：首项 `git pull --ff-only` 在 GitHub HTTPS 传输中以 `GnuTLS recv error (-110)` 失败，后续环境/队列检查因 `&&` 未执行，服务器源码未变更。下一次连接仍先尝试 pull；若失败则按规范在同一连接运行 `bash net.sh` 后重试 pull，成功前不执行其他任务。
+- 第二次连接结果：首次 pull 超时后 `bash net.sh` 成功恢复网络，第二次 pull 将服务器从 `6e08989` 快进到 `8abf1cd`。随后版本检查的一行 Python 因远端 shell 引号转义错误而未执行，且 `&&` 阻止后续门禁；这不是环境或代码失败。下一次连接首项继续 pull，再改用 `pip show` 做无引号版本检查。
