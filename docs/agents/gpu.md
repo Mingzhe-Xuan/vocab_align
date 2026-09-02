@@ -195,3 +195,9 @@
 - 连接用途：验证临时 `[UNACCEPTED]` sparse audit 提交 `76ee480`；复用 Job 235 相同输入、64G/8h、epsilon 0.5、tolerance `2e-3`、max_iter 10,000，经 Slurm 完成 full-vocabulary artifact 的保存/加载/独立审计。
 - 权限判断与顺序：新会话第一条远端操作为 `cd vocab_align && git pull`；之后才同步临时分支、复核 HEAD/输入/队列并 `sbatch`。构建和 audit 都在 compute allocation；登录节点只做轻量管理/只读终态检查，不加载 partial、不编辑源码。
 - 验收边界：使用全新 `sparse_audit_validation` artifact/audit/checkpoint 路径，不覆盖 Job 235 partial；要求 Exit 0、residual `<=2e-3`、metadata tolerance、完整 JSON/Markdown audit、checkpoint complete、目标统计有限、MaxRSS 显著低于 64G 且哈希可追溯。通过前不进入 main。
+
+## 2026-09-02 16:21 +08:00
+
+- 连接用途：此前用于监控 Job 236 的持久 SSH 会话被远端 reset；建立新连接恢复只读终态验收，查询 Slurm state/exit、GNU time/MaxRSS、独立 artifact/audit/checkpoint 和哈希。
+- 权限判断与顺序：新连接的第一条远端操作仍为 `cd vocab_align && git pull`；成功后仅执行 `squeue`/`sacct`、日志和结果文件只读检查，不提交新计算、不在登录节点加载全量产物或修改服务器源码/实验结果。
+- 验收边界：继续使用 Job 236 的 `sparse_audit_validation` 独立路径，核验 Exit 0、两侧 marginal residual、严格列归一化、metadata tolerance、有限目标统计、checkpoint complete、MaxRSS 与可追溯哈希；若失败则保留现场并回到本地修复。
