@@ -779,3 +779,4 @@ chunked receiver embedding 本地实际结果：
 
 - 固定 `abstract_algebra` 前 5 题、greedy 64-token、正式 500k artifact、`blackwell-cu128`、单 RTX 5090；加载前必须通过 CUDA/锁定依赖/30GiB/compiled-arch/artifact 门禁。
 - Slurm 成功后检查 5 条逐题 success 或显式 failure、canonical/prompt metadata、source/virtual/output lengths、分段 latency、support quality、summary 计数与 accuracy、无 `.partial`、作业 Exit/MaxRSS/日志哈希。
+- 提交前 provenance 复核新增：每条 STT success diagnostics 必须绑定 git code version、runtime profile/package/CUDA arch/device、transport config、artifact path/SHA-256/shape/nnz/metadata；factory stub 与真实 adapter schema 均覆盖。修正后定向 26/26（6.04s）、完整 168/168（93.19s）通过，仅有既存 pandas 可选依赖 2 条 warning。

@@ -138,5 +138,6 @@
 - 2026-09-03 05:32 +08:00：Job 245 后最终代码树完整回归 150/150；6 个变动 Python 文件 Black unchanged/内存 compile、Slurm Bash、两份计划证据路径与 diff 检查全部通过。进入未验收证据提交与 main squash 验收提交。
 - 2026-09-03 05:36 +08:00：阶段 2 已以 main 验收提交 `66b9809` 推送；进入阶段 3 统一 evaluator 核心单元。代码结构为 `rosetta/transport/evaluation.py`（统一 sample/result/record、resume/merge/summary 与 adapter 协议）、`script/transport/summarize_transport.py`（CLI 聚合）、eval recipe 和独立 evaluation tests；随后再以窄分支接入既有 `unified_evaluator.py`，避免先在 1,800+ 行循环中复制 STT 逻辑。
 - 2026-09-03 05:24 +08:00：阶段 3 本地实现完成：统一入口按 `training_free_transport` 分派到独立 adapter/runner，逐题 JSONL 支持失败继续、prompt/method 安全恢复、确定性 rank merge 与原子 summary；固定 Blackwell 5 题 MMLU-Redux recipe 和 Slurm 入口。定向 28/28、完整 168/168 通过；下一步形成临时验证提交并执行 Guqq Slurm 真机验收。
+- 2026-09-03 05:43 +08:00：远端提交前复核发现逐题记录缺少独立 runtime/artifact/code provenance，已在 adapter diagnostics 绑定 code SHA、完整 runtime profile、transport config、artifact SHA/shape/nnz/metadata；定向 26/26、完整 168/168 通过。下一步推送修正，Guqq pull 后执行最终门禁并提交 Slurm。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

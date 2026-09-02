@@ -272,27 +272,51 @@ class _Wrapper:
 
 def test_training_free_adapter_emits_transport_metrics_and_diagnostics():
     adapter = TrainingFreeTransportEvaluationAdapter(
-        _Wrapper(), _Tokenizer(), _Tokenizer(), {"max_new_tokens": 1}
+        _Wrapper(),
+        _Tokenizer(),
+        _Tokenizer(),
+        {"max_new_tokens": 1},
+        {"code_version": "fixture"},
     )
     result = adapter.generate_one(_sample())
     assert result.text == "Answer: A"
     assert result.metrics["transport_seconds"] == pytest.approx(0.2)
     assert result.diagnostics["virtual_prompt_shape"] == [1, 2, 4]
     assert result.diagnostics["active_support_mass_mean"] == 1.0
+    assert result.diagnostics["provenance"] == {"code_version": "fixture"}
 
 
 def test_training_free_config_creates_adapter(monkeypatch):
     loaded = {}
 
-    def fake_load(config, artifact):
-        loaded["config"] = config
-        loaded["artifact"] = artifact
-        return _Wrapper(), _Tokenizer(), _Tokenizer()
-
-    monkeypatch.setattr("script.evaluation.transport_adapter._load_runtime", fake_load)
     monkeypatch.setattr(
         "script.evaluation.transport_adapter.validate_runtime_requirements",
         lambda *args, **kwargs: loaded.setdefault("runtime", (args, kwargs)),
+    )
+    monkeypatch.setattr(
+        "script.evaluation.transport_adapter.runtime_metadata",
+        lambda profile: {"profile": profile},
+    )
+    monkeypatch.setattr(
+        "script.evaluation.transport_adapter.file_sha256", lambda _: "artifact-sha"
+    )
+    monkeypatch.setattr(
+        "script.evaluation.transport_adapter._git_version", lambda: "code-sha"
+    )
+    wrapper = _Wrapper()
+    wrapper.artifact = SimpleNamespace(
+        shape=(2, 3),
+        data=SimpleNamespace(size=4),
+        metadata={"input_fingerprint": "fingerprint"},
+    )
+
+    def fake_load_with_artifact(config, artifact):
+        loaded["config"] = config
+        loaded["artifact"] = artifact
+        return wrapper, _Tokenizer(), _Tokenizer()
+
+    monkeypatch.setattr(
+        "script.evaluation.transport_adapter._load_runtime", fake_load_with_artifact
     )
     adapter = create_training_free_transport_adapter(
         {
@@ -309,3 +333,7 @@ def test_training_free_config_creates_adapter(monkeypatch):
     assert adapter.generation["max_new_tokens"] == 1
     assert loaded["artifact"].as_posix() == "local/fake.npz"
     assert loaded["runtime"][1]["allow_existing_output"] is True
+    assert adapter.provenance["code_version"] == "code-sha"
+    assert adapter.provenance["runtime"]["profile"] == "project-cu124"
+    assert adapter.provenance["artifact_sha256"] == "artifact-sha"
+    assert adapter.provenance["artifact_shape"] == [2, 3]

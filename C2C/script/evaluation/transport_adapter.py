@@ -9,12 +9,18 @@ import torch
 import yaml
 
 from rosetta.transport.config import TransportConfig
+from rosetta.transport.corpus import file_sha256
 from rosetta.transport.evaluation import (
     EvaluationSample,
     GenerationResult,
 )
 from rosetta.transport.wrapper import TransportGenerationOutput
-from script.transport.smoke_stt import _load_runtime, validate_runtime_requirements
+from script.transport.smoke_stt import (
+    _git_version,
+    _load_runtime,
+    runtime_metadata,
+    validate_runtime_requirements,
+)
 
 
 class TrainingFreeTransportEvaluationAdapter:
@@ -26,11 +32,13 @@ class TrainingFreeTransportEvaluationAdapter:
         source_tokenizer: Any,
         target_tokenizer: Any,
         generation: Mapping[str, Any],
+        provenance: Mapping[str, Any] | None = None,
     ) -> None:
         self.wrapper = wrapper
         self.source_tokenizer = source_tokenizer
         self.target_tokenizer = target_tokenizer
         self.generation = dict(generation)
+        self.provenance = dict(provenance or {})
 
     def generate_one(self, sample: EvaluationSample) -> GenerationResult:
         source_text = self.source_tokenizer.apply_chat_template(
@@ -71,6 +79,7 @@ class TrainingFreeTransportEvaluationAdapter:
             ),
             "source_top_m": stats.top_m,
             "source_rendered_prompt": source_text,
+            "provenance": self.provenance,
         }
         return GenerationResult(
             text=self.target_tokenizer.decode(token_ids, skip_special_tokens=True),
@@ -104,6 +113,22 @@ def create_training_free_transport_adapter(
     generation = dict(config.generation)
     generation.update(model_config.get("generation_config", {}))
     wrapper, source_tokenizer, target_tokenizer = _load_runtime(config, artifact_path)
+    runtime_profile = str(model_config.get("runtime_profile", "project-cu124"))
+    provenance = {
+        "code_version": _git_version(),
+        "runtime": runtime_metadata(runtime_profile),
+        "transport_config_path": str(config_path),
+        "transport_config": config.to_dict(),
+        "artifact_path": str(artifact_path),
+        "artifact_sha256": file_sha256(artifact_path),
+        "artifact_shape": list(wrapper.artifact.shape),
+        "artifact_nnz": int(wrapper.artifact.data.size),
+        "artifact_metadata": dict(wrapper.artifact.metadata),
+    }
     return TrainingFreeTransportEvaluationAdapter(
-        wrapper, source_tokenizer, target_tokenizer, generation
+        wrapper,
+        source_tokenizer,
+        target_tokenizer,
+        generation,
+        provenance,
     )
