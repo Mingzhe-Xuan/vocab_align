@@ -143,3 +143,9 @@
 - 权限判断：新连接首条远端操作必须为 `cd vocab_align && git pull`；之后仅执行 `git rev-parse`、`squeue/sacct` 与结果文件只读检查。不同步成功不继续查询；不在登录节点运行计算，不修改服务器源码或已有实验结果。
 - 计划顺序：pull 成功后确认提交，再检查 Job 230 state/exit、GNU time、严格 residual、checkpoint 与 artifact/audit。网络异常时运行 `bash net.sh` 后重试；Job 230 验收完成前不提交正式 500k 后续作业。
 - 实际结果：首次 pull 等待 90 秒无输出后中断；`bash net.sh` 成功，retry pull 同步到 `af3aadf`。Job 230 已从活动队列清除且 accounting disabled；stderr 证明作业运行 40:50.55、Exit 1、MaxRSS 1,847,076 KiB、0 swap。scaled L-BFGS 仅执行 27 次 evaluation，随后标准 scaling 至总预算 10,000，最终 row/column residual 为 `4.6615468745e-4`/`6.0559911057e-14`，未达到 `1e-9`。checkpoint 仍为 `building/restart-from-recorded-inputs`，正式 artifact/audit 均不存在；已退出服务器，不推进正式 500k 作业。
+
+## 2026-09-02 08:29 +08:00
+
+- 连接用途：验证临时分支提交 `cfa1a87`（明确 `[UNACCEPTED]`）的 stable incremental dual 与有界重启；在与 Job 230 相同输入、64G/8h、epsilon 0.5、`1e-9`/10,000 下通过 Slurm 重跑 full-support preview。
+- 权限判断：建立会话后第一条远端操作仍为仓库内 `git pull`；随后仅用 `git pull origin validation/job230-dual-increment` 获取临时提交、复核版本/输入/队列并 `sbatch`。2.3M-edge 构建和 Sinkhorn 全部在 compute allocation，登录节点不运行计算、不编辑源码。
+- 计划顺序：同步到 `cfa1a87` 后使用带新 job 后缀的 artifact/audit 路径，避免覆盖 Job 230 的 building checkpoint/partial；提交后持久监控 termination provenance、严格 residual、MaxRSS 和原子产物。未通过前不合并 main、不提交正式 500k 作业。

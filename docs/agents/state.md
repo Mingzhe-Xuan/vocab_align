@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。Job 230 的 early termination 修复已通过 129 个本地测试：stable incremental dual、有界 evaluation 与短退重启均完成；真实 2.3M-edge Slurm 回归尚未通过，因此准备临时分支上的明确未验收验证提交，不进入 main。
+正在实施 Training-free Soft-Token Transport。early termination 修复已作为临时分支 `[UNACCEPTED]` 提交 `cfa1a87` 推送，并登记相同配置的 Guqq Slurm 回归；该提交尚未进入 main。
 
 ## 当前计划
 
@@ -81,5 +81,6 @@
 - 2026-09-02 08:12 +08:00：approximation/ORF 验收提交 `06e9c7c` 已推送；已登记同步该提交与只读验收 Job 230 的 Guqq 连接。下一步提交审计记录，然后连接并首先执行 `git pull`。
 - 2026-09-02 08:19 +08:00：Guqq 经 `net.sh` 后成功 pull；Job 230 以 40:50/Exit 1 严格不收敛，MaxRSS 1.76 GiB 排除内存，27 次 scaled L-BFGS 后 row residual 仍为 `4.66e-4`，无 artifact/audit。进入稳定增量 dual + 有界重启修复单元，不降低 `1e-9` 标准。
 - 2026-09-02 08:27 +08:00：stable incremental dual、严格 evaluation cap、termination provenance 与短退重启完成；病态/集成 24/24、完整回归 129/129 通过。真实 preview 仍是必需验收，下一步仅创建临时分支未验收提交并经 Slurm 验证。
+- 2026-09-02 08:29 +08:00：临时分支 `validation/job230-dual-increment` 的未验收提交 `cfa1a87` 已推送；已登记 Guqq 同配置 Slurm 验证用途，使用独立 job 后缀产物避免覆盖旧 checkpoint。下一步提交审计记录后连接并首先 pull。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

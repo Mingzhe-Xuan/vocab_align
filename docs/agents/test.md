@@ -37,6 +37,7 @@
 - 完整本地回归：`129 passed, 2 warnings in 51.43s`；warnings 仍仅为 pandas 可选依赖版本提示。
 - Black 首轮要求格式化 `sinkhorn.py`，沙箱内因 Windows ACL 无法原子替换；按既有经验仅提升两个明确文件的格式化权限，最终 `2 files would be left unchanged`。`compileall`、格式化后的 24 个定向回归和 `git diff --check` 均通过。
 - 真实 2.3M-edge preview 尚未执行；本单元仍为未验收状态，只能创建临时验证分支提交，不得合并/形成 main 验收提交。
+- 临时提交登记检查：branch `validation/job230-dual-increment`、commit `cfa1a87`、首条 pull、同配置 Slurm 边界与独立 job 后缀产物路径一致；相关文档 `git diff --check` 在连接前复核。
 
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 

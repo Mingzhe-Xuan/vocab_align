@@ -76,3 +76,4 @@
 - approximation/ORF 验收提交 `06e9c7c` 已推送；登记新的 Guqq 连接用于先同步该提交，再只读验收 Job 230 终态与产物边界。
 - Guqq 经 `net.sh` 后同步成功；Job 230 运行 40:50 后严格不收敛，scaled L-BFGS 仅 27 evaluations，row residual `4.66e-4`，MaxRSS 1,847,076 KiB、0 swap，且无 artifact/audit。开始稳定增量 dual 与有界重启修复。
 - 完成 stable incremental dual、有界 objective evaluation、termination provenance 与短退重启的本地实现；定向 24/24、完整回归 129/129。真实 preview 尚未通过，只准备临时分支 `[UNACCEPTED]` 验证提交。
+- 临时验证提交 `cfa1a87` 已推送至 `validation/job230-dual-increment`；登记 Guqq 同配置 Slurm 回归，独立输出路径确保不覆盖 Job 230 失败现场。
