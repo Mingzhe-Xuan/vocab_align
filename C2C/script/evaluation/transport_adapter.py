@@ -112,13 +112,20 @@ def create_training_free_transport_adapter(
     )
     generation = dict(config.generation)
     generation.update(model_config.get("generation_config", {}))
-    wrapper, source_tokenizer, target_tokenizer = _load_runtime(config, artifact_path)
+    wrapper, source_tokenizer, target_tokenizer = _load_runtime(
+        config,
+        artifact_path,
+        source_device_map=model_config.get("source_device_map"),
+        target_device_map=model_config.get("target_device_map"),
+    )
     runtime_profile = str(model_config.get("runtime_profile", "project-cu124"))
     provenance = {
         "code_version": _git_version(),
         "runtime": runtime_metadata(runtime_profile),
         "transport_config_path": str(config_path),
         "transport_config": config.to_dict(),
+        "source_device_map_override": model_config.get("source_device_map"),
+        "target_device_map_override": model_config.get("target_device_map"),
         "artifact_path": str(artifact_path),
         "artifact_sha256": file_sha256(artifact_path),
         "artifact_shape": list(wrapper.artifact.shape),

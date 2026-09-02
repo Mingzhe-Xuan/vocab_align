@@ -310,9 +310,10 @@ def test_training_free_config_creates_adapter(monkeypatch):
         metadata={"input_fingerprint": "fingerprint"},
     )
 
-    def fake_load_with_artifact(config, artifact):
+    def fake_load_with_artifact(config, artifact, **kwargs):
         loaded["config"] = config
         loaded["artifact"] = artifact
+        loaded["device_maps"] = kwargs
         return wrapper, _Tokenizer(), _Tokenizer()
 
     monkeypatch.setattr(
@@ -327,6 +328,8 @@ def test_training_free_config_creates_adapter(monkeypatch):
             ),
             "artifact": "local/fake.npz",
             "generation_config": {"max_new_tokens": 1},
+            "source_device_map": "cpu",
+            "target_device_map": "auto",
         }
     )
     assert adapter.method == "training_free_transport"
@@ -337,3 +340,8 @@ def test_training_free_config_creates_adapter(monkeypatch):
     assert adapter.provenance["runtime"]["profile"] == "project-cu124"
     assert adapter.provenance["artifact_sha256"] == "artifact-sha"
     assert adapter.provenance["artifact_shape"] == [2, 3]
+    assert loaded["device_maps"] == {
+        "source_device_map": "cpu",
+        "target_device_map": "auto",
+    }
+    assert adapter.provenance["source_device_map_override"] == "cpu"

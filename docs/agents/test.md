@@ -780,3 +780,14 @@ chunked receiver embedding 本地实际结果：
 - 固定 `abstract_algebra` 前 5 题、greedy 64-token、正式 500k artifact、`blackwell-cu128`、单 RTX 5090；加载前必须通过 CUDA/锁定依赖/30GiB/compiled-arch/artifact 门禁。
 - Slurm 成功后检查 5 条逐题 success 或显式 failure、canonical/prompt metadata、source/virtual/output lengths、分段 latency、support quality、summary 计数与 accuracy、无 `.partial`、作业 Exit/MaxRSS/日志哈希。
 - 提交前 provenance 复核新增：每条 STT success diagnostics 必须绑定 git code version、runtime profile/package/CUDA arch/device、transport config、artifact path/SHA-256/shape/nnz/metadata；factory stub 与真实 adapter schema 均覆盖。修正后定向 26/26（6.04s）、完整 168/168（93.19s）通过，仅有既存 pandas 可选依赖 2 条 warning。
+
+Job 246 OOM 修复测试计划：
+
+- loader 默认调用保持 smoke recipe 原 `device_map`，evaluator factory 可显式把 `source_device_map=cpu`、`target_device_map=auto` 传入并写入 provenance；未配置 override 时行为不变。
+- 固定评测 recipe 将 source CPU offload、receiver GPU auto 和 16-token greedy 答案边界写死；Slurm 保持 1 GPU/64G/30m 并增加 expandable segments，测试脚本、环境名、离线与无 uv。
+- 重跑 adapter/smoke/Slurm 定向测试与完整回归；真实复验必须重试 Job 246 的 failed records，并至少产生 success summary。CPU source 推理仍必须在 Slurm 内，不能在登录节点验证。
+
+Job 246 OOM 修复本地实际结果：
+
+- 定向 `test_evaluation.py`、`test_smoke_stt.py`、`test_transport_evaluation_slurm.py`：25 passed（4.56s），覆盖 device-map override 传递/provenance、默认 smoke loader 回归、16-token recipe 和 expandable-segments Slurm 环境。
+- 完整 `python -m pytest -o addopts= --basetemp local/pytest-stage3-offload-full`：168 passed（89.93s），仅有既存 pandas 可选依赖 2 条 warning。下一步以临时提交同步 Guqq，保留 Job 246 failed records并验证 resume 重试。

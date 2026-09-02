@@ -134,3 +134,5 @@
 - 完成阶段 3 本地 evaluator 实现：新增统一逐题 schema/恢复/合并/汇总、STT adapter/runner、统一入口分派、固定 MMLU-Redux recipe 与 Slurm 脚本；定向 28/28、完整 168/168 通过，准备临时分支远端验收。
 - 远端提交前补齐逐题 code/runtime/config/artifact provenance；定向 26/26、完整 168/168 再次通过，等待 Guqq 同步后提交真实 5 题评测。
 - Guqq 已同步到 `98c5f85` 并通过提交门禁；固定 MMLU-Redux 5 题 STT 评测进入 Slurm Job 246，开始只读终态验收。
+- Job 246 的离线数据/模型加载通过，但双 auto placement 后 5 题全部显存 OOM；失败逐题记录完整、零 success 拒绝 summary。进入 source CPU/receiver GPU-auto 与 16-token 固定 recipe 修复，不增加 GPU 资源。
+- 完成 Job 246 OOM 修复：显式 source CPU/receiver auto、16-token greedy 与 allocator 配置，placement 写入 provenance；定向 25/25、完整 168/168 通过，准备原 records 断点重试。

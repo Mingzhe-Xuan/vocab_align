@@ -49,6 +49,7 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 ## LM head vocab 可能包含 tokenizer 之外的尾部 padding
 
 模型 `config.vocab_size`/LM head rows 不一定等于 `len(tokenizer)`。Qwen3-8B 的 head 为 151,936 rows，而锁定 tokenizer 只有 151,669 个真实 token；尾部 267 rows 是硬件对齐 padding，不能被 tokenizer 编码，也不应要求正式 T 为其构边。另一方面，简单开启 partial-support 会掩盖真实的 artifact 缺边。精确 STT 只能在 tokenizer fingerprint 已验证后显式传入 `source_vocab_size`，要求 artifact source IDs 完整且连续覆盖 `0..source_vocab_size-1`，然后在 softmax 前裁掉纯尾部 padded logits；未传 size、存在中间缺口或 artifact 未覆盖 tokenizer vocab 时仍严格失败。
+两个模型依次以 `device_map:auto` 加载时，第二个模型会按第一个模型已经占用的剩余显存重新切分；短 prompt smoke 能通过，不代表较长 benchmark prompt 仍有足够 activation/KV 余量。对于 source 只运行一次 prefill、receiver 承担 prefill 与自回归 decode 的 STT，应允许 recipe 显式把 source 放 CPU、优先给 receiver GPU；override 必须写入逐题 provenance，CPU forward 仍只能在 Slurm 作业中运行。不能用减少样本数掩盖单样本 OOM，也不能把 failed records 计为错误答案。
 
 ## 稀疏 OT 必须同时覆盖两侧 support
 
