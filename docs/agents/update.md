@@ -127,3 +127,4 @@
 - 完成 receiver embedding 8,192-row chunked matmul：连续 ID 用 view、非连续 ID 仅 gather 当前 chunk、receiver dtype 计算后小输出累加；定向 30/30、完整 150/150 与静态检查通过，准备相同资源真实复验。
 - 推送 chunked embedding 未验收提交 `024beac` 及 Guqq C2C 等价提交 `6e08989`；登记完全相同输入/环境/资源的真实显存复验。
 - chunked embedding 修复已同步 Guqq 并提交 Job 245；开始只读验收 OOM 位置、双路径报告、runtime arch、资源和原子性。
+- Job 245 初步 Exit 0：16.67s、MaxRSS 15.79GiB、0 swap、无异常栈并写出 JSON；进入独立报告/provenance/hash/partial 只读验收，尚不合并 main。

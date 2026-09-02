@@ -134,5 +134,6 @@
 - 2026-09-03 05:18 +08:00：receiver embedding 改为 8,192 target-row chunks，连续 IDs 使用 weight view、非连续 IDs 仅 gather 当前 chunk，以 receiver dtype matmul 并在小型输出上累加；定向 30/30、完整 150/150 与静态检查通过。下一步更新未验收/兼容分支并重新验证峰值显存。
 - 2026-09-03 05:21 +08:00：chunked embedding 修复已推送为 main-based 未验收提交 `024beac` 与 C2C 等价兼容提交 `6e08989`；登记相同资源的真实复验，继续保持未验收。
 - 2026-09-03 05:23 +08:00：chunked embedding 真实复验已提交为 Job 245；进入只读终态验收。
+- 2026-09-03 05:26 +08:00：Job 245 初步成功：0:16.67/Exit 0/MaxRSS 16,560,968 KiB/0 swap、无异常栈，chunked 路径跨过旧 OOM并写出 JSON。下一步只读验收报告全字段、SHA 与无 partial 后再整理 main。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

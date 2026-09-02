@@ -378,3 +378,9 @@
 
 - 连接用途：同步兼容分支后只读监控 Job 245 队列/日志；终态收集 schema v2 报告和资源/哈希证据。
 - 权限判断与验收边界：仅只读；标准沿用 05:21 条目。
+- 初步结果：Job 245 已离队，stderr 无异常栈且 GNU time 为 0:16.67、Exit 0、MaxRSS 16,560,968 KiB、0 swap；报告写入产生 72 个 filesystem output blocks，表明 chunked 路径跨过 Job 244 OOM。尚待独立读取 JSON/哈希/partial 后最终验收。
+
+## 2026-09-03 05:26 +08:00
+
+- 连接用途：同步兼容分支后只读收集 Job 245 JSON 全文、文件大小/SHA-256、stderr SHA 和 `.partial` 状态，逐项验收 runtime/profile/arch、artifact provenance、Receiver-only/STT shapes/outputs、质量统计与 metrics。
+- 权限判断与验收边界：首项 ff-only pull；仅 `stat`/`sha256sum`/`test`/`cat` 读取，不修改或复制服务器结果。全部字段通过后才回本地形成验收提交。
