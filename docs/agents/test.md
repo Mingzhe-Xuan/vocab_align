@@ -29,6 +29,8 @@
 
 Job 230 恢复检查：记录第三次 pull/输入哈希/提交及会话关闭边界；新连接只读验收用途、首条 pull、成功/失败分支明确，相关文档字段与格式检查通过。
 
+08:12 新连接登记检查：`gpu/state/update` 中的用途、提交 `06e9c7c`、首条 `git pull`、`net.sh` fallback、Job 230 只读范围与正式 500k 阻塞条件一致；`rg` 字段复核及 `git diff --check` 通过。
+
 ## 2026-09-02：sparse OT convergence follow-up 单元
 
 计划范围：

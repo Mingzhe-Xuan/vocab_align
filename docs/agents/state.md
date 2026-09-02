@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 4 exact/hard/chunked/precomputed/ORF approximation 核心已通过 127 个本地测试，正在形成验收提交。Job 230 终态仍待 Guqq 网络恢复后的合规验收；远端无后续操作。
+正在实施 Training-free Soft-Token Transport。阶段 4 approximation/ORF 核心已通过 127 个本地测试并以 `06e9c7c` 推送。已登记新的 Guqq 连接用途，准备先 pull 再验收 Job 230 终态。
 
 ## 当前计划
 
@@ -78,5 +78,6 @@
 - 2026-09-02 07:49 +08:00：第三次 pull 已在约 90 秒后成功并提交 Job 230；作业运行中监控会话因用户消息关闭但 Slurm 未中断。按新 AGENTS 规范恢复终态只读验收，随后决定正式语料阶段或本地修复。
 - 2026-09-02 08:00 +08:00：Job 230 恢复连接首条 pull 以 GnuTLS 失败，`net.sh` 后重试以 GitHub 443 timeout 失败；未越权查询。计划调整为本地阶段 4 approximation 核心，模块边界为 `approximations.py`（TH/分块/预计算/误差）与 `orf.py`（随机特征/`S,z`/在线映射）。
 - 2026-09-02 08:08 +08:00：阶段 4 approximation 核心完成本地验收；TH、edge-chunk、预计算 source values 与 ORF `S,z`/在线公式通过 oracle，完整回归 127/127。下一步形成验收提交并在新登记连接中恢复 Job 230 终态检查。
+- 2026-09-02 08:12 +08:00：approximation/ORF 验收提交 `06e9c7c` 已推送；已登记同步该提交与只读验收 Job 230 的 Guqq 连接。下一步提交审计记录，然后连接并首先执行 `git pull`。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

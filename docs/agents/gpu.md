@@ -136,3 +136,9 @@
 - 权限判断：新连接首条命令为 `cd vocab_align && git pull`；之后仅做 Slurm 与结果文件只读检查。本次不在登录节点运行构建、评测或批量处理，也不修改服务器源码/结果。
 - 计划顺序：pull 后进入 `C2C`，依次检查 Job 230、日志、checkpoint、artifact/audit；只在结果已证明成功时推进下一阶段。
 - 实际结果：首次 SSH 在 shell 前被远端关闭；同用途 retry 建立会话后，首条 pull 约 90 秒以 GnuTLS `-110` 失败。`bash net.sh` 成功，但 retry pull 约 136 秒以 GitHub 443 timeout 失败。按权限约束未查询 Job 230，已退出；终态仍 pending，本地转入可独立实施的阶段 4 approximation 单元。
+
+## 2026-09-02 08:12 +08:00
+
+- 连接用途：按用户确认的 Git pull 恢复窗口，同步阶段 4 approximation/ORF 验收提交 `06e9c7c`，并恢复只读验收 scaled-dual Job 230 的终态、日志、checkpoint、artifact 与 audit。
+- 权限判断：新连接首条远端操作必须为 `cd vocab_align && git pull`；之后仅执行 `git rev-parse`、`squeue/sacct` 与结果文件只读检查。不同步成功不继续查询；不在登录节点运行计算，不修改服务器源码或已有实验结果。
+- 计划顺序：pull 成功后确认提交，再检查 Job 230 state/exit、GNU time、严格 residual、checkpoint 与 artifact/audit。网络异常时运行 `bash net.sh` 后重试；Job 230 验收完成前不提交正式 500k 后续作业。
