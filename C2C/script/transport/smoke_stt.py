@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import json
+import platform
 import subprocess
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Mapping, Sequence
 
 import torch
@@ -23,6 +26,13 @@ from rosetta.transport.wrapper import (
 
 class SmokeError(ValueError):
     """Raised when smoke inputs or structured outputs are incomplete."""
+
+
+LOCKED_RUNTIME = {
+    "torch": "2.6.0",
+    "accelerate": "1.9.0",
+    "transformers": "4.52.4",
+}
 
 
 def _git_version() -> str:
@@ -55,18 +65,7 @@ def _source_device(model: Any) -> torch.device:
     return model.get_input_embeddings().weight.device
 
 
-def build_smoke_report(
-    wrapper: TrainingFreeTransportModel,
-    source_tokenizer: Any,
-    target_tokenizer: Any,
-    *,
-    prompt: str,
-    generation: Mapping[str, Any],
-    config: TransportConfig,
-    code_version: str,
-) -> dict[str, Any]:
-    if not isinstance(prompt, str) or not prompt:
-        raise SmokeError("prompt must be a nonempty string")
+def _validate_generation(generation: Mapping[str, Any]) -> dict[str, Any]:
     allowed = {
         "max_new_tokens",
         "eos_token_id",
@@ -79,8 +78,160 @@ def build_smoke_report(
     unknown = set(generation).difference(allowed)
     if unknown:
         raise SmokeError(f"unsupported generation fields: {sorted(unknown)}")
-    if "max_new_tokens" not in generation:
-        raise SmokeError("generation requires max_new_tokens")
+    max_new_tokens = generation.get("max_new_tokens")
+    if (
+        isinstance(max_new_tokens, bool)
+        or not isinstance(max_new_tokens, int)
+        or not 1 <= max_new_tokens <= 2
+    ):
+        raise SmokeError("smoke max_new_tokens must be 1 or 2")
+    return dict(generation)
+
+
+def validate_runtime_requirements(
+    artifact_path: Path,
+    output_path: Path,
+    *,
+    require_cuda: bool,
+    require_locked_runtime: bool,
+    min_gpu_memory_gib: float,
+) -> None:
+    if not isinstance(min_gpu_memory_gib, (int, float)) or not (
+        0 < float(min_gpu_memory_gib) < float("inf")
+    ):
+        raise SmokeError("minimum GPU memory must be finite and positive")
+    if not artifact_path.is_file():
+        raise SmokeError(f"transport artifact does not exist: {artifact_path}")
+    partial = output_path.with_name(output_path.name + ".partial")
+    if output_path.exists() or partial.exists():
+        raise SmokeError(f"refusing to overwrite smoke output: {output_path}")
+    if require_locked_runtime:
+        mismatches = []
+        for package, expected in LOCKED_RUNTIME.items():
+            try:
+                actual = importlib.metadata.version(package)
+            except importlib.metadata.PackageNotFoundError:
+                actual = "missing"
+            if actual != expected:
+                mismatches.append(f"{package}={actual} (expected {expected})")
+        if mismatches:
+            raise SmokeError("locked runtime mismatch: " + ", ".join(mismatches))
+    if not require_cuda:
+        return
+    if not torch.cuda.is_available() or torch.cuda.device_count() < 1:
+        raise SmokeError("CUDA GPU is required for the real-model smoke")
+    available_gib = max(
+        torch.cuda.get_device_properties(index).total_memory / (1024**3)
+        for index in range(torch.cuda.device_count())
+    )
+    if available_gib < min_gpu_memory_gib:
+        raise SmokeError(
+            f"largest visible GPU has {available_gib:.1f} GiB; "
+            f"at least {min_gpu_memory_gib:.1f} GiB is required"
+        )
+
+
+def runtime_metadata() -> dict[str, Any]:
+    packages = {}
+    for package in LOCKED_RUNTIME:
+        try:
+            packages[package] = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            packages[package] = "missing"
+    cuda_devices = []
+    if torch.cuda.is_available():
+        for index in range(torch.cuda.device_count()):
+            properties = torch.cuda.get_device_properties(index)
+            cuda_devices.append(
+                {
+                    "index": index,
+                    "name": properties.name,
+                    "total_memory_bytes": int(properties.total_memory),
+                }
+            )
+    return {
+        "python": platform.python_version(),
+        "packages": packages,
+        "cuda_available": torch.cuda.is_available(),
+        "cuda_devices": cuda_devices,
+    }
+
+
+def _receiver_only_report(
+    wrapper: TrainingFreeTransportModel,
+    target_tokenizer: Any,
+    prompt: str,
+    generation: Mapping[str, Any],
+) -> dict[str, Any]:
+    encoded = target_tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
+    input_ids = torch.as_tensor(encoded["input_ids"], dtype=torch.long)
+    if input_ids.ndim == 1:
+        input_ids = input_ids.unsqueeze(0)
+    attention_mask = torch.as_tensor(
+        encoded.get("attention_mask", torch.ones_like(input_ids)), dtype=torch.long
+    )
+    if attention_mask.ndim == 1:
+        attention_mask = attention_mask.unsqueeze(0)
+    device = wrapper.receiver_model.get_input_embeddings().weight.device
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.synchronize(device)
+    started = perf_counter()
+    sequences = wrapper.generate(
+        receiver_input_ids=input_ids.to(device),
+        receiver_attention_mask=attention_mask.to(device),
+        transport=False,
+        **dict(generation),
+    )
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    elapsed = perf_counter() - started
+    if not isinstance(sequences, torch.Tensor) or sequences.ndim != 2:
+        raise SmokeError("receiver-only generation must return rank-two token IDs")
+    if sequences.shape[1] < input_ids.shape[1]:
+        raise SmokeError("receiver-only output is shorter than its input")
+    generated = sequences[:, input_ids.shape[1] :].detach().cpu().tolist()
+    return {
+        "shapes": {
+            "receiver_input_ids": list(input_ids.shape),
+            "receiver_full_sequence_ids": list(sequences.shape),
+        },
+        "metrics": {
+            "total_seconds": elapsed,
+            "input_tokens": int(attention_mask.sum().item()),
+            "output_tokens": sum(len(row) for row in generated),
+            "peak_memory_bytes": (
+                int(torch.cuda.max_memory_allocated(device))
+                if device.type == "cuda"
+                else None
+            ),
+        },
+        "outputs": [
+            {
+                "receiver_token_ids": ids,
+                "text": target_tokenizer.decode(ids, skip_special_tokens=True),
+            }
+            for ids in generated
+        ],
+    }
+
+
+def build_smoke_report(
+    wrapper: TrainingFreeTransportModel,
+    source_tokenizer: Any,
+    target_tokenizer: Any,
+    *,
+    prompt: str,
+    generation: Mapping[str, Any],
+    config: TransportConfig,
+    code_version: str,
+    runtime: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    if not isinstance(prompt, str) or not prompt:
+        raise SmokeError("prompt must be a nonempty string")
+    generation = _validate_generation(generation)
+
+    receiver_only = _receiver_only_report(wrapper, target_tokenizer, prompt, generation)
 
     encoded = source_tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
     input_ids = torch.as_tensor(encoded["input_ids"], dtype=torch.long)
@@ -96,7 +247,7 @@ def build_smoke_report(
         input_ids.to(device),
         source_attention_mask=attention_mask.to(device),
         return_transport_output=True,
-        **dict(generation),
+        **generation,
     )
     if not isinstance(output, TransportGenerationOutput):
         raise SmokeError("wrapper did not return structured transport diagnostics")
@@ -120,11 +271,13 @@ def build_smoke_report(
         ).encode("utf-8")
     ).hexdigest()
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "input_fingerprint": input_fingerprint,
         "code_version": code_version,
         "prompt": prompt,
         "config": config.to_dict(),
+        "runtime": dict(runtime or {}),
+        "receiver_only": receiver_only,
         "artifact": {
             "shape": list(artifact.shape),
             "nnz": int(artifact.data.size),
@@ -158,6 +311,8 @@ def build_smoke_report(
 def save_smoke_report(report: Mapping[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_name(path.name + ".partial")
+    if path.exists() or partial.exists():
+        raise SmokeError(f"refusing to overwrite smoke output: {path}")
     partial.write_text(
         json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
@@ -174,6 +329,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     prompt.add_argument("--prompt-file", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--code-version")
+    parser.add_argument("--require-cuda", action="store_true")
+    parser.add_argument("--require-locked-runtime", action="store_true")
+    parser.add_argument("--min-gpu-memory-gib", type=float, default=20.0)
     return parser.parse_args(argv)
 
 
@@ -233,6 +391,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.prompt is not None
         else args.prompt_file.read_text(encoding="utf-8")
     )
+    validate_runtime_requirements(
+        args.artifact,
+        args.output,
+        require_cuda=args.require_cuda,
+        require_locked_runtime=args.require_locked_runtime,
+        min_gpu_memory_gib=args.min_gpu_memory_gib,
+    )
+    torch.manual_seed(config.seed)
     wrapper, source_tokenizer, target_tokenizer = _load_runtime(config, args.artifact)
     report = build_smoke_report(
         wrapper,
@@ -242,6 +408,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         generation=config.generation,
         config=config,
         code_version=args.code_version or _git_version(),
+        runtime=runtime_metadata(),
     )
     save_smoke_report(report, args.output)
     return 0

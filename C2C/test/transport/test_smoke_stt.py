@@ -12,7 +12,12 @@ from rosetta.transport.config import TransportConfig
 from rosetta.transport.metrics import TransportMetrics
 from rosetta.transport.soft_transport import SoftTransportStats
 from rosetta.transport.wrapper import TransportGenerationOutput
-from script.transport.smoke_stt import SmokeError, build_smoke_report, save_smoke_report
+from script.transport.smoke_stt import (
+    SmokeError,
+    build_smoke_report,
+    save_smoke_report,
+    validate_runtime_requirements,
+)
 
 
 REVISION_A = "a" * 40
@@ -80,6 +85,14 @@ class SourceTokenizer:
 
 
 class TargetTokenizer:
+    def __call__(self, text, **kwargs):
+        assert text == "hello"
+        assert kwargs == {"return_tensors": "pt", "add_special_tokens": True}
+        return {
+            "input_ids": torch.tensor([[8, 9, 10]]),
+            "attention_mask": torch.tensor([[1, 1, 1]]),
+        }
+
     def decode(self, token_ids, *, skip_special_tokens):
         assert skip_special_tokens is True
         return "decoded:" + ",".join(str(value) for value in token_ids)
@@ -90,10 +103,16 @@ class DummyWrapper:
         self.source_model = SimpleNamespace(
             get_input_embeddings=lambda: SimpleNamespace(weight=torch.zeros((2, 3)))
         )
+        self.receiver_model = SimpleNamespace(
+            get_input_embeddings=lambda: SimpleNamespace(weight=torch.zeros((5, 3)))
+        )
         self.artifact = _artifact()
         self.calls = []
 
-    def generate(self, input_ids, **kwargs):
+    def generate(self, input_ids=None, **kwargs):
+        if kwargs.get("transport") is False:
+            self.calls.append((kwargs["receiver_input_ids"].clone(), kwargs))
+            return torch.tensor([[8, 9, 10, 1, 2]])
         self.calls.append((input_ids.clone(), kwargs))
         metrics = TransportMetrics(
             source_seconds=0.1,
@@ -131,7 +150,7 @@ def test_build_and_atomically_save_smoke_report(tmp_path):
         config=_config(),
         code_version="test-code",
     )
-    assert report["schema_version"] == 1
+    assert report["schema_version"] == 2
     assert len(report["input_fingerprint"]) == 64
     assert report["artifact"]["shape"] == [2, 2]
     assert report["shapes"] == {
@@ -141,13 +160,23 @@ def test_build_and_atomically_save_smoke_report(tmp_path):
     }
     assert report["transport_quality"]["retained_mass"]["minimum"] == 1.0
     assert report["metrics"]["memory_status"] == "unavailable"
+    assert report["receiver_only"]["shapes"] == {
+        "receiver_input_ids": [1, 3],
+        "receiver_full_sequence_ids": [1, 5],
+    }
+    assert report["receiver_only"]["outputs"] == [
+        {"receiver_token_ids": [1, 2], "text": "decoded:1,2"}
+    ]
     assert report["outputs"] == [{"receiver_token_ids": [3, 4], "text": "decoded:3,4"}]
-    assert wrapper.calls[0][1]["return_transport_output"] is True
+    assert wrapper.calls[0][1]["transport"] is False
+    assert wrapper.calls[1][1]["return_transport_output"] is True
 
     output = tmp_path / "nested" / "smoke.json"
     save_smoke_report(report, output)
     assert json.loads(output.read_text(encoding="utf-8")) == report
     assert not output.with_name(output.name + ".partial").exists()
+    with pytest.raises(SmokeError, match="overwrite"):
+        save_smoke_report(report, output)
 
 
 def test_smoke_rejects_unknown_generation_fields():
@@ -160,6 +189,74 @@ def test_smoke_rejects_unknown_generation_fields():
             generation={"max_new_tokens": 1, "communication_temperature": 2.0},
             config=_config(),
             code_version="test",
+        )
+
+
+@pytest.mark.parametrize("max_new_tokens", [0, 3, True])
+def test_smoke_rejects_nonminimal_generation(max_new_tokens):
+    with pytest.raises(SmokeError, match="must be 1 or 2"):
+        build_smoke_report(
+            DummyWrapper(),
+            SourceTokenizer(),
+            TargetTokenizer(),
+            prompt="hello",
+            generation={"max_new_tokens": max_new_tokens},
+            config=_config(),
+            code_version="test",
+        )
+
+
+def test_runtime_preflight_rejects_missing_inputs_and_existing_outputs(tmp_path):
+    artifact = tmp_path / "artifact.npz"
+    output = tmp_path / "smoke.json"
+    with pytest.raises(SmokeError, match="does not exist"):
+        validate_runtime_requirements(
+            artifact,
+            output,
+            require_cuda=False,
+            require_locked_runtime=False,
+            min_gpu_memory_gib=20,
+        )
+    artifact.write_bytes(b"fixture")
+    output.write_text("existing", encoding="utf-8")
+    with pytest.raises(SmokeError, match="overwrite"):
+        validate_runtime_requirements(
+            artifact,
+            output,
+            require_cuda=False,
+            require_locked_runtime=False,
+            min_gpu_memory_gib=20,
+        )
+
+
+def test_runtime_preflight_rejects_missing_cuda(tmp_path, monkeypatch):
+    artifact = tmp_path / "artifact.npz"
+    artifact.write_bytes(b"fixture")
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    with pytest.raises(SmokeError, match="CUDA GPU is required"):
+        validate_runtime_requirements(
+            artifact,
+            tmp_path / "smoke.json",
+            require_cuda=True,
+            require_locked_runtime=False,
+            min_gpu_memory_gib=20,
+        )
+
+
+def test_runtime_preflight_rejects_unlocked_dependencies(tmp_path, monkeypatch):
+    artifact = tmp_path / "artifact.npz"
+    artifact.write_bytes(b"fixture")
+    monkeypatch.setattr(
+        "script.transport.smoke_stt.importlib.metadata.version",
+        lambda package: "0.0.0",
+    )
+    with pytest.raises(SmokeError, match="locked runtime mismatch"):
+        validate_runtime_requirements(
+            artifact,
+            tmp_path / "smoke.json",
+            require_cuda=False,
+            require_locked_runtime=True,
+            min_gpu_memory_gib=20,
         )
 
 
