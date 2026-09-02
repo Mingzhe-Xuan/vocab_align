@@ -110,3 +110,4 @@
 - 完成真实模型 smoke 本地实现：schema v2 原子保存同 prompt Receiver-only/STT，限制 1—2 tokens，增加锁定依赖、CUDA/显存、artifact 和覆盖保护；新增 pinned recipe 与 `gpu:1`/192G/4h Slurm 入口，并把 accelerate 1.9.0 纳入项目依赖。定向 12/12、完整 146/146 及静态检查通过，准备临时远端验证。
 - 推送 main-based 未验收提交 `036df80` 及 C2C tree 等价的 Guqq 快进兼容提交 `d559a6f`；登记服务器环境安装连接，GPU smoke 通过前保持不进入 main。
 - Guqq 经 net.sh 后成功同步兼容提交，wheel-only 安装 torch 2.6.0/accelerate 1.9.0 并通过版本门禁；发现 Mistral-Nemo 仅有 9.1M tokenizer 缓存，登记锁定 revision 权重下载，下载完整前不提交 smoke。
+- Mistral-Nemo 的五个 indexed weight shards 已完成，但 consolidated 副本传输时 SSH 关闭；改用 1 CPU/2G/2h 无 GPU Slurm 作业续传并做 cache 完整性门禁，真实 smoke 继续等待。

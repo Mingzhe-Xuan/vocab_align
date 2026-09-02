@@ -117,5 +117,6 @@
 - 2026-09-03 03:41 +08:00：真实 smoke 本地实现完成：同 prompt Receiver-only/STT schema v2、1—2 token 限制、锁定依赖/CUDA/显存/artifact/覆盖门禁、正式 2-token recipe 和 `gpu:1`/192G/4h 无 partition Slurm 入口；定向 12/12、完整 146/146 通过。下一步形成 `[UNACCEPTED]` 提交并在 Guqq 补齐环境、经 Slurm 真机验收。
 - 2026-09-03 03:46 +08:00：main-based `[UNACCEPTED]` 提交 `036df80` 与 C2C 内容等价的 Guqq 兼容提交 `d559a6f` 均已推送；正式 main 尚未合并。下一步同步兼容分支并补齐锁定 torch/accelerate 环境，之后单独登记 Slurm smoke。
 - 2026-09-03 03:58 +08:00：Guqq 经 `net.sh` 后快进至 `d559a6f`，torch 2.6.0/accelerate 1.9.0 wheel 环境门禁通过；Qwen 权重 cache 16G，但 Mistral-Nemo 仅 9.1M tokenizer/cache。下一步下载锁定 Mistral 权重，完整后再提交 Slurm smoke。
+- 2026-09-03 04:10 +08:00：Mistral 五个 indexed shard 已下载完成，但额外 consolidated 文件传输中 SSH 被远端关闭，完整性尾检未执行。调整为轻量无 GPU Slurm 续传以脱离 SSH 生命周期；cache 无 incomplete 且 job Exit 0 前不提交 smoke。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

@@ -269,3 +269,10 @@
 - 连接用途：同步兼容分支后，使用 Hugging Face CLI 从 `hf-mirror.com` 下载锁定 `mistralai/Mistral-Nemo-Instruct-2407@04d8a90549d23fc6bd7f642064003592df51e9b3` 的缺失模型权重到既有用户 cache，并复核 snapshot 大小/文件列表。
 - 权限判断与顺序：第一条远端操作为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；下载属于许可的登录节点轻量资源操作，仅写任务使用的 Hugging Face cache，不修改 Git 源码。若网络失败先 `bash net.sh`；不加载模型、不初始化 CUDA、不运行推理。
 - 验收边界：必须锁定 revision，磁盘余量足够，下载完成后 snapshot 不含 `.incomplete` 且权重 index/所有 shard 可见；失败则保留可续传 cache，不提交 smoke。
+- 实际结果：首项 pull 成功；CLI 锁定 SHA 开始下载 18 个文件，metadata/tokenizer 和 `model-00001` 至 `model-00005-of-00005.safetensors` 五个分片均报告完成。额外 `consolidated.safetensors` 仍在下载时 SSH 被远端关闭，未执行尾部 `du/find/ls` 校验，预计留下可续传 `.incomplete`；未提交 smoke。
+
+## 2026-09-03 04:10 +08:00
+
+- 连接用途：同步兼容分支后，只读检查 Mistral snapshot/`.incomplete` 状态；为避免 SSH 生命周期再次中断大文件续传，提交一个 1 CPU/2G/2h、无 GPU 的轻量 Slurm 下载作业，继续锁定 revision 的 Hugging Face cache 下载。
+- 权限判断与顺序：第一条远端操作为 ff-only pull；只读检查后通过 Slurm 运行下载 CLI，写入既有任务 cache 和独立日志，不加载模型、不修改源码。下载/续传本可在登录节点执行，改用 Slurm 仅为进程持久性；不申请 GPU。
+- 验收边界：下载 job 必须 Exit 0，snapshot 的 5 分片/index/config 齐全且无 `.incomplete`；通过前不提交真实 smoke。
