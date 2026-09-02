@@ -91,3 +91,5 @@
 - Job 234 Newton-CG 真实验证在 37:11 后失败：12 attempts/1,000 evaluations、row residual `1.69153e-3`、MaxRSS 1,847,260 KiB、无 artifact/audit。保持临时分支未验收，转入 CG 方程/缩放/方向诊断与针对性测试。
 - 用户确认 Job 234 当前精度足够；开始把真实 full-vocabulary OT 验收阈值正式改为 `2e-3`，同时保留 toy/dense oracle 的原高精度要求。取消 reduced row-dual 代码修复，先完成需求文档同步；旧 Job 234 无有效 artifact，仍需按新配置重跑。
 - 完成真实 full-vocabulary `2e-3` 与 toy/dense `1e-9` 精度分层的需求文档同步；两份计划、方法说明、artifact 审计边界和 Job 234 重跑要求一致，路径/链接/格式检查通过。
+- 开始落实 `2e-3` 需求到结构化 construction 配置、主 transport recipe 与 full-support Slurm 默认值；库/CLI、普通 preview 和 toy/dense 高精度默认保持不变。
+- 完成 `2e-3` 配置与 artifact 验收链：结构化 construction provenance、主 recipe/schema、Slurm 默认/override、边际 tolerance 上限与严格列随机性；最终完整回归 131/131 和全部静态检查通过，准备临时 Slurm 验证提交。

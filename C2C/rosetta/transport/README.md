@@ -12,9 +12,12 @@ does not modify the existing C2C projector or wrapper.
   couplings always have shape `[target_vocab, source_vocab]`; source and target
   marginals have shapes `[source_vocab]` and `[target_vocab]` respectively.
 - `artifact.py`: validated, versioned sparse CSC serialization for a transport
-  matrix and its provenance. Loading never enables NumPy pickle payloads.
-- `config.py`: immutable model/data/runtime configuration with pinned revision
-  and cross-field validation.
+  matrix and its provenance. Loading never enables NumPy pickle payloads;
+  column normalization stays at dtype precision while the recorded marginal
+  L1 tolerance is bounded by the pre-registered full-vocabulary requirement.
+- `config.py`: immutable model/data/runtime configuration with pinned revision,
+  construction (`epsilon`, tolerance, iterations, smoothing), inference, and
+  cross-field validation.
 - `manifest.py`: order-independent train/dev splits based on stable sample IDs.
 - `corpus.py`: pinned raw-corpus hashing, canonical conversation identities,
   exact-content deduplication, and manifest-bound split loading.

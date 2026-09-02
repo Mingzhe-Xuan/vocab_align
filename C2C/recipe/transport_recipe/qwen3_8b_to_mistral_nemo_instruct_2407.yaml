@@ -21,6 +21,11 @@ data:
 seed: 42
 output_path: local/transport/artifacts/qwen3_8b_to_mistral_nemo_instruct_2407.npz
 output_schema: stt-result-v1
+construction:
+  epsilon: 0.5
+  tolerance: 0.002
+  max_iter: 10000
+  smoothing: 1.0e-8
 transport:
   tau: 1.0
   causal_shift: true

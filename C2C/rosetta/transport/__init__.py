@@ -48,6 +48,7 @@ from .config import (
     DataSpec,
     ModelSpec,
     TransportConfig,
+    TransportConstructionSpec,
     TransportInferenceSpec,
 )
 from .corpus import (
@@ -149,6 +150,7 @@ __all__ = [
     "SoftTransportStats",
     "TransportArtifact",
     "TransportConfig",
+    "TransportConstructionSpec",
     "TransportInferenceSpec",
     "TransportMetrics",
     "TrainingFreeTransportModel",

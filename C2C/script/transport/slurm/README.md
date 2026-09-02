@@ -17,7 +17,11 @@ because hashing both complete vocabularies is batch processing.
 `build_full_support_preview.sbatch` combines that structured ANN JSON with a
 small canonical JSONL corpus and positive smoothing. It activates both complete
 ordinary vocabularies to exercise sparse Sinkhorn and artifact auditing, but is
-explicitly a preview rather than the formal `transport_train` artifact.
+explicitly a preview rather than the formal `transport_train` artifact. Its
+full-vocabulary L1 residual tolerance defaults to `2e-3`; set
+`TRANSPORT_TOLERANCE` only when a different pre-registered requirement applies.
+The ordinary preview job and library/CLI defaults retain their high-precision
+`1e-9` behavior.
 
 `materialize_openhermes_500k.sbatch` downloads/loads the pinned OpenHermes
 revision and materializes its first 500,000 source rows plus JSONL/manifest

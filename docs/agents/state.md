@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。真实全词表 OT 验收阈值已正式调整为 `2e-3`，两份计划与方法说明已同步并通过文档检查；toy/dense 数值 oracle 仍保持原高精度标准。
+正在实施 Training-free Soft-Token Transport。结构化 construction 配置、主 recipe、full-support Slurm `2e-3` 默认值和 artifact 独立审计链已通过 131 个本地测试；准备形成临时 `[UNACCEPTED]` 提交并重跑真实图。
 
 ## 当前计划
 
-1. 提交并推送本次文档需求变更，排除未跟踪参考文件 `docs/assets/alignment.py`。
-2. 下一实现单元按新需求更新正式 recipe/Slurm 验收测试，将真实 full-vocabulary tolerance 设为 `2e-3`，而不修改 toy/dense 默认精度。
-3. 通过本地测试后在临时分支重跑 Job 234 同输入，生成并独立审计有效 artifact；不继续当前 reduced Newton-CG 修复。
+1. 形成并推送新的临时 `[UNACCEPTED]` 验证提交，排除 `docs/assets/alignment.py`。
+2. 登记 Guqq 连接用途；首项 `git pull` 后同步临时分支，以独立 `tolerance_2e3_validation` 路径经 Slurm 重跑同一真实图。
+3. 验收 Exit 0、两侧 residual、metadata tolerance、artifact save/load、独立 audit、MaxRSS 与原子 checkpoint；通过后再整理 main。
 
 ## 变更记录
 
@@ -97,5 +97,7 @@
 - 2026-09-02 11:21 +08:00：Job 234 在 37:11 后耗尽 1,000 Newton-CG evaluations，row residual `1.69153e-3`，无 artifact/audit；首版真实验证失败且保持未验收。下一步本地诊断缩放/方向并补充能复现极小步停滞的测试，不降低严格标准。
 - 2026-09-02 11:26 +08:00：用户确认当前真实图精度足够，需求实质调整为 full-vocabulary 最大两侧 L1 residual `<=2e-3`；toy/dense oracle 仍保持原高精度。取消 reduced row-dual 代码修复计划，先同步两份计划、方法说明与验收记录；Job 234 旧配置未产出 artifact，后续仍需按新阈值重跑并审计。
 - 2026-09-02 11:28 +08:00：两份计划、`assets/T_method.md`、经验和验收记录已完成 `2e-3`/`1e-9` 精度分层同步；路径、相对链接、公式/阈值表述与 diff 检查通过。下一步提交文档需求变更，再进入配置和验收测试实现单元。
+- 2026-09-02 11:35 +08:00：需求文档提交 `865d17a` 已推送；进入 construction 配置/主 recipe/full-support Slurm 默认值实现单元。测试范围固定为结构化 round-trip/校验、`2e-3` 默认与 override 转发、完整回归和静态检查。
+- 2026-09-02 12:10 +08:00：construction 配置、主 recipe/schema、full-support `2e-3` 默认及 artifact 边际/列和分层审计完成；定向链路与完整 131/131、Bash/Black/compile/diff 全部通过。下一步形成临时未验收提交并经独立 Slurm 路径生成有效 artifact。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

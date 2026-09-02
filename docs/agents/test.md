@@ -90,6 +90,22 @@ Reduced row-dual Newton-CG 修复测试计划：
 - `docs/plan/T_implementation_plan.md` 与 `assets/T_method.md` 已同步测试边界、非单元验收、Job 234 结果和重跑要求；相对链接 `./T_plan.md` 目标存在，三份目标文档路径检查通过。
 - `git diff --check` 通过，仅有既有 LF/CRLF 转换 warning；本单元只改文档，未运行代码测试。
 
+真实 full-vocabulary tolerance 配置实现单元：
+
+- 新增可序列化、严格校验的 transport construction 配置，固定 `epsilon=0.5`、`tolerance=2e-3`、`max_iter=10000`、`smoothing=1e-8`；缺省配置保持兼容，非法/非有限/非正数和布尔伪整数显式失败。
+- 主 Qwen3→Mistral-Nemo recipe 与 schema 显式记录上述构建参数；配置 round-trip 和 pinned recipe 测试验证 `2e-3` 已进入结构化 provenance，而不是只存在于说明文字。
+- `build_full_support_preview.sbatch` 默认转发 `2e-3`，环境变量 override 仍按原值转发；普通小语料 preview、库/CLI 默认和 toy/dense 测试继续使用 `1e-9`。
+- artifact 保存/加载/独立 audit 从 `metadata.build_config.tolerance` 读取边际 L1 阈值，且拒绝高于当前预注册上限 `2e-3` 的 metadata；非负性和逐列归一化仍使用 dtype 级数值阈值，不能随边际容差放宽。
+- 运行 config/full-support Slurm 定向测试、完整 pytest、Bash syntax、Black/compileall 与 `git diff --check`；真实 artifact 仍需临时分支 Slurm 重跑后验收。
+
+实际结果：
+
+- config/full-support 初始定向 `14 passed`；补齐 artifact tolerance 链后，config/full-support/artifact/audit/build CLI `25 passed`，最终 save→load→independent audit 相关集合 `21 passed`。
+- 最终完整回归 `131 passed, 2 warnings in 157.33s`；warnings 仍仅为 pandas 可选 numexpr/bottleneck 版本提示。
+- `TransportConstructionSpec` round-trip/缺省兼容/非法值、主 recipe `0.002`、Slurm 默认 `2e-3` 与 `4e-3` override、metadata 上限、边际近似通过且列和严格失败均有直接回归覆盖。
+- Bash syntax、重定向 bytecode cache 的 compileall、Black（6 files unchanged）和 `git diff --check` 通过；compileall 临时缓存已在验证工作区边界后删除。
+- 本地验收完成；真实 artifact 尚未生成，当前代码只能形成临时 `[UNACCEPTED]` 验证提交。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。
