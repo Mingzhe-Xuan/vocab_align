@@ -301,3 +301,9 @@
 - 连接用途：同步 `validation/guqq-real-model-stt-smoke`；若 pull 网络失败，运行 `bash net.sh` 后重试。确认服务器 HEAD/C2C、锁定依赖、正式 artifact、空 smoke 输出路径和队列后，提交 `smoke_real_models.sbatch` 的 1-GPU/192G/4h 真实功能作业。
 - 权限判断与顺序：首项为 ff-only pull；环境/cache/artifact/输出只做轻量门禁，模型加载、CUDA 检查、Receiver-only 与 STT 推理全部由 Slurm 作业执行。显式写入 main-based 未验收代码版本 `036df809c7816747cd5478a6a8b3b6376bf93337`。
 - 验收边界：提交前输出及 `.partial` 必须不存在；作业需在加载权重前通过 torch/accelerate/transformers、CUDA、至少 20 GiB GPU、artifact 门禁。终态要求 Exit 0、schema v2、两路恰好最多 2 tokens、锁定 revisions/artifact metadata、有限 transport stats/metrics、runtime GPU 详情、无 partial、GNU time 与产物 SHA；功能耗时不进入正式 latency 表。
+- 提交结果：首项 pull 成功且已最新；随后误用完整 `git rev-parse HEAD` 与短 SHA `d559a6f` 比较，门禁返回非零并由 `&&` 短路，未执行 `squeue` 或 `sbatch`，远端状态未变。
+
+## 2026-09-03 04:26 +08:00
+
+- 连接用途：修正 HEAD 门禁为 `git rev-parse --short HEAD == d559a6f`，其余同步、输入/输出/队列门禁和真实 smoke 提交完全沿用 04:24 条目。
+- 权限判断与验收边界：第一项仍为 ff-only pull；只有所有轻量门禁通过才执行一次 `sbatch`，不在登录节点推理。
