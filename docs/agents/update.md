@@ -104,3 +104,5 @@
 - datasets 4.0.0 wheel 环境补齐后，Job 239 在 2:00.06 内成功物化正式 OpenHermes 500k corpus/manifest；500k/495k/5k 计数、锁定 revision、prefix provenance、无交叉、raw hash、原子输出和 6.8 GiB 峰值内存均通过。开始正式 T Slurm 入口实现。
 - 完成 manifest-bound 正式 T Slurm 入口：固定 transport_train/模型和数据 provenance/ANN/`2e-3`，保留 64G/24h、原子 audit/checkpoint、resume 和 telemetry；定向 17/17、完整 137/137 及静态检查通过，准备临时分支真实验证。
 - main-based `[UNACCEPTED]` 提交 `5787a71` 已推送；准备从 Guqq 当前提交派生内容等价的兼容验证分支，以纯快进 pull 避免 squash 历史冲突，再提交正式 500k T Slurm 作业。
+- Job 240 完成正式 manifest-bound T：51:57.26、Exit 0、MaxRSS 8,036,128 KiB；495k samples/997,233 messages provenance 完整，artifact/audit/checkpoint 原子齐全，row residual `1.9655e-3`、列和机器精度、无危险 special mapping 且无 partial。进入 main 验收整理与真实模型 smoke 阶段。
+- Job 240 后最终本地验收为完整 137/137；正式入口测试 Black unchanged，compileall、Bash、计划路径和 diff 均通过，准备 squash 为 main 验收提交。

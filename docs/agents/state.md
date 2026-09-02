@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k pinned-prefix corpus/manifest 已通过 Slurm 物化和完整 provenance/计数/哈希验收；正在为 `transport_train` 实现独立的正式 T Slurm 入口，随后构建 artifact 并执行真实短序列 smoke。
+正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest 与 manifest-bound full-vocabulary T artifact 均已通过 Slurm、provenance、数值和资源验收；正在整理正式入口的 main 验收提交，随后进入真实模型短序列 STT smoke。
 
 ## 当前计划
 
-1. 实现并测试 manifest-bound `transport_train` 正式 T Slurm 入口，固定模型/数据 revision、`2e-3` 构建参数、ANN、原子 artifact/audit/checkpoint 和资源 telemetry。
-2. 提交入口并在 Guqq 通过 Slurm 构建、独立审计正式 T artifact。
-3. 完成真实模型短序列 STT smoke；随后实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集评测。
+1. 将已通过 Job 240 的正式 T Slurm 入口整理为 main 验收提交并推送。
+2. 复核真实模型 smoke 的依赖、device map、artifact 与输出协议，补齐测试/Slurm 入口后运行最短序列 diagnostics。
+3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
 
 ## 变更记录
 
@@ -110,5 +110,7 @@
 - 2026-09-03 02:00 +08:00：datasets 4.0.0 环境补齐后 Job 239 以 2:00.06/Exit 0/MaxRSS 7,128,336 KiB 完成正式物化；500,000 rows 全部唯一，495,000/5,000 split 无交叉，锁定 revision、prefix selection、未过滤状态、records hash 与无 partial 均通过。进入正式 manifest-bound T Slurm 入口实现单元。
 - 2026-09-03 02:04 +08:00：正式 T Slurm 入口、README 与 4 个 stub 集成测试完成；定向 17/17、完整 137/137，Black/compileall/Bash/diff 均通过。下一步创建 `validation/formal-transport-500k` 临时分支的 `[UNACCEPTED]` 提交并登记 Guqq 真实 500k 构建，远程通过前不合并 main。
 - 2026-09-03 02:06 +08:00：main-based 临时提交 `5787a71` 已推送；因 Guqq 旧历史不能快进 squash main，计划从服务器当前 `5a0368f` 建立 C2C 内容等价的兼容验证分支，仅供首条 ff-only pull 与 Slurm 运行。下一步提交该分支并复核 C2C tree 一致性后连接。
+- 2026-09-03 03:10 +08:00：兼容分支 `bb4bab6` 与 main-based `5787a71` 的 C2C tree 一致；Job 240 在 51:57.26/Exit 0/MaxRSS 8,036,128 KiB 下完成正式 T。495k/997,233 条数据 provenance、`1.9655e-3` row residual、严格列和、目标、special、complete checkpoint、无 partial 和哈希均通过。下一步补全记录、复跑最终本地验收并整理 main。
+- 2026-09-03 03:12 +08:00：Job 240 后最终代码树完整回归 137/137；新测试 Black unchanged、compileall、正式脚本 Bash syntax、两份计划路径和 diff 检查均通过。进入 main-based 临时分支证据提交与 squash 验收提交阶段，之后直接推进真实模型短序列 smoke。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

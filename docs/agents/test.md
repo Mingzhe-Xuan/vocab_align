@@ -196,6 +196,11 @@ Job 230 恢复检查：记录第三次 pull/输入哈希/提交及会话关闭�
 - `python -m pytest ... test_formal_transport_slurm.py test_build_vocab_transport_cli.py test_corpus.py test_materialize_openhermes_slurm.py ... -q`：17 passed in 28.14s；覆盖脚本语法/资源/锁定值、manifest 模式、默认与 override、resume 和失败传播。
 - 完整回归：`137 passed, 2 warnings in 68.64s`；warnings 仍仅为既有 pandas 可选 numexpr/bottleneck 版本提示。
 - 新测试文件 Black unchanged；重定向 bytecode cache 的 compileall、`bash -n script/transport/slurm/build_formal_transport.sbatch` 和 `git diff --check` 通过。真实 formal artifact 尚未构建，当前实现仅可进入临时 `[UNACCEPTED]` Slurm 验证提交。
+- Job 240 远程实际结果：兼容分支 C2C tree 与 main-based `5787a71` 一致；输入 records/manifest/ANN SHA 与 Job 239/既有 ANN 验收值一致，输出路径预先不存在。作业 51:57.26、Exit 0、MaxRSS `8,036,128 KiB`、0 swap。
+- 正式 artifact 为 39,951,267 bytes、shape `131069×151669`、nnz/candidate edges `2,733,518`；metadata code version 为 main 验收 `f433000fa8514296dd5849c619ecd99a4e449bed`，data provenance 为锁定 OpenHermes revision、transport_train、495,000 selected samples、997,233 canonical messages、records SHA `539f2d30…5d485a`、manifest SHA `a50c0dca…7c60fa`、ANN SHA `260f9804…e91652`，构建参数 `0.5/0.002/10000/1e-8`。
+- audit `valid=true`；row/column/transported L1 为 `1.9655245213e-3`/`1.0560509249e-13`/`1.9655245213e-3`，最大列和误差 `1.2299050667e-12`，minimum 0，transport cost `3.6869566806`、regularized objective `-1.2818040356` 均有限，dangerous special mappings 为空。checkpoint 为 `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。
+- artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 为 `1495d522…0aba97`/`79c4ad38…5caf84`/`53b6a464…1948de`/`13bbda9b…c2457e`/`4deb7afd…517ad7`；远程正式 T 集成验收通过。
+- Job 240 后最终本地回归：`137 passed, 2 warnings in 68.24s`，warnings 仍仅为 pandas 可选 numexpr/bottleneck 版本提示；新测试 Black unchanged、compileall、正式 Slurm 脚本 `bash -n`、两份计划路径与 `git diff --check` 全部通过。
 
 ## 2026-09-02：memory-bounded dual telemetry 单元
 
