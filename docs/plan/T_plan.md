@@ -267,6 +267,8 @@ $$
 
 对真实 full-vocabulary artifact，`delta_marginal` 取 `2e-3`，并与构建时 `tolerance` 一同写入 metadata；toy/dense oracle 的对应审计继续采用 `1e-9` 或测试原有更严阈值。`delta_num` 和列随机性 `delta_col` 仍按存储 dtype 的数值精度设置，不因边际近似阈值调整而放宽非负性或逐列归一化检查。
 
+正式 artifact 审计必须直接在 CSC/等价稀疏结构上计算列和、两侧边际、`Ta-b`、每列熵、transport cost 和正则目标，空间复杂度为 O(nnz + $V_A$ + $V_B$)。不得为 full-vocabulary audit 构造 $V_B\times V_A$ dense transport、coupling、mask 或 `where` 中间数组；dense 转换只允许用于有明确尺寸上限的 toy oracle。
+
 ## 5. STT 推理协议
 
 ```text

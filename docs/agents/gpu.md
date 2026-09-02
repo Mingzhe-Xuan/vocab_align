@@ -188,3 +188,4 @@
 - 连接用途：验证临时 `[UNACCEPTED]` 提交 `5207cc9` 对新 full-vocabulary `2e-3` 需求的完整落盘链；以与 Job 234 相同输入、64G/8h、epsilon 0.5、max_iter 10,000 经 Slurm 重跑。
 - 权限判断与顺序：新会话第一条远端操作必须是 `cd vocab_align && git pull`；之后才同步 `validation/job230-dual-increment`、复核 HEAD/输入/队列并 `sbatch`。所有 2.3M-edge 构建/求解在 compute allocation，登录节点只做轻量管理且不编辑源码。
 - 验收边界：使用独立 `tolerance_2e3_validation` checkpoint/artifact/audit 路径，不覆盖 Job 234；要求 Exit 0、两侧最大 L1 residual `<=2e-3`、metadata `build_config.tolerance=0.002`、列随机性保持 dtype 精度、artifact save/load 与独立 JSON/Markdown audit 完整、checkpoint complete、MaxRSS/哈希可追溯。网络异常先 `bash net.sh`；通过前不进入 main。
+- 实际结果：首条 pull 与临时分支同步成功至 `9ac437e`，输入哈希和 SciPy 1.15.3 一致，提交 Job 235。作业约 22:36 后在 partial artifact 已写出时被 signal 9 终止；GNU time 记录 MaxRSS `255,870,840 KiB`、0 swap，暴露 `audit_transport_artifact` 全矩阵 dense 展开。留下 34 MiB partial（SHA-256 `833a320a…e5e3e0`）和 `building/fresh` checkpoint（`a3a9acb8…5bdc7f`），无最终 artifact/audit；stderr SHA-256 `3e67cc70…438bf6`。已退出，该运行未验收。

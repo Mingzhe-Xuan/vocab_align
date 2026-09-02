@@ -94,3 +94,5 @@
 - 开始落实 `2e-3` 需求到结构化 construction 配置、主 transport recipe 与 full-support Slurm 默认值；库/CLI、普通 preview 和 toy/dense 高精度默认保持不变。
 - 完成 `2e-3` 配置与 artifact 验收链：结构化 construction provenance、主 recipe/schema、Slurm 默认/override、边际 tolerance 上限与严格列随机性；最终完整回归 131/131 和全部静态检查通过，准备临时 Slurm 验证提交。
 - 临时 `[UNACCEPTED]` 提交 `5207cc9` 已推送；登记 Guqq 同输入/资源和独立 `tolerance_2e3_validation` 路径，准备验证新阈值下的原子 artifact、独立 audit 与 complete checkpoint。
+- Job 235 在 partial 落盘后因 audit dense 展开被 signal 9，MaxRSS 255,870,840 KiB，无最终 artifact/audit。进入 O(nnz + vocab) sparse audit 修复，保持 64G 资源与原子产物边界。
+- 完成 O(nnz + vocab) sparse audit：CSC 直接统计边际/熵，NumPy pair-key 对齐 cost，禁止正式路径 dense 展开；定向 18/18、完整 133/133 和静态检查通过，准备临时 Slurm 重跑。

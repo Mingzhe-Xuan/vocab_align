@@ -107,6 +107,20 @@ Reduced row-dual Newton-CG 修复测试计划：
 - 本地验收完成；真实 artifact 尚未生成，当前代码只能形成临时 `[UNACCEPTED]` 验证提交。
 - 上述实现已形成并推送临时 `[UNACCEPTED]` 提交 `5207cc9`；真实验证将使用独立 `tolerance_2e3_validation` 路径，验收实际 residual、metadata tolerance、严格列和、save/load/audit 与 complete checkpoint。
 
+Job 235 实际结果与 sparse audit 修复测试计划：
+
+- Job 235 在约 22:36 被 signal 9 终止，MaxRSS `255,870,840 KiB`、0 swap；34 MiB partial 已产生但 checkpoint 仍为 `building/fresh`，无最终 artifact/audit。根因是独立 audit 对 full-vocabulary transport/coupling/entropy 做 dense 展开，该运行不验收。
+- 用小矩阵手算对照 sparse audit 的列和、两侧边际、`Ta-b`、每列 entropy、transport cost 和正则目标；结果必须与现有定义一致。
+- monkeypatch `transport_to_dense` 为失败并审计一个大 shape/低 nnz artifact，证明正式 audit 不依赖 dense helper，工作内存/中间数组仅为 O(nnz + source vocab + target vocab)。公开 dense helper 保留给 tiny oracle，不删除其行为。
+- 运行 artifact/audit/build CLI 定向测试、完整 pytest、Black/compileall/diff；通过后仅形成新的临时 `[UNACCEPTED]` 提交，并用独立 `sparse_audit_validation` 路径经 Slurm 重跑。
+
+实际结果：
+
+- artifact/audit/facade/build CLI 定向 `18 passed in 9.57s`；2×2 手算覆盖列和、row/column/transported marginal、每列 entropy、candidate cost 和正则目标。
+- 10,000×10,000、10,000 nnz 对角 artifact 在 monkeypatch dense helper 为强制失败时完成 audit，证明正式路径不调用 dense 转换；candidate cost 使用 NumPy pair key 排序/searchsorted，不再建立 230 万 Python edge/dict。
+- 完整回归 `133 passed, 2 warnings in 55.63s`；warnings 仅为既有 pandas 可选依赖版本提示。Black 两文件 unchanged、compileall 和 `git diff --check` 通过。
+- 真实 2.3M-edge artifact 尚未经新 audit 完成，当前仍只能形成临时 `[UNACCEPTED]` 验证提交。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。

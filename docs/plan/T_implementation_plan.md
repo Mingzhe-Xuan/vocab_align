@@ -139,7 +139,7 @@ C2C/
 | `sinkhorn.py` | 提供小矩阵 dense Sinkhorn oracle，以及大词表 sparse/log-domain 实现；返回 `Pi` 和收敛报告。 |
 | `vocab_transport.py` | 作为公共 facade 编排候选图、代价、Sinkhorn 和 `T = Pi Diag(a)^-1`；保留 local 列归一化 baseline。 |
 | `artifact.py` | 保存 CSC/等价稀疏结构、`a`、`b`、候选图、配置、指纹和收敛信息；支持安全加载与 schema migration。 |
-| `audit.py` | 检查非负性、列和、两侧边际、`Ta=b`、覆盖率、熵、截断质量及危险 special 映射。 |
+| `audit.py` | 直接在 CSC 上以 O(nnz + vocab) 检查非负性、列和、两侧边际、`Ta=b`、覆盖率、熵、目标值及危险 special 映射；dense helper 仅限 tiny oracle。 |
 | `build_vocab_transport.py` | 流式读取 manifest，支持 resume/checkpoint，构建正式 artifact。 |
 | `audit_vocab_transport.py` | 只读加载 artifact，重算关键不变量并输出 JSON/Markdown 报告。 |
 
@@ -169,6 +169,7 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
   - save/load round trip 保持稀疏索引、dtype、数值和 metadata。
   - tokenizer 指纹或 schema 不匹配时拒绝加载。
   - 损坏、缺列或非有限数值的 artifact 不可通过审计。
+  - 大 shape/低 nnz artifact 的正式 audit 不调用 dense 转换；稀疏统计与小矩阵手算结果一致。
 
 ### 4.3 非单元验收
 

@@ -16,6 +16,8 @@
 
 稀疏 artifact 的边际与列和容差必须至少覆盖其存储 dtype 的机器精度；用固定的 float64 级容差审计 float32 数据会误拒绝合法 artifact。实现采用 `max(配置容差, 10 * dtype epsilon)`，同时仍拒绝非有限值和真实的归一化偏差。
 
+full-vocabulary artifact 即使以 CSC 保存，audit 若先调用 `transport_to_dense`，一个约 `131k × 52k` 的 float64 矩阵就需数十 GiB；再创建 coupling、布尔 mask 和 `np.where` 中间数组会把峰值推到数百 GiB。Job 235 因此在 partial 落盘后达到 255,870,840 KiB MaxRSS 并被 signal 9。正式 audit 必须直接在 CSC `data/indices/indptr` 上累计列和、`Ta`、边际、每列 entropy 和目标值，空间限制为 O(nnz + source vocab + target vocab)；dense helper 只能用于 tiny oracle，不能出现在真实 artifact 审计路径。
+
 ## 项目脚本调用
 
 未以 editable package 安装仓库时，直接执行 `python script/dataset/example.py` 只会把脚本目录加入 `sys.path`，可能无法导入顶层 `rosetta`。项目文档和作业入口统一使用 `python -m script.dataset.example`，从仓库根解析模块，避免在脚本中注入路径。

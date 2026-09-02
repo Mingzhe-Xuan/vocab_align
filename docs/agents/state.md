@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。结构化 construction 配置、主 recipe、full-support Slurm `2e-3` 默认值和 artifact 独立审计链已通过 131 个本地测试；准备形成临时 `[UNACCEPTED]` 提交并重跑真实图。
+正在实施 Training-free Soft-Token Transport。独立 audit 已改为 O(nnz + vocab) CSC 统计并通过 133 个本地测试；准备形成新的临时 `[UNACCEPTED]` 提交并重跑真实 2.3M-edge artifact 链。
 
 ## 当前计划
 
-1. 形成并推送新的临时 `[UNACCEPTED]` 验证提交，排除 `docs/assets/alignment.py`。
-2. 登记 Guqq 连接用途；首项 `git pull` 后同步临时分支，以独立 `tolerance_2e3_validation` 路径经 Slurm 重跑同一真实图。
-3. 验收 Exit 0、两侧 residual、metadata tolerance、artifact save/load、独立 audit、MaxRSS 与原子 checkpoint；通过后再整理 main。
+1. 提交并推送 sparse audit 临时验证提交，排除 `docs/assets/alignment.py`。
+2. 登记新 Guqq 连接并以独立 `sparse_audit_validation` 路径重跑同输入/资源/`2e-3` 作业。
+3. 验收完整 artifact/audit、complete checkpoint、residual、metadata、目标统计、MaxRSS 和文件哈希；通过后整理 main。
 
 ## 变更记录
 
@@ -100,5 +100,7 @@
 - 2026-09-02 11:35 +08:00：需求文档提交 `865d17a` 已推送；进入 construction 配置/主 recipe/full-support Slurm 默认值实现单元。测试范围固定为结构化 round-trip/校验、`2e-3` 默认与 override 转发、完整回归和静态检查。
 - 2026-09-02 12:10 +08:00：construction 配置、主 recipe/schema、full-support `2e-3` 默认及 artifact 边际/列和分层审计完成；定向链路与完整 131/131、Bash/Black/compile/diff 全部通过。下一步形成临时未验收提交并经独立 Slurm 路径生成有效 artifact。
 - 2026-09-02 12:12 +08:00：临时未验收提交 `5207cc9` 已推送；已登记同输入/资源、`2e-3` 默认和独立 `tolerance_2e3_validation` 产物路径的 Guqq 验证。下一步提交审计记录，再连接并首先执行 `git pull`。
+- 2026-09-02 13:25 +08:00：Job 235 约 22:36 后 signal 9，MaxRSS 255,870,840 KiB；partial 已写出但无最终 artifact/audit，根因定位为独立 audit 的 full-vocabulary dense 展开。进入 sparse audit 实现单元，不提升资源、不使用 partial 冒充有效产物。
+- 2026-09-02 13:32 +08:00：audit 的列和、边际、entropy、cost 与正则目标已全部改为 CSC/NumPy pair-key 稀疏统计；手算/大 shape 定向与完整 133/133、Black/compile/diff 通过。下一步推送临时验证提交并重跑真实 artifact 链。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
