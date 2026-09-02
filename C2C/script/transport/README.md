@@ -20,6 +20,8 @@ in this folder.
   deliberately limited to one or two new tokens.
 - `build_ann_candidates.py`: deterministic bidirectional byte-ngram LSH
   candidates with explicit low-evidence connectivity bridges and provenance.
+- `summarize_transport.py`: atomic accuracy, subject, failure-reason, and
+  numeric-metric aggregation from versioned per-sample JSONL records.
 
 Run commands as modules from the `C2C` root, for example:
 
@@ -32,6 +34,13 @@ under Slurm:
 
 ```bash
 sbatch script/transport/slurm/smoke_real_models.sbatch
+```
+
+The pinned five-question MMLU-Redux transport evaluation likewise runs under
+Slurm and writes resumable per-sample records plus an atomic summary:
+
+```bash
+sbatch script/transport/slurm/evaluate_stt_mmlu_redux.sbatch
 ```
 
 It requests one GPU without pinning a partition, validates the locked runtime

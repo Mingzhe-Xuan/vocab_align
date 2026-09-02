@@ -180,6 +180,27 @@ Job 230 恢复检查：记录第三次 pull/输入哈希/提交及会话关闭�
 - `bash -n script/transport/slurm/materialize_openhermes_500k.sbatch`：通过。
 - Black（独立仓库内 cache、单 worker）检查 4 个新增/修改 Python 文件：全部无需修改。
 - `git diff --check`：通过（仅 Git 的 LF→CRLF 工作树提示，无 whitespace error）。
+- 远程集成验收计划：在 Guqq 通过 32G/4h Slurm 运行锁定 revision 的正式入口；要求 Exit 0、source prefix 恰为 500,000 rows、manifest 的 selected/unique/duplicate/train/dev 计数自洽、dataset/revision/raw split/selection/filtering/seed provenance 完整、records SHA-256 与 manifest 绑定一致、JSONL/manifest 均可解析且不存在 partial，并记录 GNU time/MaxRSS 与文件哈希。未满足任一项不得进入正式 T 构建。
+- 首次远程环境门禁实际结果：`.venv/bin/python -c 'import datasets'` 在提交前以 `ModuleNotFoundError` 退出，队列为空且未生成/覆盖输出；按计划先补齐并记录精确依赖，不把环境失败计作物化结果，也不降低脚本的 `datasets==4.0.0` 检查。
+- Job 239 远程实际结果：datasets 4.0.0/version/help 门禁通过；作业 2:00.06、Exit 0、MaxRSS `7,128,336 KiB`、0 swap。records 恰为 500,000 行/909,629,231 bytes，manifest 43,500,816 bytes；unique/duplicate/train/dev 为 500,000/0/495,000/5,000，split 内唯一且彼此无交叉；锁定 dataset/revision/raw split、identity、pinned-prefix selection、adapter filtering not-applied、seed 42 和输入指纹齐全。records SHA `539f2d30…5d485a` 与 manifest 绑定一致，manifest/SBATCH stderr SHA 为 `a50c0dca…7c60fa`/`c4a91c0d…728e65`，边界 JSON 可解析且无 partial；远程集成验收通过。
+
+正式 manifest-bound T Slurm 入口实现单元测试计划：
+
+- 新入口必须固定主 source/target 及两侧 revision、正式 records/manifest、`transport_train`、结构化 ANN、epsilon 0.5、tolerance `2e-3`、max_iter 10,000、smoothing `1e-8`、seed 42，并只写忽略的 artifact/audit/checkpoint/log 路径。
+- 环境变量仅允许覆盖 Python、输入输出、构建参数和 code version；脚本必须在提交目录/解释器/输入存在时才启动，创建输出目录，保留 GNU time telemetry，支持显式 `RESUME=1`，不硬编码 partition。
+- stub 集成测试捕获传给 builder 的参数与环境，验证 manifest 模式不混入 preview `--texts-jsonl`、默认值和 override 精确转发、失败码透传、resume 标志、SBATCH 资源/日志与 `bash -n`；完整 pytest、Black、compileall 和 diff 检查保持通过。
+- 真实 500k 构建属于明显计算负载，只能在临时 `[UNACCEPTED]` 提交经 Guqq Slurm 验收；要求正式 artifact/audit/checkpoint 原子完整、metadata 绑定 manifest/records/ANN、两侧 residual `<=2e-3`、严格列和/非负/特殊映射/目标统计有效，并记录 MaxRSS、耗时和哈希。
+
+实际结果：
+
+- `python -m pytest ... test_formal_transport_slurm.py test_build_vocab_transport_cli.py test_corpus.py test_materialize_openhermes_slurm.py ... -q`：17 passed in 28.14s；覆盖脚本语法/资源/锁定值、manifest 模式、默认与 override、resume 和失败传播。
+- 完整回归：`137 passed, 2 warnings in 68.64s`；warnings 仍仅为既有 pandas 可选 numexpr/bottleneck 版本提示。
+- 新测试文件 Black unchanged；重定向 bytecode cache 的 compileall、`bash -n script/transport/slurm/build_formal_transport.sbatch` 和 `git diff --check` 通过。真实 formal artifact 尚未构建，当前实现仅可进入临时 `[UNACCEPTED]` Slurm 验证提交。
+- Job 240 远程实际结果：兼容分支 C2C tree 与 main-based `5787a71` 一致；输入 records/manifest/ANN SHA 与 Job 239/既有 ANN 验收值一致，输出路径预先不存在。作业 51:57.26、Exit 0、MaxRSS `8,036,128 KiB`、0 swap。
+- 正式 artifact 为 39,951,267 bytes、shape `131069×151669`、nnz/candidate edges `2,733,518`；metadata code version 为 main 验收 `f433000fa8514296dd5849c619ecd99a4e449bed`，data provenance 为锁定 OpenHermes revision、transport_train、495,000 selected samples、997,233 canonical messages、records SHA `539f2d30…5d485a`、manifest SHA `a50c0dca…7c60fa`、ANN SHA `260f9804…e91652`，构建参数 `0.5/0.002/10000/1e-8`。
+- audit `valid=true`；row/column/transported L1 为 `1.9655245213e-3`/`1.0560509249e-13`/`1.9655245213e-3`，最大列和误差 `1.2299050667e-12`，minimum 0，transport cost `3.6869566806`、regularized objective `-1.2818040356` 均有限，dangerous special mappings 为空。checkpoint 为 `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。
+- artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 为 `1495d522…0aba97`/`79c4ad38…5caf84`/`53b6a464…1948de`/`13bbda9b…c2457e`/`4deb7afd…517ad7`；远程正式 T 集成验收通过。
+- Job 240 后最终本地回归：`137 passed, 2 warnings in 68.24s`，warnings 仍仅为 pandas 可选 numexpr/bottleneck 版本提示；新测试 Black unchanged、compileall、正式 Slurm 脚本 `bash -n`、两份计划路径与 `git diff --check` 全部通过。
 
 ## 2026-09-02：memory-bounded dual telemetry 单元
 
@@ -660,3 +681,101 @@ revision 修复本地结果：
 - `rg` 检查方法参数和 provenance 标识通过：旧版 `acceleration_history_size` / `sinkhorn-scaled-lbfgs-sinkhorn`，新版 `acceleration_cg_iterations` / `sinkhorn-scaled-newton-cg-sinkhorn`。
 - 文档无外部链接；仓库路径 `assets/T_method.md` 存在，Markdown 标题、公式和表格人工检查通过。
 - `git diff --check`：通过；仅报告工作树既有 LF/CRLF 转换 warning，无 whitespace error。
+
+## 2026-09-03：真实模型短序列 smoke 实现单元
+
+测试计划：
+
+- 用 tiny stub 同一 prompt 运行 Receiver-only 与 STT，验证两路分别使用 target/source tokenizer，生成参数完全一致，报告包含两路 token IDs/文本、STT shape/transport quality/分段 metrics、锁定配置、artifact provenance 和输入指纹。
+- smoke 专用运行必须把 `max_new_tokens` 限制为默认 2，并拒绝未知生成字段、空 prompt、缺失 artifact、tokenizer 指纹不匹配、无 CUDA、GPU 数量或显存不足、缺少精确依赖等情况；错误必须在加载 8B 权重前明确暴露。
+- Slurm 入口不固定 partition，显式申请已核实的 GPU/CPU/内存/时限，运行前检查解释器、正式 artifact、CUDA、依赖和模型缓存，使用原子 JSON 输出与 GNU time telemetry，禁止覆盖既有正式结果。
+- CLI help 和 tiny 单元测试不得访问网络或加载远程模型；完整 pytest、Black、compileall、Bash syntax、Markdown 路径/命令和 `git diff --check` 均须通过。
+- 真实验收仅通过 Slurm：固定 Qwen3-8B/Mistral-Nemo revisions、正式 Job 240 artifact 和短 prompt，要求 Receiver-only/STT 均成功生成、报告可解析、provenance/shape/有限质量统计完整、无 `.partial`，并记录 Job ID、ExitCode、Elapsed、MaxRSS、GPU 和产物 SHA-256。该结果只证明功能正确性，不进入正式 latency 表。
+
+本地实际结果：
+
+- 首次从仓库根运行定向 pytest 在收集阶段因 `rosetta` 不在 Python 根失败；切换到 `C2C` 后未降低断言。系统 `%TEMP%` 路径随后触发既有 Bash/ACL 问题，按 lessons 改用工作区全新 `--basetemp` 后消除。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-real-20260903c test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：12 passed（10.12s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-smoke-20260903 -q`：146 passed（73.44s），仅有既存 pandas 对可选 numexpr/bottleneck 版本的 2 条 warning。
+- Black 直接 CLI 在 Windows 现有目录 ACL 下遗留 worker 并无法替换新测试文件；只终止本轮启动的 worker 后，用同版本 Black `format_str` 内存比较 3 个变动 Python 文件，结果全部 unchanged。未终止昨日已有的两个 Python 进程。
+- 3 个变动 Python 文件的内存 `compile(..., "exec")`、新 Slurm 脚本 `bash -n`、recipe 结构化解析/锁定字段、README 路径/命令和 `git diff --check` 均通过；compileall 仅因既有 `test/transport/__pycache__` ACL 无法写 `.pyc`，不是源码语法失败。
+
+真实 Job 241 结果：
+
+- 环境、artifact、cache、输出和 Slurm 提交门禁通过；作业加载两侧模型后在 Receiver-only 首个 CUDA generation kernel 失败，错误为 `no kernel image is available for execution on the device`。
+- GNU time：0:26.39、Exit 1、MaxRSS 5,845,204 KiB、0 swap；无合格 JSON/验收结果。该失败不降低测试标准，代码继续位于 `[UNACCEPTED]` 分支。
+- 初步归因是 torch 2.6.0/CUDA 12.4 wheel 不包含节点旧 GPU 架构；待 Slurm `nvidia-smi` capability 诊断确认。随后仅允许走计划已有的 CPU/offload 功能 smoke，结果不得进入正式 latency 表。
+
+Job 241 兼容修复追加计划：
+
+- Job 242 已确认硬件实际是新 GPU：RTX 5090 32,607 MiB、Blackwell `sm_120`、驱动 570.211.01/CUDA 12.8；修正“旧 GPU”初步判断，根因仍是 torch 2.6.0/cu124 compiled arch 不包含 `sm_120`。
+- runtime 门禁增加命名 profile：项目默认继续精确要求 torch 2.6.0/accelerate 1.9.0/transformers 4.52.4；Guqq Blackwell profile 精确要求 torch 2.7.1+cu128，并把选择的 profile 写入报告。
+- CUDA preflight 必须比较可见设备 compute capability 与 `torch.cuda.get_arch_list()`，缺少 `sm_120` 时在加载任何模型权重前明确失败；tiny mock 覆盖支持/不支持两种情况。
+- Slurm stub 测试验证 `RUNTIME_PROFILE` override 被转发；Guqq 使用独立 `python3 -m venv .venv-smoke-cu128`，避免覆盖项目 venv。修复后重新运行定向、完整回归和真实 Job，不接受 CPU fallback 代替可用的兼容 GPU profile。
+
+兼容修复本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-profile test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：14 passed（9.71s），覆盖两个 runtime profile、Slurm override 和 `sm_120` 支持/拒绝门禁。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-profile -q`：148 passed（74.19s），仅有既存 pandas 可选依赖 2 条 warning。
+- Black `format_str` 对最终 3 个变动 Python 文件检查 unchanged；内存 compile 3/3、Slurm `bash -n` 与 `git diff --check` 通过。
+
+真实 Job 243 结果与追加测试计划：
+
+- cu128 profile 通过 arch 门禁、加载两模型并完成 Receiver-only；STT 因 Qwen3 LM head 151,936 rows 与 tokenizer/T 151,669 的尾部 padded rows 不等而在 exact support 门禁失败。0:14.99、Exit 1、MaxRSS 16,415,184 KiB、0 swap，无合格报告。
+- 新增 explicit `source_vocab_size` 单元：当 artifact source IDs 恰为 `0..source_vocab_size-1` 且 logits 仅多连续尾部 padded rows 时，结果必须等于对 tokenizer logits 做精确 softmax/transport；统计质量为完整保留。
+- 未显式给出 tokenizer vocab size、artifact 存在中间缺口、size 超过 logits、或 artifact 不完整覆盖 tokenizer vocab 时仍必须报错；不能把 `allow_partial_support` 静默用于 exact STT。
+- wrapper/真实 loader 必须从 fingerprint 已验证的 source tokenizer `len()` 传递该值；tiny wrapper 回归继续验证默认严格路径。修复后重新跑定向、完整回归和真实 Slurm smoke。
+
+LM-head padding 修复本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/padded-vocab test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：32 passed（9.94s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-padded-vocab -q`：149 passed（74.57s），仅有既存 pandas 可选依赖 2 条 warning。
+- Black `format_str` 对最终 5 个变动 Python 文件检查 unchanged；内存 compile 5/5、`git diff --check` 通过。测试明确覆盖尾部 padded rows 等价 oracle、未显式 size、超界 size 和中间缺口即使请求 partial 也失败。
+
+真实 Job 244 结果与第三次失败后的追加计划：
+
+- source-vocab 修复生效，但完整 receiver active embedding 表先 `index_select` 再由 BF16 升为 float32，额外请求 2.50 GiB；GPU 已被两模型占用约 30.8 GiB，故 OOM。0:15.08、Exit 1、MaxRSS 16,525,048 KiB、0 swap、无 JSON。
+- 已按连续失败三次规则复查 `docs/agents/lessons.md` 并补充模型并行内存经验；不提高 GPU 资源、不降低模型/统计精度要求。
+- 新测试以 float32 target probabilities + BF16 receiver weight 验证输出保持 receiver dtype、数值匹配高精度 oracle；连续 prefix token IDs 不复制完整权重表，非连续映射也按固定 target chunk 正确累加。
+- chunk size 必须有正整数门禁；tiny vocab、非整除 chunk、原 token ID 映射和现有 dense oracle 全部回归。修复后重跑定向、完整测试和真实 Slurm。
+
+chunked receiver embedding 本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/chunked-embedding test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py -q`：30 passed（4.04s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-chunked-embedding -q`：150 passed（73.58s），仅有既存 pandas 可选依赖 2 条 warning。
+- BF16 receiver/chunk size 2/non-divisible 5-row vocab 与 float32 oracle 在明确容差内一致，输出为 BF16；chunk size 0 拒绝，既有非连续 target ID oracle 继续通过。Black unchanged、内存 compile 2/2、`git diff --check` 通过。
+
+真实 Job 245 最终结果：
+
+- Job 245：0:16.67、Exit 0、MaxRSS 16,560,968 KiB、0 swap；JSON 8,581 bytes，SHA-256 `a14da4b15a368eefbd905d61ad4be71af143fdf2ab6df74071fa487c6b867c26`，stderr SHA-256 `6ecddddcca89383eeaf4c211c6b3fcbf412c4713c4dc301d2cc55401ff86eccc`，无 partial。
+- schema v2；Receiver-only 输入 8/输出 2 tokens，STT source 7/virtual 7/output 2 tokens，virtual shape `[1,7,5120]`。两路均有 token IDs/解码文本。
+- runtime 为 `blackwell-cu128`、torch 2.7.1+cu128、compiled arches 含 `sm_120`、RTX 5090 capability `[12,0]`；正式 artifact shape/nnz/provenance、锁定 revisions 和 code version `024beacd...` 完整。
+- retained/active support mass 在 `0.9999999404..1.0000005960`，top-m dropped mass 全零；分段 metrics 有限，peak memory 31,074,283,520 bytes。真实功能 smoke 验收通过，其耗时不进入 latency 表。
+
+最终本地验收：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/final-stage2 -q`：150 passed（72.90s），仅有既存 pandas 可选依赖 2 条 warning。
+- 最终 6 个变动 Python 文件经 Black `format_str` 检查全部 unchanged、内存 compile 6/6；`smoke_real_models.sbatch` Bash syntax、两份计划的 Job 245/脚本/Blackwell profile 路径和 `git diff --check` 均通过。
+
+## 2026-09-03：阶段 3 统一 evaluator 核心单元
+
+测试计划：
+
+- R/S/T2T/C2C/STT 的 stub adapters 对同一 fixture 共享完全相同的 `sample_id`、canonical messages、prompt hash/metadata、true answer 和严格 answer parser；方法差异只出现在 generation/metrics/diagnostics。
+- 逐样本成功记录采用版本化统一 schema，STT 分段 latency、source/virtual/output lengths、peak memory 和 transport quality 可原样保存；非有限 metrics 或缺字段明确失败。
+- 单样本异常写入 status=`failed` 记录和独立 bad-sample JSONL，继续后续样本；summary 分母只含成功记录，失败不静默算错或丢弃。
+- resume 跳过已有完整 success，重试 failed/incomplete；重复 success、输入 sample ID 重复或既有记录与当前 prompt fingerprint 不符时失败。
+- 多 rank JSONL merge 按 subject/question index/sample ID 确定排序并拒绝重复；summary/category 计数守恒，逐题 records 是唯一统计输入。
+- CLI 从 records JSONL 生成原子 summary，输入缺失/空 success/非法 JSON 显式失败；help 不加载模型或访问网络。完整 pytest、Black、compile、README/recipe/计划路径与 diff 检查均须通过。
+
+本地实际结果：
+
+- `python -m pytest ... test_evaluation.py test_summarize_transport.py test_transport_runner.py test_smoke_stt.py`：28 passed（31.07s），覆盖五类 method schema、STT adapter 指标/diagnostics、配置 factory、失败恢复、重复/漂移拒绝、rank merge、runner 输出和既有 smoke 回归。
+- `python -m pytest -o addopts= --basetemp local/pytest-stage3-full`：168 passed（103.78s），仅有既存 pandas 可选依赖 2 条 warning；新增 Slurm/recipe 静态门禁通过。
+- `python -m script.evaluation.unified_evaluator --help` 与 summary CLI help 通过；数学评测的可选 `math_verify` 已改为对应数据集才延迟导入。
+- 生产 Python 文件已由 Black 格式化，测试格式通过 Black diff 校验；内存语法编译与 `git diff --check` 通过。Windows pytest/Black 的缓存原子替换受目录 ACL 限制，改用 workspace `local/` basetemp 与只读格式 diff，不改变测试标准。
+
+真实集成待验收：
+
+- 固定 `abstract_algebra` 前 5 题、greedy 64-token、正式 500k artifact、`blackwell-cu128`、单 RTX 5090；加载前必须通过 CUDA/锁定依赖/30GiB/compiled-arch/artifact 门禁。
+- Slurm 成功后检查 5 条逐题 success 或显式 failure、canonical/prompt metadata、source/virtual/output lengths、分段 latency、support quality、summary 计数与 accuracy、无 `.partial`、作业 Exit/MaxRSS/日志哈希。

@@ -103,6 +103,7 @@ def validate_runtime_requirements(
     require_locked_runtime: bool,
     min_gpu_memory_gib: float,
     runtime_profile: str = "project-cu124",
+    allow_existing_output: bool = False,
 ) -> None:
     if not isinstance(min_gpu_memory_gib, (int, float)) or not (
         0 < float(min_gpu_memory_gib) < float("inf")
@@ -111,7 +112,7 @@ def validate_runtime_requirements(
     if not artifact_path.is_file():
         raise SmokeError(f"transport artifact does not exist: {artifact_path}")
     partial = output_path.with_name(output_path.name + ".partial")
-    if output_path.exists() or partial.exists():
+    if not allow_existing_output and (output_path.exists() or partial.exists()):
         raise SmokeError(f"refusing to overwrite smoke output: {output_path}")
     if require_locked_runtime:
         if runtime_profile not in RUNTIME_PROFILES:
