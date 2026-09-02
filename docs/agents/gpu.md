@@ -391,3 +391,4 @@
 - 连接用途：同步阶段 3 统一 evaluator 的 Guqq 兼容临时分支，检查 MMLU-Redux `abstract_algebra` 小子集是否已缓存；若未缓存，仅在登录节点预取锁定数据资源。随后检查正式 artifact、Blackwell venv、空输出/partial 与队列，再提交固定 5 题 STT Slurm 评测。
 - 权限判断与顺序：连接后第一项必须 `git pull --ff-only`；源码只通过兼容分支快进同步，不在服务器编辑。数据下载/缓存检查属于轻量操作；模型加载和推理只经 `sbatch script/transport/slurm/evaluate_stt_mmlu_redux.sbatch`，不在登录节点运行。
 - 验收边界：要求 Job Exit 0、5 条逐题 success 或显式失败记录、summary 只统计 success、canonical/prompt metadata、分段 latency/长度/显存、transport quality、正式 artifact/runtime provenance、无 `.partial`，并记录 GNU time/MaxRSS/日志与产物 SHA。真实通过前分支保持 `[UNACCEPTED]`。
+- 首次连接结果：首项 `git pull --ff-only` 在 GitHub HTTPS 传输中以 `GnuTLS recv error (-110)` 失败，后续环境/队列检查因 `&&` 未执行，服务器源码未变更。下一次连接仍先尝试 pull；若失败则按规范在同一连接运行 `bash net.sh` 后重试 pull，成功前不执行其他任务。
