@@ -7,7 +7,8 @@ does not modify the existing C2C projector or wrapper.
 
 - `vocab_transport.py`: local special/exact/span baseline for tiny corpora.
 - `sinkhorn.py`: dense oracle and sparse log-domain scaling with gauge-fixed,
-  marginal-scaled convex-dual L-BFGS acceleration for ill-conditioned supports. Costs and
+  marginal-scaled Newton-CG acceleration and residual backtracking for
+  ill-conditioned supports. Costs and
   couplings always have shape `[target_vocab, source_vocab]`; source and target
   marginals have shapes `[source_vocab]` and `[target_vocab]` respectively.
 - `artifact.py`: validated, versioned sparse CSC serialization for a transport

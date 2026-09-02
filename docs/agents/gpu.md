@@ -174,3 +174,4 @@
 
 - 连接用途：再次恢复 Job 233 终态只读验收，读取 Slurm state/日志、termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
 - 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；之后只运行 `squeue` 及结果文件只读命令，不提交作业、不直接运行计算、不修改服务器源码或实验产物。
+- 实际结果：首条 pull 与临时分支同步成功至 `bb84223`。Job 233 已终止并与 Job 232 得到相同严格失败：39:06.84、Exit 1、MaxRSS 1,847,040 KiB、0 swap；21 attempts/1,000 evaluations，前 20 次即使 `ftol=0` 仍报告 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH`，最终 row/column residual `1.6915612104e-3`/`2.6332792027e-14`。checkpoint `building/fresh`，artifact/audit 不存在；已退出。

@@ -256,43 +256,31 @@ def _dual_value_gradient(
     return value, gradient, mass
 
 
-def _dual_increment_value_gradient(
-    increments: np.ndarray,
-    base_variables: np.ndarray,
+def _scaled_dual_hessian_product(
+    vector: np.ndarray,
     row_positions: np.ndarray,
     column_positions: np.ndarray,
-    log_kernel: np.ndarray,
+    mass: np.ndarray,
     source: np.ndarray,
     target: np.ndarray,
-) -> Tuple[float, np.ndarray, np.ndarray]:
-    """Evaluate a dual change without subtracting large baseline constants."""
+) -> np.ndarray:
+    """Apply the gauge-fixed dual Hessian in sqrt-marginal coordinates."""
     row_count = len(target)
     column_count = len(source)
     expected_shape = (row_count + column_count - 1,)
-    if increments.shape != expected_shape or base_variables.shape != expected_shape:
-        raise SinkhornError("dual increment shape does not match active marginals")
-    base_u = base_variables[:row_count]
-    base_v = np.concatenate((base_variables[row_count:], np.zeros(1)))
-    delta_u = increments[:row_count]
-    delta_v = np.concatenate((increments[row_count:], np.zeros(1)))
-    base_log_mass = log_kernel + base_u[row_positions] + base_v[column_positions]
-    edge_increment = delta_u[row_positions] + delta_v[column_positions]
-    log_mass = base_log_mass + edge_increment
-    if np.max(log_mass, initial=-np.inf) > 700:
-        return float("inf"), np.full_like(increments, 1e100), np.empty(0)
-    base_mass = np.exp(base_log_mass)
-    mass = np.exp(log_mass)
-    if not np.all(np.isfinite(base_mass)) or not np.all(np.isfinite(mass)):
-        return float("inf"), np.full_like(increments, 1e100), np.empty(0)
-    mass_change = np.empty_like(mass)
-    small = np.abs(edge_increment) <= 50
-    mass_change[small] = base_mass[small] * np.expm1(edge_increment[small])
-    mass_change[~small] = mass[~small] - base_mass[~small]
-    value = float(mass_change.sum() - np.dot(target, delta_u) - np.dot(source, delta_v))
-    row_mass = np.bincount(row_positions, weights=mass, minlength=row_count)
-    column_mass = np.bincount(column_positions, weights=mass, minlength=column_count)
-    gradient = np.concatenate((row_mass - target, (column_mass - source)[:-1]))
-    return value, gradient, mass
+    if vector.shape != expected_shape or mass.shape != row_positions.shape:
+        raise SinkhornError("dual Hessian input shape does not match active support")
+    variable_scale = np.sqrt(np.concatenate((target, source[:-1])))
+    unscaled = vector / variable_scale
+    row_direction = unscaled[:row_count]
+    column_direction = np.concatenate((unscaled[row_count:], np.zeros(1)))
+    edge_direction = row_direction[row_positions] + column_direction[column_positions]
+    weighted = mass * edge_direction
+    row_product = np.bincount(row_positions, weights=weighted, minlength=row_count)
+    column_product = np.bincount(
+        column_positions, weights=weighted, minlength=column_count
+    )
+    return np.concatenate((row_product, column_product[:-1])) / variable_scale
 
 
 class _EvaluationBudgetExceeded(RuntimeError):
@@ -302,18 +290,21 @@ class _EvaluationBudgetExceeded(RuntimeError):
 def _accelerate_sparse_dual(
     rows: np.ndarray,
     columns: np.ndarray,
-    log_kernel: np.ndarray,
     source: np.ndarray,
     target: np.ndarray,
     active_rows: np.ndarray,
     active_columns: np.ndarray,
     log_u: np.ndarray,
     log_v: np.ndarray,
+    current_data: np.ndarray,
+    current_row_residual: float,
+    current_column_residual: float,
     *,
     max_evaluations: int,
-    history_size: int,
-) -> Tuple[np.ndarray, np.ndarray, int, str]:
-    from scipy.optimize import minimize
+    cg_max_iterations: int,
+    tolerance: float,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, float, int, str]:
+    from scipy.sparse.linalg import LinearOperator, cg
 
     row_lookup = np.full(len(target), -1, dtype=np.int64)
     column_lookup = np.full(len(source), -1, dtype=np.int64)
@@ -328,83 +319,148 @@ def _accelerate_sparse_dual(
             (log_v[active_columns] - gauge)[:-1],
         )
     )
-    # The unscaled dual Hessian has marginal-sized diagonal blocks. Vocabulary
-    # smoothing makes those diagonals span many orders of magnitude, so an
-    # optimizer using Euclidean gradients effectively ignores rare tokens.
-    # Optimizing z = sqrt(marginal) * x makes the local diagonal close to one
-    # while retaining the exact same convex dual objective and gauge.
-    variable_scale = np.sqrt(
-        np.concatenate((target[active_rows], source[active_columns][:-1]))
-    )
+    active_source = source[active_columns]
+    active_target = target[active_rows]
+    variable_scale = np.sqrt(np.concatenate((active_target, active_source[:-1])))
+    current_mass = current_data.copy()
+    row_count = len(active_rows)
+    column_count = len(active_columns)
     evaluation_count = 0
-    best_value = float("inf")
-    best_delta = np.zeros_like(initial)
+    current_metric = max(current_row_residual, current_column_residual)
+    terminations: list[str] = []
+    newton_steps = 0
 
-    def objective(scaled_delta: np.ndarray) -> Tuple[float, np.ndarray]:
-        nonlocal evaluation_count, best_value, best_delta
-        if evaluation_count >= max_evaluations:
-            raise _EvaluationBudgetExceeded
-        evaluation_count += 1
-        increments = scaled_delta / variable_scale
-        value, gradient, _ = _dual_increment_value_gradient(
-            increments,
-            initial,
-            row_positions,
-            column_positions,
-            log_kernel,
-            source[active_columns],
-            target[active_rows],
+    while evaluation_count + 2 <= max_evaluations and current_metric > tolerance:
+        row_mass = np.bincount(row_positions, weights=current_mass, minlength=row_count)
+        column_mass = np.bincount(
+            column_positions, weights=current_mass, minlength=column_count
         )
-        if np.isfinite(value) and value < best_value:
-            best_value = value
-            best_delta = scaled_delta.copy()
-        return value, gradient / variable_scale
+        gradient = np.concatenate(
+            ((row_mass - active_target), (column_mass - active_source)[:-1])
+        )
+        scaled_gradient = gradient / variable_scale
+        diagonal = np.concatenate((row_mass, column_mass[:-1])) / variable_scale**2
+        if (
+            not np.all(np.isfinite(scaled_gradient))
+            or not np.all(np.isfinite(diagonal))
+            or np.any(diagonal <= 0)
+        ):
+            terminations.append("nonfinite-gradient-or-preconditioner")
+            break
 
-    try:
-        result = minimize(
-            objective,
-            np.zeros_like(initial),
-            method="L-BFGS-B",
-            jac=True,
-            options={
-                "maxiter": max_evaluations,
-                "maxfun": max_evaluations,
-                "maxcor": history_size,
-                # The original strict residual is the convergence criterion.
-                # Function-value reductions can fall below machine-relative
-                # precision while rare-token gradients remain material.
-                "ftol": 0.0,
-                "gtol": 1e-13,
-                "maxls": 40,
-            },
-        )
-        result_delta = np.asarray(result.x, dtype=np.float64)
-        termination = f"{getattr(result, 'status', 'unknown')}:{getattr(result, 'message', 'unknown')}"
-        if np.all(np.isfinite(result_delta)):
-            result_value, _, _ = _dual_increment_value_gradient(
-                result_delta / variable_scale,
-                initial,
+        last_direction: np.ndarray | None = None
+
+        def hessian_product(vector: np.ndarray) -> np.ndarray:
+            nonlocal evaluation_count
+            if evaluation_count >= max_evaluations - 1:
+                raise _EvaluationBudgetExceeded
+            evaluation_count += 1
+            return _scaled_dual_hessian_product(
+                vector,
                 row_positions,
                 column_positions,
-                log_kernel,
-                source[active_columns],
-                target[active_rows],
+                current_mass,
+                active_source,
+                active_target,
             )
-            if np.isfinite(result_value) and result_value < best_value:
-                best_delta = result_delta
-    except _EvaluationBudgetExceeded:
-        termination = "budget:objective evaluation limit reached"
-    if not np.all(np.isfinite(best_delta)):
-        raise SinkhornError("sparse dual acceleration produced non-finite variables")
-    optimized = initial + best_delta / variable_scale
+
+        def remember_direction(vector: np.ndarray) -> None:
+            nonlocal last_direction
+            last_direction = vector.copy()
+
+        operator = LinearOperator(
+            (len(initial), len(initial)), matvec=hessian_product, dtype=np.float64
+        )
+        preconditioner = LinearOperator(
+            (len(initial), len(initial)),
+            matvec=lambda vector: vector / diagonal,
+            dtype=np.float64,
+        )
+        cg_iterations = min(cg_max_iterations, max_evaluations - evaluation_count - 1)
+        if cg_iterations <= 0:
+            break
+        try:
+            direction, info = cg(
+                operator,
+                -scaled_gradient,
+                rtol=1e-6,
+                atol=0.0,
+                maxiter=cg_iterations,
+                M=preconditioner,
+                callback=remember_direction,
+            )
+            cg_status = f"cg-info={info}"
+        except _EvaluationBudgetExceeded:
+            if last_direction is None:
+                terminations.append("budget-before-cg-direction")
+                break
+            direction = last_direction
+            cg_status = "cg-budget"
+        if not np.all(np.isfinite(direction)):
+            terminations.append(f"{cg_status}:nonfinite-direction")
+            break
+
+        unscaled_direction = direction / variable_scale
+        row_direction = unscaled_direction[:row_count]
+        column_direction = np.concatenate((unscaled_direction[row_count:], np.zeros(1)))
+        edge_direction = (
+            row_direction[row_positions] + column_direction[column_positions]
+        )
+        accepted = False
+        accepted_step = 0.0
+        for exponent in range(12):
+            if evaluation_count >= max_evaluations:
+                break
+            step = 0.5**exponent
+            scaled_edge_direction = step * edge_direction
+            evaluation_count += 1
+            if np.max(scaled_edge_direction, initial=-np.inf) > 700:
+                continue
+            candidate_mass = current_mass * np.exp(scaled_edge_direction)
+            if not np.all(np.isfinite(candidate_mass)):
+                continue
+            candidate_row_mass = np.bincount(
+                row_positions, weights=candidate_mass, minlength=row_count
+            )
+            candidate_column_mass = np.bincount(
+                column_positions, weights=candidate_mass, minlength=column_count
+            )
+            row_residual = float(np.abs(candidate_row_mass - active_target).sum())
+            column_residual = float(np.abs(candidate_column_mass - active_source).sum())
+            candidate_metric = max(row_residual, column_residual)
+            if candidate_metric < current_metric:
+                initial += step * unscaled_direction
+                current_mass = candidate_mass
+                current_row_residual = row_residual
+                current_column_residual = column_residual
+                current_metric = candidate_metric
+                accepted = True
+                accepted_step = step
+                newton_steps += 1
+                break
+        terminations.append(
+            f"{cg_status}:step={accepted_step:.12g}:residual={current_metric:.12g}"
+        )
+        if not accepted:
+            break
+
     accelerated_u = log_u.copy()
     accelerated_v = log_v.copy()
-    accelerated_u[active_rows] = optimized[: len(active_rows)]
+    accelerated_u[active_rows] = initial[: len(active_rows)]
     active_v = np.concatenate(
-        (optimized[len(active_rows) :], np.zeros(1, dtype=np.float64))
+        (initial[len(active_rows) :], np.zeros(1, dtype=np.float64))
     )
     accelerated_v[active_columns] = active_v
-    return accelerated_u, accelerated_v, evaluation_count, termination
+    termination = f"newton-steps={newton_steps};" + "|".join(terminations)
+    return (
+        accelerated_u,
+        accelerated_v,
+        current_mass,
+        current_row_residual,
+        current_column_residual,
+        evaluation_count,
+        termination,
+    )
 
 
 def sparse_log_sinkhorn(
@@ -418,7 +474,7 @@ def sparse_log_sinkhorn(
     delta: float = 1e-12,
     acceleration_after: int | None = 250,
     acceleration_max_evaluations: int = 1_000,
-    acceleration_history_size: int = 3,
+    acceleration_cg_iterations: int = 32,
 ) -> Tuple[SparseCoupling, ConvergenceReport]:
     """Run log-domain Sinkhorn directly on candidate edges.
 
@@ -455,8 +511,11 @@ def sparse_log_sinkhorn(
         or acceleration_max_evaluations <= 0
     ):
         raise SinkhornError("acceleration evaluation budget must be positive")
-    if not isinstance(acceleration_history_size, int) or acceleration_history_size <= 0:
-        raise SinkhornError("acceleration history size must be positive")
+    if (
+        not isinstance(acceleration_cg_iterations, int)
+        or acceleration_cg_iterations <= 0
+    ):
+        raise SinkhornError("acceleration CG iterations must be positive")
 
     active_edges = tuple(
         edge
@@ -516,7 +575,7 @@ def sparse_log_sinkhorn(
                 tolerance,
                 max_iter,
                 (
-                    "sinkhorn-scaled-lbfgs-sinkhorn"
+                    "sinkhorn-scaled-newton-cg-sinkhorn"
                     if acceleration_attempts
                     else "sinkhorn"
                 ),
@@ -535,43 +594,33 @@ def sparse_log_sinkhorn(
                 acceleration_max_evaluations - acceleration_evaluations,
                 max_iter - iteration - acceleration_evaluations,
             )
-            candidate_u, candidate_v, evaluations, termination = (
-                _accelerate_sparse_dual(
-                    rows,
-                    columns,
-                    log_kernel,
-                    source,
-                    target,
-                    active_rows,
-                    active_columns,
-                    log_u,
-                    log_v,
-                    max_evaluations=budget,
-                    history_size=acceleration_history_size,
-                )
+            (
+                log_u,
+                log_v,
+                data,
+                row_residual,
+                column_residual,
+                evaluations,
+                termination,
+            ) = _accelerate_sparse_dual(
+                rows,
+                columns,
+                source,
+                target,
+                active_rows,
+                active_columns,
+                log_u,
+                log_v,
+                data,
+                row_residual,
+                column_residual,
+                max_evaluations=budget,
+                cg_max_iterations=acceleration_cg_iterations,
+                tolerance=tolerance,
             )
             acceleration_evaluations += evaluations
             acceleration_attempts += 1
             acceleration_terminations.append(termination)
-            candidate_data = np.exp(
-                candidate_u[rows] + log_kernel + candidate_v[columns]
-            )
-            candidate_row_mass = np.zeros_like(target)
-            candidate_column_mass = np.zeros_like(source)
-            np.add.at(candidate_row_mass, rows, candidate_data)
-            np.add.at(candidate_column_mass, columns, candidate_data)
-            candidate_row_residual = float(np.abs(candidate_row_mass - target).sum())
-            candidate_column_residual = float(
-                np.abs(candidate_column_mass - source).sum()
-            )
-            if np.all(np.isfinite(candidate_data)) and max(
-                candidate_row_residual, candidate_column_residual
-            ) < max(row_residual, column_residual):
-                log_u = candidate_u
-                log_v = candidate_v
-                data = candidate_data
-                row_residual = candidate_row_residual
-                column_residual = candidate_column_residual
             next_acceleration = iteration + acceleration_after
             if max(row_residual, column_residual) <= tolerance:
                 coupling = SparseCoupling(
@@ -584,7 +633,7 @@ def sparse_log_sinkhorn(
                     True,
                     tolerance,
                     max_iter,
-                    "sinkhorn-scaled-lbfgs-sinkhorn",
+                    "sinkhorn-scaled-newton-cg-sinkhorn",
                     iteration,
                     acceleration_evaluations,
                     acceleration_attempts,
@@ -599,7 +648,7 @@ def sparse_log_sinkhorn(
         False,
         tolerance,
         max_iter,
-        "sinkhorn-scaled-lbfgs-sinkhorn" if acceleration_attempts else "sinkhorn",
+        "sinkhorn-scaled-newton-cg-sinkhorn" if acceleration_attempts else "sinkhorn",
         iteration,
         acceleration_evaluations,
         acceleration_attempts,

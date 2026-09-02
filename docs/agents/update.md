@@ -83,3 +83,7 @@
 - `ftol=0` 首次远端同步因 GnuTLS 与 `net.sh` 后 443 timeout 失败，未提交新 job；登记一次独立重试，失败则暂停远端验证。
 - 独立同步重试成功并提交 Job 233；作业运行至少 14:49 后监控 SSH reset，Slurm 未中断，登记新连接恢复终态检查。
 - Job 233 恢复监控至至少 25:40 仍 RUNNING；会话再次关闭，Slurm 未被取消，登记下一只读终态连接。
+- Job 233 终态失败且与 Job 232 数值相同；`ftol=0` 仍因目标值精度平台触发 FACTR。同一任务第三次失败后查阅/补充 lessons，转为不依赖函数值的 scaled Newton-CG。
+- residual-driven scaled Newton-CG 完成本地实现：Hessian-vector/预条件 CG/strict residual backtracking 共享有界预算；定向 23/23、完整回归 128/128、静态检查通过，准备临时 Slurm 验证。
+- 完成 `assets/T_method.md`：对照历史增量 scaled L-BFGS-B 与当前 residual-driven scaled Newton-CG，记录共同 OT 目标、公式、接受/停止条件、复杂度、真实失败证据及尚待 Slurm 验证的边界；文档路径与 diff 检查通过。
+- Newton-CG 最终代码形态再次通过定向 23/23；完整回归的系统 `%TEMP%` ACL 阻断按既有 lessons 改用工作区全新 `--basetemp` 后消除，最终 128/128 通过且未跳过测试，进入临时未验收提交阶段。

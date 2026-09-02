@@ -51,6 +51,23 @@ Job 233 提交检查：服务器同步 `7482ef5`，输入哈希与 Job 230/232 �
 
 Job 233 第二次恢复检查：服务器同步 `4dbb598`，作业至至少 25:40 仍 RUNNING；会话关闭不等于作业终止。再次恢复用途、首条 pull 与只读产物验收边界一致，相关文档 `git diff --check` 通过。
 
+Job 233 实际结果：`39:06.84`、Exit 1、MaxRSS `1,847,040 KiB`、0 swap；`ftol=0` 下仍有 20 个 `FACTR*EPSMCH` termination，21 attempts/1,000 evaluations 后 row/column residual 与 Job 232 相同，为 `1.6915612104e-3`/`2.6332792027e-14`；checkpoint `building/fresh`，artifact/audit 不存在。该方案未验收。
+
+Newton-CG 调整测试计划：
+
+- scaled dual Hessian-vector 必须与解析梯度中心有限差分一致，且 `D^-1 H D^-1`/对角 preconditioner 的 shape、有限性和 gauge-fixed 方向正确。
+- monkeypatch CG 验证 `LinearOperator`、`rtol/atol/maxiter` 与 matvec 计数；CG matvec 加 backtracking 候选复验不得超过总 acceleration budget，非有限方向/无改善 step 显式记录并回到标准 scaling。
+- Newton 候选只在原始 row/column L1 的最大值严格下降时接受；极端边际病态图仍在 `1e-9` 与总 1,500 预算内收敛，method/provenance 改为 `sinkhorn-scaled-newton-cg-sinkhorn`。
+- 运行 sparse/facade/artifact/audit、完整 pytest、Black、compile 和 `git diff --check`；真实图继续只用临时未验收分支和 Slurm。
+
+Newton-CG 本地实际结果：
+
+- scaled Hessian-vector 中心有限差分、病态图严格收敛、CG LinearOperator/预条件器/预算与无改善重启通过；sparse/facade/artifact/audit `23 passed in 6.35s`，格式化后复核 `23 passed in 6.06s`。
+- 完整回归 `128 passed, 2 warnings in 65.41s`；warnings 仍仅为 pandas 可选依赖版本提示。
+- Black 首次要求格式化 `sinkhorn.py`，沙箱内 ACL 拒绝原子替换；仅提升明确文件权限后完成，最终两文件无需修改。`compileall` 与 `git diff --check` 通过。
+- method/provenance 已改为 `sinkhorn-scaled-newton-cg-sinkhorn`，无 L-BFGS/FACTR 路径；真实 Slurm 未通过前仍为临时未验收实现。
+- 最终代码形态再次复核：定向 `23 passed in 8.13s`，重定向 bytecode cache 后 compileall 通过；首次完整回归因既有 `%TEMP%/pytest-of-asus` ACL 导致一个 Slurm 包装测试失败（其余 127 通过）。按 `lessons.md` 改用忽略目录 `local/test-tmp/newton-full-2` 的全新 `--basetemp` 后，完整回归 `128 passed, 2 warnings in 75.88s`，未跳过任何测试。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。
@@ -570,3 +587,18 @@ revision 修复本地结果：
 - `python -m compileall -q rosetta/transport script/transport`：通过。
 - `import script.transport.compare_tokenizers`：通过（13.45s）；本地 pandas 报告既有 numexpr/bottleneck 版本 warning，不影响导入。
 - `git diff --check`：通过。
+
+## 2026-09-02：前后 sparse OT 加速方法说明文档
+
+测试计划：
+
+- 对照临时提交 `463c3b9` 的增量 scaled L-BFGS-B 与当前工作树的 residual-driven scaled Newton-CG，检查 `assets/T_method.md` 中的流程、变量缩放、停止/接受条件和预算描述与源码一致。
+- 检查 Markdown 标题、公式、表格、仓库内路径以及方法标识；运行 `git diff --check`，预期无空白错误。
+- 本单元仅新增/更新文档，不修改算法源码，因此不新增或运行代码单元测试。
+
+实际结果：
+
+- 已逐项对照临时提交 `463c3b9` 的 `_dual_increment_value_gradient`、L-BFGS-B 参数/外层接受逻辑，以及当前 `_scaled_dual_hessian_product`、CG、residual backtracking 和共享预算实现；说明与源码一致。
+- `rg` 检查方法参数和 provenance 标识通过：旧版 `acceleration_history_size` / `sinkhorn-scaled-lbfgs-sinkhorn`，新版 `acceleration_cg_iterations` / `sinkhorn-scaled-newton-cg-sinkhorn`。
+- 文档无外部链接；仓库路径 `assets/T_method.md` 存在，Markdown 标题、公式和表格人工检查通过。
+- `git diff --check`：通过；仅报告工作树既有 LF/CRLF 转换 warning，无 whitespace error。

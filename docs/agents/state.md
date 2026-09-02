@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。`ftol=0` Slurm Job 233 已运行至少 25:40；两次监控会话均因远端 reset/对话中断关闭，但 Slurm 未被取消。已登记再次恢复终态验收连接，main 不受影响。
+正在实施 Training-free Soft-Token Transport。residual-driven scaled Newton-CG 已通过 128 个本地测试与静态检查，准备在临时分支形成第三个 `[UNACCEPTED]` 验证提交；真实图未通过前不进入 main。
 
 ## 当前计划
 
-1. 将 L-BFGS-B `ftol` 设为 0，阻止 `FACTR*EPSMCH` 在严格 residual 尚大时宣告收敛；保持 `gtol`、history 和精确 objective evaluation cap。
-2. 增加 option/provenance 单测并重跑 129 项本地回归；形成下一临时未验收提交。
-3. 再以独立输出路径通过相同 Slurm 配置验证；只有真实严格收敛后才整理到 main。
+1. 用 scaled dual Hessian-vector `D^-1 H D^-1` 和对角预条件的 `scipy.sparse.linalg.cg` 求 Newton 方向；不再调用依赖函数值停止的 L-BFGS-B。
+2. 以原两侧 L1 residual 对 Newton step 做有界 backtracking，只接受最大 residual 严格下降；CG matvec 与候选复验共同计入 1,000 acceleration budget，内存保持 O(edges + nodes)。
+3. 增加 Hessian 有限差分、CG 选项/预算、病态图与失败语义测试，完成全回归后形成第三个临时验证提交；真实通过前不进 main。
 
 ## 变更记录
 
@@ -88,5 +88,10 @@
 - 2026-09-02 09:22 +08:00：Guqq 首条 pull 以 GnuTLS 失败，`net.sh` 后 retry 以 443 timeout 失败，未提交新 job。登记一次独立同步重试；若仍失败则暂停远端并保持验证 pending。
 - 2026-09-02 09:43 +08:00：独立重试成功同步 `7482ef5` 并提交 Job 233；相同输入/配置作业运行至少 14:49 后监控 SSH 被 reset，Slurm 未中断。登记新连接恢复终态只读验收。
 - 2026-09-02 10:02 +08:00：恢复连接同步到 `4dbb598` 并确认 Job 233 持续 RUNNING 至至少 25:40；会话再次关闭但作业未被取消。登记新连接继续终态只读验收。
+- 2026-09-02 10:08 +08:00：Job 233 终态与 Job 232 相同，`ftol=0` 仍触发 FACTR 精度平台，39:06 后 row residual `1.69e-3` 且无产物。同一任务第三次真实失败后已查阅 lessons，并将方案调整为 residual-driven scaled Newton-CG。
+- 2026-09-02 10:21 +08:00：scaled Hessian-vector Newton-CG、对角预条件、严格 residual backtracking 与共享预算实现完成；定向 23/23、完整 128/128、Black/compile/diff 通过。下一步推送第三个临时未验收提交并经独立 Slurm 路径验证。
+- 2026-09-02 10:26 +08:00：开始前后 sparse OT 加速方法说明文档单元；对照 `463c3b9` 与当前工作树，计划明确增量 scaled L-BFGS-B 和 scaled Newton-CG 的共同目标、算法差异、成本及真实验证状态。
+- 2026-09-02 10:26 +08:00：完成 `assets/T_method.md`；源码/历史实现、方法参数、provenance、公式、路径和 diff 检查通过。文档明确新版真实 Slurm 收敛与耗时仍待验证，主实现计划不变。
+- 2026-09-02 10:33 +08:00：最终代码形态定向 23/23；完整回归首次仅受系统 `%TEMP%` ACL 阻断一个既有 Bash 用例，按 lessons 使用工作区忽略目录的全新 `--basetemp` 后 128/128 通过。下一步形成第三个 `[UNACCEPTED]` 临时提交并登记 Guqq Slurm 验证。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
