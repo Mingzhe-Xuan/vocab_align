@@ -22,3 +22,10 @@
 - 安装命令：`.venv/bin/python -m pip install scipy==1.15.3`；命中服务器缓存的 CPython 3.10 manylinux wheel，无源码编译。
 - 验证命令：`.venv/bin/python -c 'import numpy, scipy; print(numpy.__version__, scipy.__version__)'`。
 - 验证结果：NumPy `2.2.6`、SciPy `1.15.3`；与 `C2C/environment.yml` 的 SciPy 锁定版本一致。
+
+## Guqq OpenHermes 500k 物化依赖补充（2026-09-03）
+
+- 复用环境：`/home/xmz/vocab_align/C2C/.venv`（由 `python3 -m venv` 创建，不重建、不覆盖其他任务环境）。
+- 预检结果：`.venv/bin/python -c 'import datasets'` 报 `ModuleNotFoundError`；物化 Slurm 脚本明确要求 `datasets==4.0.0`，因此未提交不满足环境门禁的作业。
+- 计划安装命令：`.venv/bin/python -m pip install datasets==4.0.0`。依赖安装/下载属于登录节点允许的轻量环境操作；若发生源码编译或明显计算负载则停止并改走 Slurm。
+- 计划验证：打印 Python、datasets、pyarrow、huggingface-hub、fsspec、requests、tqdm、NumPy 和 SciPy 版本，并执行物化模块 import/help；实际版本与安装结果将在完成后追加，运行时仍使用 `PYTHONPATH=.` 和锁定 `HF_ENDPOINT`。

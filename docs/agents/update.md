@@ -100,3 +100,4 @@
 - Job 236 完成真实 2.62M-edge/full-vocabulary 构建和独立稀疏审计：20:23.32、Exit 0、MaxRSS 2,113,980 KiB、0 swap；row/column residual `1.9975102855e-3`/`8.5268617950e-14`，最大列和误差 `1.1883827256e-12`，audit `valid=true`，checkpoint `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。进入最终本地回归和 main 验收整理。
 - 最终本地验收完成：完整 pytest 133/133；净变更 10 个 Python 文件 Black unchanged，compileall、3 个 Slurm 脚本 Bash syntax、计划路径和 diff 检查通过。准备保存临时验证证据并把最终净变更 squash 为 main 验收提交。
 - main 验收提交 `f433000` 已推送；开始正式 OpenHermes 500k pinned-prefix 物化阶段，沿用已测试的锁定 revision、原子 JSONL/manifest、seed 42 的 99/1 split 和 Slurm-only 批量处理边界。
+- 首次物化预检未提交作业：服务器已通过验证分支快进获得与 main 一致的 C2C 代码，但现有 Python venv 缺少 datasets；已记录精确 `datasets==4.0.0` 安装与版本复核计划，补齐环境后继续。

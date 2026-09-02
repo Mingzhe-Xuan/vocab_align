@@ -214,3 +214,10 @@
 - 连接用途：同步 main 验收提交 `f433000`，复核 Python venv/datasets 4.0.0、正式输出路径和队列后，通过 Slurm 物化锁定 `teknium/OpenHermes-2.5@05c3557e57b6dd1d0e0cb8369ba53b43e15fd10b` 的前 500,000 个 source rows，并在终态收集 corpus/manifest、资源和哈希证据。
 - 权限判断与顺序：新连接第一条远端操作为仓库内 `git pull`；服务器本地 main 含先前临时验证历史，若与 squash 后的远端 main 分叉，仅使用 `git pull --no-rebase origin main` 完成 Git 管理的同步，不手工编辑/打补丁/覆盖源码。随后只做轻量环境/路径/队列检查和 `sbatch`；下载后的 500k 遍历、canonicalization、去重、划分及校验全部在 32G/4h allocation 内。
 - 验收边界：默认独立输出 `local/transport/corpora/openhermes-500k.jsonl` 与 `local/transport/manifests/openhermes-500k.json` 必须预先不存在；要求 Exit 0、selected rows 500,000、计数与 provenance 自洽、records hash 与 manifest 绑定、无 partial、GNU time/MaxRSS 和产物哈希可追溯。失败则保留日志/现场，不进入正式 T 构建。
+- 实际结果：首条普通 pull 遇到 GitHub TLS 中断；`net.sh` 后两次 main pull 分别 443 timeout，第三次获取远端后因 squash 与服务器临时验证历史在文档文件冲突。未手工解决；执行 `git merge --abort` 恢复工作树，再用 `git pull --ff-only origin validation/job230-dual-increment` 快进至 `5a0368f`，并确认 `C2C` 与 `origin/main` 无差异。环境预检发现 `.venv` 缺少 `datasets`，因此未提交作业并退出；下一步先按 `docs/agents/env.md` 补齐锁定依赖。
+
+## 2026-09-03 01:43 +08:00
+
+- 连接用途：同步已验证代码分支，按环境记录在既有 Python venv 中安装 `datasets==4.0.0` 并记录完整版本；环境门禁通过后复核正式输出路径/队列并提交 OpenHermes 500k 物化 Slurm 作业。
+- 权限判断与顺序：第一条远端操作使用 `git pull --ff-only origin validation/job230-dual-increment`，避免服务器旧 main 与 squash main 冲突且只执行快进同步；随后仅执行允许的 venv 依赖安装与短时 import/version/help 检查。500k 数据遍历、规范化、去重、划分和校验全部通过 Slurm，不在登录节点运行。
+- 验收边界：安装必须使用 wheel/普通包下载且精确为 datasets 4.0.0；若触发编译或异常资源负载则停止。作业沿用 01:37 条目的独立路径、计数/provenance/原子性/资源/哈希标准，提交前不得存在目标或 partial 文件。
