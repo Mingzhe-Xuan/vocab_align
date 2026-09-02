@@ -208,3 +208,186 @@
 - 权限判断与顺序：新连接第一条远端操作必须为 `cd vocab_align && git pull`；成功后才执行 `squeue`/`sacct`、日志及结果文件只读检查。网络异常时按规范运行 `bash net.sh` 后重试，不在登录节点执行构建、审计或全量产物加载，也不修改服务器文件。
 - 验收边界：核验 Job 236 Exit 0、`2e-3` 两侧 marginal 要求、严格列归一化、metadata、有限目标统计、checkpoint complete、MaxRSS 和哈希；通过后回到本地补全测试/状态/进度记录并整理验收提交。
 - 实际结果：首条 `git pull` 成功；Slurm accounting 已禁用，但 stderr 的 GNU time 给出 20:23.32、Exit 0、MaxRSS `2,113,980 KiB`、0 swap。最终 artifact 为 33,486,321 bytes，shape `131069×151669`、nnz `2,620,553`；audit `valid=true`，row/column/transported residual `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，最大列和误差 `1.1883827256e-12`，目标统计有限且无危险 special mapping。metadata tolerance 为 `0.002`，checkpoint `complete/fresh`，JSON/Markdown 齐全、同名 partial 不存在。artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 分别为 `b1ada569…18aca2`、`88c9f4ff…c23501`、`c8467f09…99d7d1`、`56ef61f7…fb739`、`3f9c2ee3…ec2784`；已退出服务器，远程验收通过。
+
+## 2026-09-03 01:37 +08:00
+
+- 连接用途：同步 main 验收提交 `f433000`，复核 Python venv/datasets 4.0.0、正式输出路径和队列后，通过 Slurm 物化锁定 `teknium/OpenHermes-2.5@05c3557e57b6dd1d0e0cb8369ba53b43e15fd10b` 的前 500,000 个 source rows，并在终态收集 corpus/manifest、资源和哈希证据。
+- 权限判断与顺序：新连接第一条远端操作为仓库内 `git pull`；服务器本地 main 含先前临时验证历史，若与 squash 后的远端 main 分叉，仅使用 `git pull --no-rebase origin main` 完成 Git 管理的同步，不手工编辑/打补丁/覆盖源码。随后只做轻量环境/路径/队列检查和 `sbatch`；下载后的 500k 遍历、canonicalization、去重、划分及校验全部在 32G/4h allocation 内。
+- 验收边界：默认独立输出 `local/transport/corpora/openhermes-500k.jsonl` 与 `local/transport/manifests/openhermes-500k.json` 必须预先不存在；要求 Exit 0、selected rows 500,000、计数与 provenance 自洽、records hash 与 manifest 绑定、无 partial、GNU time/MaxRSS 和产物哈希可追溯。失败则保留日志/现场，不进入正式 T 构建。
+- 实际结果：首条普通 pull 遇到 GitHub TLS 中断；`net.sh` 后两次 main pull 分别 443 timeout，第三次获取远端后因 squash 与服务器临时验证历史在文档文件冲突。未手工解决；执行 `git merge --abort` 恢复工作树，再用 `git pull --ff-only origin validation/job230-dual-increment` 快进至 `5a0368f`，并确认 `C2C` 与 `origin/main` 无差异。环境预检发现 `.venv` 缺少 `datasets`，因此未提交作业并退出；下一步先按 `docs/agents/env.md` 补齐锁定依赖。
+
+## 2026-09-03 01:43 +08:00
+
+- 连接用途：同步已验证代码分支，按环境记录在既有 Python venv 中安装 `datasets==4.0.0` 并记录完整版本；环境门禁通过后复核正式输出路径/队列并提交 OpenHermes 500k 物化 Slurm 作业。
+- 权限判断与顺序：第一条远端操作使用 `git pull --ff-only origin validation/job230-dual-increment`，避免服务器旧 main 与 squash main 冲突且只执行快进同步；随后仅执行允许的 venv 依赖安装与短时 import/version/help 检查。500k 数据遍历、规范化、去重、划分和校验全部通过 Slurm，不在登录节点运行。
+- 验收边界：安装必须使用 wheel/普通包下载且精确为 datasets 4.0.0；若触发编译或异常资源负载则停止。作业沿用 01:37 条目的独立路径、计数/provenance/原子性/资源/哈希标准，提交前不得存在目标或 partial 文件。
+- 实际结果：前三次 pull 分别为 TLS/443 失败，第四次 `net.sh` 后快进 pull 成功且已是 `5a0368f`。datasets 4.0.0 及 wheel 依赖安装/版本/help 门禁通过；正式输出与 partial 均不存在、队列为空，提交 Job 239。作业 2:00.06 后 Exit 0，MaxRSS `7,128,336 KiB`、0 swap；生成 500,000 行、909,629,231-byte records 和 43,500,816-byte manifest。manifest 为锁定 dataset/revision/raw train、pinned-source-prefix-v1、seed 42、adapter filtering not-applied，unique/duplicate/train/dev 为 500,000/0/495,000/5,000，split 唯一且无交叉，raw SHA 与 records 一致，边界 JSON 可解析且无 partial。records/manifest/stderr SHA-256 为 `539f2d30…5d485a`/`a50c0dca…7c60fa`/`c4a91c0d…728e65`；已退出服务器，正式物化验收通过。
+
+## 2026-09-03 02:06 +08:00
+
+- 连接用途：验证 main-based 临时提交 `5787a71` 的正式 T Slurm 入口；为避免 Guqq 旧验证历史与 squash main 分叉，服务器将通过从其当前 `5a0368f` 派生的 `validation/guqq-formal-transport-500k` 兼容分支做纯快进 pull，该分支的全部 C2C 文件必须与 `5787a71` 相同。
+- 权限判断与顺序：新连接第一条远端操作为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；随后以 `git diff --exit-code 5787a71 -- C2C` 等价检查、环境/输入哈希、正式输出路径和队列轻量复核。500k manifest 加载、tokenization、候选统计、Sinkhorn 和 audit 全部由 64G/24h Slurm 作业执行，不在登录节点直接运行。
+- 验收边界：使用默认正式 artifact/audit/checkpoint 路径，提交时显式把 main 验收代码版本 `f433000b...` 写入 metadata；要求 Exit 0、manifest/records/ANN provenance、两侧 residual `<=2e-3`、严格列和/非负/特殊映射/有限目标、checkpoint complete、无 partial、MaxRSS/耗时/哈希完整。远程通过前不合并 main-based 临时分支。
+- 实际结果：首条 ff-only pull 成功从 `5a0368f` 快进到兼容提交 `bb4bab6`；环境版本、Bash、records/manifest/ANN 哈希、空输出路径和队列通过。以 code version `f433000fa8514296dd5849c619ecd99a4e449bed` 提交 Job 240；作业 51:57.26 后 Exit 0，MaxRSS `8,036,128 KiB`、0 swap。正式 artifact 39,951,267 bytes、shape `131069×151669`、nnz/candidate edges `2,733,518`；metadata 绑定 transport_train 的 495,000 samples/997,233 canonical messages、锁定 dataset revision、records/manifest/ANN SHA、seed 42 和 `0.5/0.002/10000/1e-8`。audit `valid=true`，row/column/transported residual `1.9655245213e-3`/`1.0560509249e-13`/`1.9655245213e-3`，最大列和误差 `1.2299050667e-12`，目标统计有限、非负且无危险 special mapping；checkpoint `complete/fresh`，无 partial。artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 为 `1495d522…0aba97`/`79c4ad38…5caf84`/`53b6a464…1948de`/`13bbda9b…c2457e`/`4deb7afd…517ad7`；已退出，正式 T 验收通过。
+
+## 2026-09-03 03:22 +08:00
+
+- 连接用途：为真实模型最短序列 smoke 做轻量资源预检；同步兼容验证分支后，仅查询 `sinfo`/GPU 类型与显存、现有 Hugging Face 模型缓存、Python venv 的 torch/accelerate/transformers 版本和正式 Job 240 artifact 是否存在，不加载模型、不运行推理。
+- 权限判断与顺序：新连接第一条远端操作为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；随后仅做允许的集群、环境、缓存和文件元数据检查。若网络异常先运行 `bash net.sh` 再重试；模型推理和 CUDA 验证留给后续 Slurm 作业。
+- 验收边界：据实际集群资源冻结 smoke Slurm 的 GPU/CPU/内存/时限与预检门禁；不修改服务器源码或现有环境/产物，本次不提交计算作业。
+- 实际结果：首项 ff-only pull 成功且兼容分支已是最新；随后 `sinfo -o` 的含管道格式被远端 shell 拆分，未取得资源表，后续环境/缓存检查因 `&&` 短路而未执行。会话已结束，未加载模型、未修改环境或产物。
+
+## 2026-09-03 03:25 +08:00
+
+- 连接用途：重试真实模型 smoke 的轻量资源预检；修正 `sinfo` 为不含 shell 管道符的 `--Format` 写法，并读取 venv 包元数据、正式 artifact 大小和两侧模型缓存目录。
+- 权限判断与顺序：新连接第一条远端操作仍为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；其余仅为 `sinfo`、`pip show`、`stat`、`ls` 等轻量只读检查，不执行 CUDA 初始化、模型加载或推理。
+- 验收边界：取得足以冻结 Slurm 资源和依赖安装计划的证据后退出；不存在的包或缓存只记录，不在本连接安装/下载。
+- 实际结果：首项 pull 成功；`sinfo` 确认 `compute` 为默认且可用、共 1 node、每节点 `gpu:1`，同时报告该版本不接受 `Timelimit` 字段。venv 路径误写成仓库根 `.venv`，实际为 `C2C/.venv`，因此后续 `&&` 短路；未修改任何远端状态。
+
+## 2026-09-03 03:27 +08:00
+
+- 连接用途：以已确认的 `C2C/.venv` 路径完成依赖/artifact/cache 只读预检，并用 `scontrol show node` 获取 GPU 型号/节点内存等 Slurm 资源细节。
+- 权限判断与顺序：第一条远端操作继续为兼容分支 ff-only pull；之后仅运行 `scontrol`、`pip show`、`stat` 和缓存目录 `ls`，不存在项允许返回非零但不中断其他检查。
+- 验收边界：本次只收集事实，不安装包、不下载或加载模型；根据结果在本地完成 smoke 入口后，另行登记环境安装及 Slurm 验证连接。
+- 实际结果：首项 pull 成功；`node221` 为 48 CPU、257,787 MiB 总内存、当前约 161,250 MiB free、`compute` 默认分区、`Gres=gpu:1`，Slurm 未暴露 GPU 型号。`C2C/.venv` 有 transformers 4.52.4、无 torch/accelerate；正式 artifact 为 39,951,267 bytes，两侧模型 cache 目录均存在。全程只读，未初始化 CUDA 或加载权重。
+
+## 2026-09-03 03:46 +08:00
+
+- 连接用途：同步 `validation/guqq-real-model-stt-smoke` 兼容提交 `d559a6f`，确认其 C2C tree 与 main-based `[UNACCEPTED]` 提交 `036df80` 一致；检查磁盘/cache 后，在既有 Python venv 中安装 wheel-only `torch==2.6.0 accelerate==1.9.0` 并复核版本。
+- 权限判断与顺序：第一条远端操作为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；随后仅做 tree/disk/cache 检查和许可的环境依赖安装，不在登录节点初始化 CUDA、加载模型或推理。网络问题先运行 `bash net.sh` 再重试；若 pip 尝试源码编译或空间不足则停止。
+- 验收边界：要求 C2C tree 等价、依赖精确、torch CUDA build 元数据可读、两侧 cache 大小和 snapshot 状态清晰；本连接不提交 smoke 作业，完成后退出并记录事实。
+- 实际结果：第一项 ff-only pull 因 GitHub `GnuTLS recv error (-110)` 失败，后续命令全部由 `&&` 短路，未检查磁盘、未安装包、未改变环境。会话已结束。
+
+## 2026-09-03 03:50 +08:00
+
+- 连接用途：重试上一条环境安装；先 ff-only pull，若失败则执行 `bash net.sh` 后再次 pull，成功后才检查磁盘/cache 并安装精确 torch/accelerate wheel。
+- 权限判断与验收边界：顺序、轻量环境操作和停止条件沿用 03:46 条目；本连接仍不加载模型、不初始化 CUDA、不提交推理作业。
+- 实际结果：首次 pull 等待约 133 秒后 timeout，`bash net.sh` 成功续网，第二次 pull 将服务器从 `bb4bab6` 纯快进至 `d559a6f`。文件系统余量约 252G；Qwen cache 16G、Mistral-Nemo cache 9.1M。torch 2.6.0 与 accelerate 1.9.0 由缓存 wheel 安装成功，无编译；与 transformers 4.52.4 一同通过 `pip show` 版本门禁。Mistral 权重尚缺，本连接未提交作业。
+
+## 2026-09-03 03:58 +08:00
+
+- 连接用途：同步兼容分支后，使用 Hugging Face CLI 从 `hf-mirror.com` 下载锁定 `mistralai/Mistral-Nemo-Instruct-2407@04d8a90549d23fc6bd7f642064003592df51e9b3` 的缺失模型权重到既有用户 cache，并复核 snapshot 大小/文件列表。
+- 权限判断与顺序：第一条远端操作为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；下载属于许可的登录节点轻量资源操作，仅写任务使用的 Hugging Face cache，不修改 Git 源码。若网络失败先 `bash net.sh`；不加载模型、不初始化 CUDA、不运行推理。
+- 验收边界：必须锁定 revision，磁盘余量足够，下载完成后 snapshot 不含 `.incomplete` 且权重 index/所有 shard 可见；失败则保留可续传 cache，不提交 smoke。
+- 实际结果：首项 pull 成功；CLI 锁定 SHA 开始下载 18 个文件，metadata/tokenizer 和 `model-00001` 至 `model-00005-of-00005.safetensors` 五个分片均报告完成。额外 `consolidated.safetensors` 仍在下载时 SSH 被远端关闭，未执行尾部 `du/find/ls` 校验，预计留下可续传 `.incomplete`；未提交 smoke。
+
+## 2026-09-03 04:10 +08:00
+
+- 连接用途：同步兼容分支后，只读检查 Mistral snapshot/`.incomplete` 状态；为避免 SSH 生命周期再次中断大文件续传，提交一个 1 CPU/2G/2h、无 GPU 的轻量 Slurm 下载作业，继续锁定 revision 的 Hugging Face cache 下载。
+- 权限判断与顺序：第一条远端操作为 ff-only pull；只读检查后通过 Slurm 运行下载 CLI，写入既有任务 cache 和独立日志，不加载模型、不修改源码。下载/续传本可在登录节点执行，改用 Slurm 仅为进程持久性；不申请 GPU。
+- 验收边界：下载 job 必须 Exit 0，snapshot 的 5 分片/index/config 齐全且无 `.incomplete`；通过前不提交真实 smoke。
+- 提交尝试：SSH/tool 调用在约 30 秒后结束且未返回 stdout/stderr、Job ID 或可轮询 session，无法证明 `sbatch` 是否执行。按未知状态处理，不盲目重复提交。
+
+## 2026-09-03 04:15 +08:00
+
+- 连接用途：先同步兼容分支，再用 `squeue`/`sacct`、`mistral-download-*.out/.err` 与 cache `.incomplete` 只读确认上一下载提交是否存在及其终态；仅在确定没有活动/已提交作业时补交一次相同轻量下载作业。
+- 权限判断与验收边界：首项仍为 ff-only pull；只读状态检查优先，避免重复下载 job。若补交，资源与锁定 revision 沿用 04:10 条目；本连接不提交真实 smoke。
+- 实际结果：工具再次在约 30 秒后返回空结果；本地检查发现 04:09 起的首个 SSH 客户端仍遗留运行且无可恢复输出通道，第二次调用未创建新 SSH 进程。仅终止该本轮客户端；若远端已执行 `sbatch`，Slurm 作业不受客户端终止影响。下载作业状态仍未知。
+
+## 2026-09-03 04:20 +08:00
+
+- 连接用途：在无遗留 SSH 客户端后进行一次干净恢复；首项 pull 后只读查询 `mistral-cache` 队列、日志和 `.incomplete`，确认是否已提交/完成。
+- 权限判断与验收边界：本连接不补交作业，只取证后退出；取得明确结果再决定续传或进入 smoke，避免把 SSH 工具状态与 Slurm 状态混淆。
+- 实际结果：带 `ConnectTimeout=10` 和远端 `git pull` 60 秒上限的连接正常给出可轮询 session，但终态 stdout/stderr 仍为空；本地无遗留 SSH 进程。因为命令未输出显式阶段 marker，无法区分 pull timeout、空队列/日志和无 `.incomplete`，仍不据此判定下载完成。
+
+## 2026-09-03 04:23 +08:00
+
+- 连接用途：使用相同连接/pull 超时，但为 pull 返回码、队列、日志、snapshot 大小、分片数和 incomplete 数分别输出显式 marker，消除空输出歧义。
+- 权限判断与验收边界：仍为纯只读取证、不提交作业；首个实质远端命令是带 60 秒上限的 ff-only pull，随后无论 pull 结果均只读取状态并输出 marker。
+- 实际结果：pull 达到 60 秒上限（rc 124），但状态 marker 完整返回。`mistral-cache` 队列为空且无下载日志，说明先前 `sbatch` 未执行；Mistral cache 已为 46G，锁定 snapshot 中 5 个 `model-0000*-of-00005.safetensors` 全部存在，`.incomplete` 为零。下载完整性门禁通过，可进入 smoke。
+
+## 2026-09-03 04:24 +08:00
+
+- 连接用途：同步 `validation/guqq-real-model-stt-smoke`；若 pull 网络失败，运行 `bash net.sh` 后重试。确认服务器 HEAD/C2C、锁定依赖、正式 artifact、空 smoke 输出路径和队列后，提交 `smoke_real_models.sbatch` 的 1-GPU/192G/4h 真实功能作业。
+- 权限判断与顺序：首项为 ff-only pull；环境/cache/artifact/输出只做轻量门禁，模型加载、CUDA 检查、Receiver-only 与 STT 推理全部由 Slurm 作业执行。显式写入 main-based 未验收代码版本 `036df809c7816747cd5478a6a8b3b6376bf93337`。
+- 验收边界：提交前输出及 `.partial` 必须不存在；作业需在加载权重前通过 torch/accelerate/transformers、CUDA、至少 20 GiB GPU、artifact 门禁。终态要求 Exit 0、schema v2、两路恰好最多 2 tokens、锁定 revisions/artifact metadata、有限 transport stats/metrics、runtime GPU 详情、无 partial、GNU time 与产物 SHA；功能耗时不进入正式 latency 表。
+- 提交结果：首项 pull 成功且已最新；随后误用完整 `git rev-parse HEAD` 与短 SHA `d559a6f` 比较，门禁返回非零并由 `&&` 短路，未执行 `squeue` 或 `sbatch`，远端状态未变。
+
+## 2026-09-03 04:26 +08:00
+
+- 连接用途：修正 HEAD 门禁为 `git rev-parse --short HEAD == d559a6f`，其余同步、输入/输出/队列门禁和真实 smoke 提交完全沿用 04:24 条目。
+- 权限判断与验收边界：第一项仍为 ff-only pull；只有所有轻量门禁通过才执行一次 `sbatch`，不在登录节点推理。
+- 实际结果：pull 成功且短 SHA/正式 artifact/空输出及 partial/空队列门禁全部通过；以 `CODE_VERSION=036df809c7816747cd5478a6a8b3b6376bf93337` 提交真实 smoke 为 Job 241。提交成功后退出，模型加载和推理完全由 Slurm 执行。
+
+## 2026-09-03 04:28 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 241 的 `squeue` 状态与增量 stdout/stderr；若已终态则收集 `sacct`、GNU time、报告/partial 状态和失败栈或成功摘要。
+- 权限判断与验收边界：首项为 ff-only pull；仅只读观察，不取消、不重提交、不修改产物。RUNNING/PENDING 则退出并后续登记续查；终态按 04:24 验收边界处理。
+- 实际结果：首项 pull 成功；Job 241 已离队并失败。stderr 显示两侧权重加载后，Receiver-only 首个生成 kernel 报 `CUDA error: no kernel image is available for execution on the device`；GNU time 为 0:26.39、Exit 1、MaxRSS 5,845,204 KiB、0 swap。失败发生在报告构建前，无合格 JSON；根因指向 torch 2.6.0 CUDA 12.4 wheel 与节点 GPU compute capability 不兼容，而非内存或模型/cache 缺失。
+
+## 2026-09-03 04:31 +08:00
+
+- 连接用途：同步兼容分支后提交一个 1 CPU/1G/5min 的 Slurm GPU 诊断，仅运行 `nvidia-smi --query-gpu=name,memory.total,compute_cap,driver_version`，确认 Job 241 的硬件兼容根因。
+- 权限判断与顺序：首项为 ff-only pull；GPU 查询通过 Slurm allocation，不在登录节点初始化设备。该诊断无模型加载/推理，不覆盖 Job 241 日志或结果。
+- 验收边界：记录 GPU 型号、显存、compute capability 和驱动；若确认锁定 torch wheel 不支持该架构，则依据计划允许的 CPU/offload 功能路径新增独立 Slurm fallback，仍不把其耗时纳入 latency 表。
+- 提交结果：首项 pull 成功，但远端 `--wrap` 的引号未形成单一参数，`nvidia-smi --query-gpu=...` 被 sbatch 误解析并报 unrecognized option；诊断 job 未提交。
+
+## 2026-09-03 04:33 +08:00
+
+- 连接用途：改用无需引号的 `--wrap=nvidia-smi` 提交相同 1 CPU/1G/5min GPU 诊断；默认输出足以记录型号、显存和驱动，并据型号确认 compute capability。
+- 权限判断与验收边界：其余顺序与只读硬件诊断边界沿用 04:31 条目；不加载模型或运行 smoke。
+- 实际结果：pull 成功，轻量 GPU capability 诊断已提交为 Job 242。
+
+## 2026-09-03 04:35 +08:00
+
+- 连接用途：同步兼容分支后只读读取 Job 242 队列/终态与 `stt-gpu-cap-242.out/.err`，记录 GPU 硬件事实。
+- 权限判断与验收边界：仅只读，不提交新作业；根据硬件结果回到本地设计 CPU/offload fallback。
+- 实际结果：Job 242 已完成且 stderr 为空；GPU 为 NVIDIA GeForce RTX 5090、32,607 MiB，驱动 570.211.01、CUDA 12.8。RTX 5090 属 Blackwell `sm_120`，确认 torch 2.6.0/cu124 wheel 缺少其 kernel image，Job 241 根因成立。
+
+## 2026-09-03 04:45 +08:00
+
+- 连接用途：同步 Blackwell 兼容提交 `4fe0065`；创建独立 Python venv `C2C/.venv-smoke-cu128`，从 PyTorch 官方 cu128 index 安装 torch 2.7.1，并精确安装 smoke 依赖与记录最终版本。
+- 权限判断与顺序：第一项为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；随后仅执行 AGENTS 允许的 `python3 -m venv` 和 wheel 下载/安装，不初始化 CUDA、不加载模型或推理。网络失败用 `bash net.sh`；源码编译则停止。
+- 验收边界：共享 `C2C/.venv` 保持不变；新环境需报告 torch `2.7.1+cu128`、accelerate 1.9.0、transformers 4.52.4 及锁定数值依赖。GPU arch/kernel 验证留给后续 Slurm 作业。
+- 实际结果：首项 pull 从 `d559a6f` 快进至 `4fe0065`；独立 venv 创建成功，官方 cu128 wheel 安装 torch 2.7.1+cu128，其他精确依赖全部 wheel 安装并通过 `pip show`。共享 venv 未变，未在登录节点初始化 CUDA。
+
+## 2026-09-03 04:55 +08:00
+
+- 连接用途：同步兼容提交，复核 Job 241 未留下 JSON/partial 和队列后，使用 `.venv-smoke-cu128/bin/python`、`RUNTIME_PROFILE=blackwell-cu128`、`CODE_VERSION=17762a1...` 重提同一真实 smoke。
+- 权限判断与顺序：第一项为 ff-only pull；其余输入/空输出/队列为轻量门禁，CUDA arch 检查、模型加载和推理全部在脚本的 Slurm GPU allocation 内。
+- 验收边界：沿用 04:24 的 schema/两路/provenance/原子性/资源要求，并新增 runtime profile=`blackwell-cu128`、torch=`2.7.1+cu128`、compiled arches 包含 `sm_120`、device capability `[12,0]`。
+- 实际结果：pull/HEAD/空输出及 partial/空队列门禁通过，Blackwell profile 真实重跑已提交为 Job 243；解释器、profile 与 code version 均通过 sbatch export 显式传入。
+
+## 2026-09-03 04:57 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 243 队列和增量日志；终态则收集报告、runtime/profile/arch、两路输出、transport stats、GNU time、MaxRSS、原子性与 SHA。
+- 权限判断与验收边界：仅只读、不取消或重提；验收标准完全沿用 04:55 条目。
+- 实际结果：Job 243 使用 cu128 环境成功加载两模型并完成 Receiver-only，证明 Blackwell kernel 兼容修复生效；STT 在 source transport 前以 `exact transport requires artifact coverage of the full source vocabulary` 失败。Qwen3 LM head 为对齐填充的 151,936 rows，而 fingerprint-verified tokenizer/T source vocab 为 151,669，尾部 267 rows 不是可编码 token。作业 0:14.99、Exit 1、MaxRSS 16,415,184 KiB、0 swap，无合格 JSON。
+
+## 2026-09-03 05:08 +08:00
+
+- 连接用途：同步 padded-vocab 兼容提交 `f4de100`，确认 Job 243 无 JSON/partial、队列为空后，以 Blackwell venv/profile 和 `CODE_VERSION=b0bff17c9aa088ddad10fe98723a63b49f96e863` 重跑同一真实 smoke。
+- 权限判断与顺序：首项 ff-only pull；其余轻量门禁后仅通过 Slurm 运行模型。环境、artifact、prompt、2-token、1 GPU/192G/4h 保持与 Job 243 相同，只改变已本地验收的 tokenizer-vocab padding 修复。
+- 验收边界：沿用 04:55 全部标准，并要求 source input shape/virtual prompt 能跨过 151,936→151,669 显式裁剪，quality stats 有限且 retained/active mass 合理；无 JSON/partial 则失败。
+- 实际结果：pull 从 `4fe0065` 快进到 `f4de100`，HEAD/空输出及 partial/空队列门禁通过；padding 修复真实 smoke 已提交为 Job 244。
+
+## 2026-09-03 05:10 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 244 队列/日志；终态收集 schema v2 JSON 全字段、资源、原子性和 SHA。
+- 权限判断与验收边界：仅只读、不取消或重提；标准沿用 05:08 条目。
+- 实际结果：Job 244 跨过 source vocab 修复，在 `receiver_embedding_weight.index_select(...).to(logits.dtype)` 申请完整 float32 active embedding 表时 OOM；请求 2.50 GiB，而 31.37 GiB GPU 仅余 528.56 MiB。作业 0:15.08、Exit 1、MaxRSS 16,525,048 KiB、0 swap，无 JSON。三次真实失败后已复查 `lessons.md`，确认需新增模型并行内存约束并做 chunked receiver embedding 累加，而非提高资源或改精度标准。
+
+## 2026-09-03 05:21 +08:00
+
+- 连接用途：同步 chunked embedding 兼容提交 `6e08989`，确认空 JSON/partial/队列，以相同 Blackwell venv/profile、artifact、prompt 和资源重跑，code version=`024beacd250fd5e6a57e92aca1b055000b4992f2`。
+- 权限判断与顺序：首项 ff-only pull；仅 Slurm 执行模型负载。除 O(vocab×hidden) 改为 O(chunk×hidden) 的本地验收修复外，所有输入/环境/资源不变。
+- 验收边界：沿用 05:08 标准，并比较 Job 244 OOM 位置是否通过、报告 peak memory/GNU time/MaxRSS；不因连续失败降低双路径/schema/原子性要求。
+- 实际结果：pull 快进至 `6e08989`，HEAD/空输出及 partial/空队列通过；chunked embedding 真实复验已提交为 Job 245。
+
+## 2026-09-03 05:23 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 245 队列/日志；终态收集 schema v2 报告和资源/哈希证据。
+- 权限判断与验收边界：仅只读；标准沿用 05:21 条目。
+- 初步结果：Job 245 已离队，stderr 无异常栈且 GNU time 为 0:16.67、Exit 0、MaxRSS 16,560,968 KiB、0 swap；报告写入产生 72 个 filesystem output blocks，表明 chunked 路径跨过 Job 244 OOM。尚待独立读取 JSON/哈希/partial 后最终验收。
+
+## 2026-09-03 05:26 +08:00
+
+- 连接用途：同步兼容分支后只读收集 Job 245 JSON 全文、文件大小/SHA-256、stderr SHA 和 `.partial` 状态，逐项验收 runtime/profile/arch、artifact provenance、Receiver-only/STT shapes/outputs、质量统计与 metrics。
+- 权限判断与验收边界：首项 ff-only pull；仅 `stat`/`sha256sum`/`test`/`cat` 读取，不修改或复制服务器结果。全部字段通过后才回本地形成验收提交。
+- 实际结果：报告 8,581 bytes、SHA-256 `a14da4b15a368eefbd905d61ad4be71af143fdf2ab6df74071fa487c6b867c26`，stderr SHA-256 `6ecddddcca89383eeaf4c211c6b3fcbf412c4713c4dc301d2cc55401ff86eccc`，无 `.partial`。schema v2/code version `024beacd...`；runtime 为 Python 3.10.12、`blackwell-cu128`、torch 2.7.1+cu128/accelerate 1.9.0/transformers 4.52.4，compiled arches 含 `sm_120`，设备 RTX 5090 `[12,0]`/33,679,736,832 bytes。Receiver-only 输入 8、输出 2 tokens，文本 ` Gravity is`；STT source/virtual/output shapes `[1,7]`/`[1,7,5120]`/`[1,2]`，文本 `I'm`。retained/active mass 范围 `0.9999999404..1.0000005960`、dropped top-m 0；STT total 2.35798s、peak 31,074,283,520 bytes。模型/tokenizer/dataset revisions、正式 artifact 131,069×151,669/2,733,518 nnz 和 artifact provenance 完整。最终验收通过，时延仅作功能诊断。
+
+## 2026-09-03 05:26 +08:00
+
+- 连接用途：同步阶段 3 统一 evaluator 的 Guqq 兼容临时分支，检查 MMLU-Redux `abstract_algebra` 小子集是否已缓存；若未缓存，仅在登录节点预取锁定数据资源。随后检查正式 artifact、Blackwell venv、空输出/partial 与队列，再提交固定 5 题 STT Slurm 评测。
+- 权限判断与顺序：连接后第一项必须 `git pull --ff-only`；源码只通过兼容分支快进同步，不在服务器编辑。数据下载/缓存检查属于轻量操作；模型加载和推理只经 `sbatch script/transport/slurm/evaluate_stt_mmlu_redux.sbatch`，不在登录节点运行。
+- 验收边界：要求 Job Exit 0、5 条逐题 success 或显式失败记录、summary 只统计 success、canonical/prompt metadata、分段 latency/长度/显存、transport quality、正式 artifact/runtime provenance、无 `.partial`，并记录 GNU time/MaxRSS/日志与产物 SHA。真实通过前分支保持 `[UNACCEPTED]`。
