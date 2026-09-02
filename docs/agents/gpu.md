@@ -262,3 +262,10 @@
 
 - 连接用途：重试上一条环境安装；先 ff-only pull，若失败则执行 `bash net.sh` 后再次 pull，成功后才检查磁盘/cache 并安装精确 torch/accelerate wheel。
 - 权限判断与验收边界：顺序、轻量环境操作和停止条件沿用 03:46 条目；本连接仍不加载模型、不初始化 CUDA、不提交推理作业。
+- 实际结果：首次 pull 等待约 133 秒后 timeout，`bash net.sh` 成功续网，第二次 pull 将服务器从 `bb4bab6` 纯快进至 `d559a6f`。文件系统余量约 252G；Qwen cache 16G、Mistral-Nemo cache 9.1M。torch 2.6.0 与 accelerate 1.9.0 由缓存 wheel 安装成功，无编译；与 transformers 4.52.4 一同通过 `pip show` 版本门禁。Mistral 权重尚缺，本连接未提交作业。
+
+## 2026-09-03 03:58 +08:00
+
+- 连接用途：同步兼容分支后，使用 Hugging Face CLI 从 `hf-mirror.com` 下载锁定 `mistralai/Mistral-Nemo-Instruct-2407@04d8a90549d23fc6bd7f642064003592df51e9b3` 的缺失模型权重到既有用户 cache，并复核 snapshot 大小/文件列表。
+- 权限判断与顺序：第一条远端操作为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；下载属于许可的登录节点轻量资源操作，仅写任务使用的 Hugging Face cache，不修改 Git 源码。若网络失败先 `bash net.sh`；不加载模型、不初始化 CUDA、不运行推理。
+- 验收边界：必须锁定 revision，磁盘余量足够，下载完成后 snapshot 不含 `.incomplete` 且权重 index/所有 shard 可见；失败则保留可续传 cache，不提交 smoke。

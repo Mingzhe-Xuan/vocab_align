@@ -41,3 +41,5 @@
 - 真实模型文件可在登录节点下载到任务约定的 Hugging Face cache，但不会在登录节点加载模型；实际缓存状态和安装结果待远端预检后追加。
 - 预检结果：节点 Python venv 中 `transformers==4.52.4` 已满足，但 `torch` 与 `accelerate` 均未安装；正式 Job 240 artifact 为 39,951,267 bytes，两侧 Hugging Face 模型缓存目录均存在。集群仅暴露 `gpu:1`，GPU 型号/显存需在 Slurm allocation 内用 `nvidia-smi`/PyTorch 确认。
 - 项目依赖修订：`device_map: auto` 的真实模型入口依赖 Accelerate，因此在 `pyproject.toml` 中补充精确 `accelerate==1.9.0`，与 `environment.yml` 保持一致；远端计划安装 `torch==2.6.0 accelerate==1.9.0` 的 wheel，并复核 CUDA wheel 与驱动兼容性。
+- 实际安装：`C2C/.venv/bin/python -m pip install torch==2.6.0 accelerate==1.9.0` 成功，全部命中预构建 manylinux wheel/cache，无源码编译。最终直接版本为 torch 2.6.0、accelerate 1.9.0、transformers 4.52.4；torch wheel 绑定 CUDA 12.4 运行库，并安装 triton 3.2.0、cuDNN 9.1.0.70、NCCL 2.21.5 等锁定传递包。CUDA 可用性仍按规范留给 Slurm allocation 验证。
+- 安装前磁盘：仓库与 cache 所在文件系统 1.8T，总使用 1.5T、可用约 252G；Qwen3-8B cache 约 16G，Mistral-Nemo cache 仅 9.1M，后者缺模型权重，需要按锁定 revision 继续下载。
