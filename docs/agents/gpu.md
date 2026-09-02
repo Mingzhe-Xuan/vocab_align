@@ -201,3 +201,9 @@
 - 连接用途：此前用于监控 Job 236 的持久 SSH 会话被远端 reset；建立新连接恢复只读终态验收，查询 Slurm state/exit、GNU time/MaxRSS、独立 artifact/audit/checkpoint 和哈希。
 - 权限判断与顺序：新连接的第一条远端操作仍为 `cd vocab_align && git pull`；成功后仅执行 `squeue`/`sacct`、日志和结果文件只读检查，不提交新计算、不在登录节点加载全量产物或修改服务器源码/实验结果。
 - 验收边界：继续使用 Job 236 的 `sparse_audit_validation` 独立路径，核验 Exit 0、两侧 marginal residual、严格列归一化、metadata tolerance、有限目标统计、checkpoint complete、MaxRSS 与可追溯哈希；若失败则保留现场并回到本地修复。
+
+## 2026-09-03 01:20 +08:00
+
+- 连接用途：昨日恢复会话在多次 GitHub TLS/443 失败后被远端 reset；今天重新连接 Guqq，恢复 Job 236 的终态只读验收并收集 artifact/audit/checkpoint、调度资源和哈希证据。
+- 权限判断与顺序：新连接第一条远端操作必须为 `cd vocab_align && git pull`；成功后才执行 `squeue`/`sacct`、日志及结果文件只读检查。网络异常时按规范运行 `bash net.sh` 后重试，不在登录节点执行构建、审计或全量产物加载，也不修改服务器文件。
+- 验收边界：核验 Job 236 Exit 0、`2e-3` 两侧 marginal 要求、严格列归一化、metadata、有限目标统计、checkpoint complete、MaxRSS 和哈希；通过后回到本地补全测试/状态/进度记录并整理验收提交。
