@@ -67,6 +67,7 @@ Newton-CG 本地实际结果：
 - Black 首次要求格式化 `sinkhorn.py`，沙箱内 ACL 拒绝原子替换；仅提升明确文件权限后完成，最终两文件无需修改。`compileall` 与 `git diff --check` 通过。
 - method/provenance 已改为 `sinkhorn-scaled-newton-cg-sinkhorn`，无 L-BFGS/FACTR 路径；真实 Slurm 未通过前仍为临时未验收实现。
 - 最终代码形态再次复核：定向 `23 passed in 8.13s`，重定向 bytecode cache 后 compileall 通过；首次完整回归因既有 `%TEMP%/pytest-of-asus` ACL 导致一个 Slurm 包装测试失败（其余 127 通过）。按 `lessons.md` 改用忽略目录 `local/test-tmp/newton-full-2` 的全新 `--basetemp` 后，完整回归 `128 passed, 2 warnings in 75.88s`，未跳过任何测试。
+- 上述代码与文档已形成并推送临时分支提交 `f62c540`（明确 `[UNACCEPTED]`）；远程真实图验收仍待 Slurm 执行。
 
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 

@@ -87,3 +87,4 @@
 - residual-driven scaled Newton-CG 完成本地实现：Hessian-vector/预条件 CG/strict residual backtracking 共享有界预算；定向 23/23、完整回归 128/128、静态检查通过，准备临时 Slurm 验证。
 - 完成 `assets/T_method.md`：对照历史增量 scaled L-BFGS-B 与当前 residual-driven scaled Newton-CG，记录共同 OT 目标、公式、接受/停止条件、复杂度、真实失败证据及尚待 Slurm 验证的边界；文档路径与 diff 检查通过。
 - Newton-CG 最终代码形态再次通过定向 23/23；完整回归的系统 `%TEMP%` ACL 阻断按既有 lessons 改用工作区全新 `--basetemp` 后消除，最终 128/128 通过且未跳过测试，进入临时未验收提交阶段。
+- 第三个临时 `[UNACCEPTED]` Newton-CG 提交 `f62c540` 已推送；登记 Guqq 同输入/资源/严格标准、独立 `newton_cg_validation` 路径的 Slurm 验证，真实通过前保持不进入 main。

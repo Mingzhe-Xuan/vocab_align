@@ -175,3 +175,9 @@
 - 连接用途：再次恢复 Job 233 终态只读验收，读取 Slurm state/日志、termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
 - 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；之后只运行 `squeue` 及结果文件只读命令，不提交作业、不直接运行计算、不修改服务器源码或实验产物。
 - 实际结果：首条 pull 与临时分支同步成功至 `bb84223`。Job 233 已终止并与 Job 232 得到相同严格失败：39:06.84、Exit 1、MaxRSS 1,847,040 KiB、0 swap；21 attempts/1,000 evaluations，前 20 次即使 `ftol=0` 仍报告 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH`，最终 row/column residual `1.6915612104e-3`/`2.6332792027e-14`。checkpoint `building/fresh`，artifact/audit 不存在；已退出。
+
+## 2026-09-02 10:36 +08:00
+
+- 连接用途：验证第三个临时 `[UNACCEPTED]` 提交 `f62c540` 的 residual-driven scaled Newton-CG，在与 Jobs 230/232/233 相同的 2.3M-edge 输入、64G/8h、epsilon 0.5、`1e-9`/10,000 配置下经 Slurm 重跑 full-support preview。
+- 权限判断与顺序：新会话第一条远端操作必须是 `cd vocab_align && git pull`；之后才拉取 `validation/job230-dual-increment`、复核 HEAD/输入/队列并 `sbatch`。真实图构建和求解全部在 compute allocation；登录节点只做轻量管理，不编辑受 Git 管理源码。
+- 验收边界：使用独立 `newton_cg_validation` checkpoint/artifact/audit 路径，不覆盖前三次失败现场；检查严格两侧 residual、Newton/CG provenance、1,000 acceleration budget、GNU time/MaxRSS 和原子产物。若网络异常先运行 `bash net.sh` 再重试 pull；真实图通过前不进入 main。
