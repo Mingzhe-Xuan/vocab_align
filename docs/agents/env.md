@@ -50,3 +50,5 @@
 - 创建命令：`python3 -m venv C2C/.venv-smoke-cu128`；不使用 uv。PyTorch 依照官方 cu128 index 安装 `torch==2.7.1`，预期包版本 `2.7.1+cu128`；再精确安装 `accelerate==1.9.0 transformers==4.52.4 numpy==2.2.6 PyYAML==6.0.3 scipy==1.15.3 safetensors==0.8.0`。
 - 安装属于许可的 wheel 下载/环境配置；若发生源码编译则停止。CUDA import、`get_arch_list()`/`sm_120` 和 kernel 运行验证全部放入 Slurm，不在登录节点初始化 GPU。
 - smoke 使用命名 profile `blackwell-cu128`，报告必须同时记录 profile、实际 `torch==2.7.1+cu128`、compiled arches、RTX 5090 compute capability；默认 `project-cu124` profile 仍精确锁定 torch 2.6.0。
+- 实际创建/安装成功：`python3 -m venv C2C/.venv-smoke-cu128`；`pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128` 得到 `torch==2.7.1+cu128`，随后精确安装 accelerate 1.9.0、transformers 4.52.4、NumPy 2.2.6、PyYAML 6.0.3、SciPy 1.15.3、safetensors 0.8.0。全部为预构建 wheel，无源码编译。
+- 主要 CUDA 传递版本：cuBLAS 12.8.3.14、cuDNN 9.7.1.26、NCCL 2.26.2、Triton 3.3.1；共享 `/home/xmz/vocab_align/C2C/.venv` 未修改。实际 CUDA/compiled arch/kernel 继续由 Slurm smoke 门禁和推理验证。

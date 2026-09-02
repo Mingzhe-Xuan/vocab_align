@@ -117,3 +117,4 @@
 - Job 242 确认 RTX 5090 32,607MiB/Blackwell sm_120/驱动 570.211.01；将修复收敛为隔离 torch 2.7.1+cu128 runtime profile 和 compiled-arch 加载前门禁，优先恢复 GPU 功能 smoke，不用 CPU fallback 掩盖环境不兼容。
 - 完成命名 runtime profile 与 compiled-arch preflight：默认项目 torch 2.6.0 不变，新增精确 `blackwell-cu128` 2.7.1+cu128 profile，Slurm 可显式选择并写入报告；定向 14/14、完整 148/148 和静态检查通过。
 - 推送 Blackwell 修复未验收提交 `17762a1` 及 Guqq C2C 等价提交 `4fe0065`；登记独立 python venv/cu128 wheel 安装，避免覆盖项目默认环境。
+- Guqq 独立 python venv 成功安装 torch 2.7.1+cu128 与精确 smoke 依赖，全部 wheel、共享环境不变；登记以 Blackwell profile 和更新 code version 重提真实 Slurm smoke。

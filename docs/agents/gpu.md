@@ -339,3 +339,10 @@
 - 连接用途：同步 Blackwell 兼容提交 `4fe0065`；创建独立 Python venv `C2C/.venv-smoke-cu128`，从 PyTorch 官方 cu128 index 安装 torch 2.7.1，并精确安装 smoke 依赖与记录最终版本。
 - 权限判断与顺序：第一项为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；随后仅执行 AGENTS 允许的 `python3 -m venv` 和 wheel 下载/安装，不初始化 CUDA、不加载模型或推理。网络失败用 `bash net.sh`；源码编译则停止。
 - 验收边界：共享 `C2C/.venv` 保持不变；新环境需报告 torch `2.7.1+cu128`、accelerate 1.9.0、transformers 4.52.4 及锁定数值依赖。GPU arch/kernel 验证留给后续 Slurm 作业。
+- 实际结果：首项 pull 从 `d559a6f` 快进至 `4fe0065`；独立 venv 创建成功，官方 cu128 wheel 安装 torch 2.7.1+cu128，其他精确依赖全部 wheel 安装并通过 `pip show`。共享 venv 未变，未在登录节点初始化 CUDA。
+
+## 2026-09-03 04:55 +08:00
+
+- 连接用途：同步兼容提交，复核 Job 241 未留下 JSON/partial 和队列后，使用 `.venv-smoke-cu128/bin/python`、`RUNTIME_PROFILE=blackwell-cu128`、`CODE_VERSION=17762a1...` 重提同一真实 smoke。
+- 权限判断与顺序：第一项为 ff-only pull；其余输入/空输出/队列为轻量门禁，CUDA arch 检查、模型加载和推理全部在脚本的 Slurm GPU allocation 内。
+- 验收边界：沿用 04:24 的 schema/两路/provenance/原子性/资源要求，并新增 runtime profile=`blackwell-cu128`、torch=`2.7.1+cu128`、compiled arches 包含 `sm_120`、device capability `[12,0]`。
