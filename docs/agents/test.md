@@ -705,3 +705,16 @@ revision 修复本地结果：
 - 环境、artifact、cache、输出和 Slurm 提交门禁通过；作业加载两侧模型后在 Receiver-only 首个 CUDA generation kernel 失败，错误为 `no kernel image is available for execution on the device`。
 - GNU time：0:26.39、Exit 1、MaxRSS 5,845,204 KiB、0 swap；无合格 JSON/验收结果。该失败不降低测试标准，代码继续位于 `[UNACCEPTED]` 分支。
 - 初步归因是 torch 2.6.0/CUDA 12.4 wheel 不包含节点旧 GPU 架构；待 Slurm `nvidia-smi` capability 诊断确认。随后仅允许走计划已有的 CPU/offload 功能 smoke，结果不得进入正式 latency 表。
+
+Job 241 兼容修复追加计划：
+
+- Job 242 已确认硬件实际是新 GPU：RTX 5090 32,607 MiB、Blackwell `sm_120`、驱动 570.211.01/CUDA 12.8；修正“旧 GPU”初步判断，根因仍是 torch 2.6.0/cu124 compiled arch 不包含 `sm_120`。
+- runtime 门禁增加命名 profile：项目默认继续精确要求 torch 2.6.0/accelerate 1.9.0/transformers 4.52.4；Guqq Blackwell profile 精确要求 torch 2.7.1+cu128，并把选择的 profile 写入报告。
+- CUDA preflight 必须比较可见设备 compute capability 与 `torch.cuda.get_arch_list()`，缺少 `sm_120` 时在加载任何模型权重前明确失败；tiny mock 覆盖支持/不支持两种情况。
+- Slurm stub 测试验证 `RUNTIME_PROFILE` override 被转发；Guqq 使用独立 `python3 -m venv .venv-smoke-cu128`，避免覆盖项目 venv。修复后重新运行定向、完整回归和真实 Job，不接受 CPU fallback 代替可用的兼容 GPU profile。
+
+兼容修复本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-profile test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：14 passed（9.71s），覆盖两个 runtime profile、Slurm override 和 `sm_120` 支持/拒绝门禁。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-profile -q`：148 passed（74.19s），仅有既存 pandas 可选依赖 2 条 warning。
+- Black `format_str` 对最终 3 个变动 Python 文件检查 unchanged；内存 compile 3/3、Slurm `bash -n` 与 `git diff --check` 通过。

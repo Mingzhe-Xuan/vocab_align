@@ -45,6 +45,7 @@ def test_real_smoke_job_has_locked_resources_and_no_partition():
     assert "qwen3_8b_to_mistral_nemo_instruct_2407_smoke.yaml" in source
     assert "--require-cuda" in source
     assert "--require-locked-runtime" in source
+    assert "--runtime-profile" in source
     assert "--min-gpu-memory-gib" in source
     assert 'HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"' in source
 
@@ -98,6 +99,7 @@ def test_real_smoke_job_forwards_pinned_defaults(tmp_path):
             "SMOKE_OUTPUT": _bash_path(output),
             "CAPTURE_PATH": _bash_path(capture),
             "CODE_VERSION": "validation-commit",
+            "RUNTIME_PROFILE": "blackwell-cu128",
             "RESOURCE_TIME_BIN": _bash_path(root / "missing-time"),
         }
     )
@@ -117,4 +119,5 @@ def test_real_smoke_job_forwards_pinned_defaults(tmp_path):
     assert arguments[arguments.index("--artifact") + 1] == _bash_path(artifact)
     assert arguments[arguments.index("--output") + 1] == _bash_path(output)
     assert arguments[arguments.index("--code-version") + 1] == "validation-commit"
+    assert arguments[arguments.index("--runtime-profile") + 1] == "blackwell-cu128"
     assert arguments[arguments.index("--min-gpu-memory-gib") + 1] == "20"

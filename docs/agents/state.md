@@ -6,9 +6,9 @@
 
 ## 当前计划
 
-1. 将本地已通过的 Receiver-only/STT 双路径 smoke、2-token recipe、锁定运行时门禁和 1-GPU Slurm 入口形成临时未验收提交。
-2. 在 Guqq 既有 Python venv 安装 wheel-only `torch==2.6.0`/`accelerate==1.9.0`，经 Slurm 诊断确认 GPU/显存与模型 cache 完整性。
-3. 通过兼容验证分支同步，在 Guqq 运行真实模型 smoke 并验收 diagnostics、资源和 provenance；通过前不合并 main 验收提交。
+1. 修复 Job 241 暴露的硬件门禁：在加载权重前验证 PyTorch compiled arch，并增加独立 `blackwell-cu128` 精确 runtime profile，同时保留项目默认 torch 2.6.0 profile。
+2. 在 Guqq 用 `python3 -m venv` 创建隔离的 `.venv-smoke-cu128`，安装精确 torch 2.7.1/cu128 及 smoke 依赖，不覆盖既有项目 venv。
+3. 本地回归后更新未验收/兼容分支，在同一 RTX 5090 上重跑真实 smoke 并验收 diagnostics、资源和 provenance；通过前不合并 main。
 3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
 
 ## 变更记录
@@ -121,5 +121,7 @@
 - 2026-09-03 04:24 +08:00：显式恢复检查确认 Mistral cache 46G、锁定 snapshot 五个 indexed shards 齐全且无 `.incomplete`；先前下载 sbatch 实际未提交，但登录节点下载已完整。下一步按已登记资源提交真实 1-GPU smoke。
 - 2026-09-03 04:28 +08:00：所有输入/环境/空输出门禁通过，真实 Receiver-only/STT smoke 已提交为 Job 241，运行代码 `d559a6f`、报告 code version `036df809…`。下一步只读监控终态并按 schema/资源/provenance 验收。
 - 2026-09-03 04:31 +08:00：Job 241 在 0:26.39/Exit 1/MaxRSS 5,845,204 KiB 下失败，Receiver-only 首 kernel 报 torch CUDA wheel 无该 GPU kernel image；无报告产物，保持未验收。先通过 Slurm 查询 GPU compute capability，再实现计划明确允许的 CPU/offload 功能 fallback 或兼容方案。
+- 2026-09-03 04:37 +08:00：Job 242 确认 GPU 为 RTX 5090 32,607 MiB（Blackwell `sm_120`）、驱动 570.211.01/CUDA 12.8；项目 torch 2.6.0/cu124 不支持该架构。计划从 CPU fallback 调整为更强的隔离 `blackwell-cu128` profile，并增加 compiled-arch 加载前门禁；默认项目环境保持不变。
+- 2026-09-03 04:42 +08:00：`project-cu124`/`blackwell-cu128` 命名 profile、实际版本 provenance、`get_arch_list` 对 compute capability 的加载前门禁和 Slurm override 已完成；定向 14/14、完整 148/148 通过。下一步推送更新的未验收/兼容分支并创建独立 Python cu128 venv。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

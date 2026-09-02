@@ -332,3 +332,4 @@
 
 - 连接用途：同步兼容分支后只读读取 Job 242 队列/终态与 `stt-gpu-cap-242.out/.err`，记录 GPU 硬件事实。
 - 权限判断与验收边界：仅只读，不提交新作业；根据硬件结果回到本地设计 CPU/offload fallback。
+- 实际结果：Job 242 已完成且 stderr 为空；GPU 为 NVIDIA GeForce RTX 5090、32,607 MiB，驱动 570.211.01、CUDA 12.8。RTX 5090 属 Blackwell `sm_120`，确认 torch 2.6.0/cu124 wheel 缺少其 kernel image，Job 241 根因成立。

@@ -43,4 +43,5 @@ PYTHONPATH=. "${runner[@]}" "$python_bin" \
   --code-version "${CODE_VERSION:-$(git rev-parse HEAD)}" \
   --require-cuda \
   --require-locked-runtime \
+  --runtime-profile "${RUNTIME_PROFILE:-project-cu124}" \
   --min-gpu-memory-gib "${MIN_GPU_MEMORY_GIB:-20}"
