@@ -250,3 +250,9 @@
 - 权限判断与顺序：第一条远端操作继续为兼容分支 ff-only pull；之后仅运行 `scontrol`、`pip show`、`stat` 和缓存目录 `ls`，不存在项允许返回非零但不中断其他检查。
 - 验收边界：本次只收集事实，不安装包、不下载或加载模型；根据结果在本地完成 smoke 入口后，另行登记环境安装及 Slurm 验证连接。
 - 实际结果：首项 pull 成功；`node221` 为 48 CPU、257,787 MiB 总内存、当前约 161,250 MiB free、`compute` 默认分区、`Gres=gpu:1`，Slurm 未暴露 GPU 型号。`C2C/.venv` 有 transformers 4.52.4、无 torch/accelerate；正式 artifact 为 39,951,267 bytes，两侧模型 cache 目录均存在。全程只读，未初始化 CUDA 或加载权重。
+
+## 2026-09-03 03:46 +08:00
+
+- 连接用途：同步 `validation/guqq-real-model-stt-smoke` 兼容提交 `d559a6f`，确认其 C2C tree 与 main-based `[UNACCEPTED]` 提交 `036df80` 一致；检查磁盘/cache 后，在既有 Python venv 中安装 wheel-only `torch==2.6.0 accelerate==1.9.0` 并复核版本。
+- 权限判断与顺序：第一条远端操作为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；随后仅做 tree/disk/cache 检查和许可的环境依赖安装，不在登录节点初始化 CUDA、加载模型或推理。网络问题先运行 `bash net.sh` 再重试；若 pip 尝试源码编译或空间不足则停止。
+- 验收边界：要求 C2C tree 等价、依赖精确、torch CUDA build 元数据可读、两侧 cache 大小和 snapshot 状态清晰；本连接不提交 smoke 作业，完成后退出并记录事实。

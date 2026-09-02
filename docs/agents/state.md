@@ -115,5 +115,6 @@
 - 2026-09-03 03:12 +08:00：Job 240 后最终代码树完整回归 137/137；新测试 Black unchanged、compileall、正式脚本 Bash syntax、两份计划路径和 diff 检查均通过。进入 main-based 临时分支证据提交与 squash 验收提交阶段，之后直接推进真实模型短序列 smoke。
 - 2026-09-03 03:22 +08:00：进入真实模型短序列 smoke 实现单元；确认现有 CLI 仅输出 STT 且正式 recipe 为 128 tokens。计划补齐同 prompt Receiver-only 对照、2-token 最短运行、GPU/依赖/正式 artifact 预检、原子报告和无 partition Slurm 入口；先查询 Guqq 资源与缓存，再冻结脚本资源值。
 - 2026-09-03 03:41 +08:00：真实 smoke 本地实现完成：同 prompt Receiver-only/STT schema v2、1—2 token 限制、锁定依赖/CUDA/显存/artifact/覆盖门禁、正式 2-token recipe 和 `gpu:1`/192G/4h 无 partition Slurm 入口；定向 12/12、完整 146/146 通过。下一步形成 `[UNACCEPTED]` 提交并在 Guqq 补齐环境、经 Slurm 真机验收。
+- 2026-09-03 03:46 +08:00：main-based `[UNACCEPTED]` 提交 `036df80` 与 C2C 内容等价的 Guqq 兼容提交 `d559a6f` 均已推送；正式 main 尚未合并。下一步同步兼容分支并补齐锁定 torch/accelerate 环境，之后单独登记 Slurm smoke。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
