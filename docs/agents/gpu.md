@@ -396,3 +396,4 @@
 - 环境门禁结果：服务器已快进到 `b3457a1`；torch 2.7.1+cu128 与 transformers 4.52.4 正确，正式 artifact、空 records/partial 和空队列通过，MMLU-Redux/`abstract_algebra` cache 路径存在。但 `.venv-smoke-cu128` 缺少 evaluator 必需的 datasets，故未提交作业。下一次连接先 pull，再按 `env.md` 仅向隔离环境安装/核验 datasets 4.0.0。
 - 依赖补齐结果：服务器先快进至 `e2a90f4`，随后隔离 venv 通过缓存 wheel 成功安装 datasets 4.0.0 及其依赖；锁定 torch/transformers/accelerate 未变，evaluator `--help` 通过。下一次连接首项 pull 后执行离线 `abstract_algebra` 5 题轻量加载检查、再次核对空输出与队列，全部通过才提交 Slurm。
 - provenance 修正后的提交连接因 Windows→SSH→Bash 嵌套 `python -c` 引号被剥离，远端 Bash 在执行任何命令前 parse 失败，故本次没有 pull、检查或提交作业。连续远端连接/诊断失败达到三次后已查阅并补充 `lessons.md`；计划取消脆弱 inline Python，下一次首项 pull 后仅用无嵌套引号的 artifact/输出/队列门禁并直接 `sbatch`，数据离线加载由 Slurm 入口自身验证。
+- 提交结果：服务器首项 pull 快进至 `98c5f85`；正式 artifact、空 records/partial 和同名空队列的纯 shell 门禁通过，固定 5 题 MMLU-Redux STT 评测已提交为 Job 246。模型加载/数据读取/推理均在 Slurm allocation 内；下一次连接仅监控终态并收集 records/summary/日志/资源证据，不取消或重提。
