@@ -128,5 +128,6 @@
 - 2026-09-03 04:57 +08:00：Blackwell profile 真实 smoke 已提交为 Job 243，解释器 `.venv-smoke-cu128`、profile `blackwell-cu128`、code version `17762a1…`；进入只读终态监控。
 - 2026-09-03 05:00 +08:00：Job 243 已证明 cu128/RTX 5090 和 Receiver-only 可运行，但 STT 因 Qwen LM head 151,936 与 tokenizer/T 151,669 的尾部 padding 差异失败；0:14.99/Exit 1/MaxRSS 16,415,184 KiB、无报告。进入显式 tokenizer vocab size 修复，默认/任意缺口严格校验保持不变。
 - 2026-09-03 05:05 +08:00：显式 `source_vocab_size` 已贯通 loader/wrapper/soft transport，只允许 fingerprint-verified tokenizer vocab 的连续完整前缀并在 softmax 前排除 LM-head 尾部 padding；partial/middle-gap 仍失败。定向 32/32、完整 149/149 与静态检查通过，下一步更新未验收/兼容分支再跑真实 smoke。
+- 2026-09-03 05:08 +08:00：padding 修复已推送为 main-based 未验收提交 `b0bff17` 和 C2C 等价兼容提交 `f4de100`；登记相同输入/环境的第三次真实 smoke，成功前仍不合并 main。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

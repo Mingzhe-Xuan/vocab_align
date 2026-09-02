@@ -353,3 +353,9 @@
 - 连接用途：同步兼容分支后只读监控 Job 243 队列和增量日志；终态则收集报告、runtime/profile/arch、两路输出、transport stats、GNU time、MaxRSS、原子性与 SHA。
 - 权限判断与验收边界：仅只读、不取消或重提；验收标准完全沿用 04:55 条目。
 - 实际结果：Job 243 使用 cu128 环境成功加载两模型并完成 Receiver-only，证明 Blackwell kernel 兼容修复生效；STT 在 source transport 前以 `exact transport requires artifact coverage of the full source vocabulary` 失败。Qwen3 LM head 为对齐填充的 151,936 rows，而 fingerprint-verified tokenizer/T source vocab 为 151,669，尾部 267 rows 不是可编码 token。作业 0:14.99、Exit 1、MaxRSS 16,415,184 KiB、0 swap，无合格 JSON。
+
+## 2026-09-03 05:08 +08:00
+
+- 连接用途：同步 padded-vocab 兼容提交 `f4de100`，确认 Job 243 无 JSON/partial、队列为空后，以 Blackwell venv/profile 和 `CODE_VERSION=b0bff17c9aa088ddad10fe98723a63b49f96e863` 重跑同一真实 smoke。
+- 权限判断与顺序：首项 ff-only pull；其余轻量门禁后仅通过 Slurm 运行模型。环境、artifact、prompt、2-token、1 GPU/192G/4h 保持与 Job 243 相同，只改变已本地验收的 tokenizer-vocab padding 修复。
+- 验收边界：沿用 04:55 全部标准，并要求 source input shape/virtual prompt 能跨过 151,936→151,669 显式裁剪，quality stats 有限且 retained/active mass 合理；无 JSON/partial 则失败。
