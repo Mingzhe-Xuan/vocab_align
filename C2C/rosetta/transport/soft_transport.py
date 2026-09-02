@@ -44,6 +44,7 @@ def transport_probabilities(
     tau: float,
     top_m: int | None = None,
     allow_partial_support: bool = False,
+    source_vocab_size: int | None = None,
 ) -> tuple[torch.Tensor, SoftTransportStats]:
     """Compute compact receiver probabilities ``T softmax(logits/tau)``.
 
@@ -56,6 +57,7 @@ def transport_probabilities(
         tau=tau,
         top_m=top_m,
         allow_partial_support=allow_partial_support,
+        source_vocab_size=source_vocab_size,
     )
 
     columns_np = np.repeat(
@@ -81,6 +83,7 @@ def source_probabilities(
     tau: float,
     top_m: int | None = None,
     allow_partial_support: bool = False,
+    source_vocab_size: int | None = None,
 ) -> tuple[torch.Tensor, SoftTransportStats]:
     """Return normalized probabilities on artifact compact source columns."""
     _require_torch()
@@ -92,19 +95,39 @@ def source_probabilities(
     vocab_size = logits.shape[-1]
     if np.any(artifact.source_token_ids >= vocab_size):
         raise SoftTransportError("artifact source token ID exceeds logits vocabulary")
-    if not _full_source_support(artifact, vocab_size) and not allow_partial_support:
+    if source_vocab_size is not None:
+        if (
+            isinstance(source_vocab_size, bool)
+            or not isinstance(source_vocab_size, int)
+            or not 1 <= source_vocab_size <= vocab_size
+        ):
+            raise SoftTransportError(
+                "source_vocab_size must be in [1, logits vocabulary]"
+            )
+        if not _full_source_support(artifact, source_vocab_size):
+            raise SoftTransportError(
+                "artifact must fully cover the explicit tokenizer vocabulary"
+            )
+        transport_vocab_size = source_vocab_size
+    else:
+        transport_vocab_size = vocab_size
+    if (
+        source_vocab_size is None
+        and not _full_source_support(artifact, vocab_size)
+        and not allow_partial_support
+    ):
         raise SoftTransportError(
             "exact transport requires artifact coverage of the full source vocabulary"
         )
     if top_m is not None and (
         isinstance(top_m, bool)
         or not isinstance(top_m, int)
-        or not 1 <= top_m <= vocab_size
+        or not 1 <= top_m <= transport_vocab_size
     ):
         raise SoftTransportError("top_m must be an integer in [1, source_vocab]")
 
-    probabilities = torch.softmax(logits / tau, dim=-1)
-    if top_m is None or top_m == vocab_size:
+    probabilities = torch.softmax(logits[..., :transport_vocab_size] / tau, dim=-1)
+    if top_m is None or top_m == transport_vocab_size:
         truncated = probabilities
         dropped_top_m = torch.zeros_like(probabilities[..., 0])
     else:
@@ -137,6 +160,7 @@ def transport_embeddings(
     tau: float,
     top_m: int | None = None,
     allow_partial_support: bool = False,
+    source_vocab_size: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, SoftTransportStats]:
     _require_torch()
     target_probabilities, stats = transport_probabilities(
@@ -145,6 +169,7 @@ def transport_embeddings(
         tau=tau,
         top_m=top_m,
         allow_partial_support=allow_partial_support,
+        source_vocab_size=source_vocab_size,
     )
     if receiver_embedding_weight.ndim != 2:
         raise SoftTransportError("receiver embedding weight must be rank two")

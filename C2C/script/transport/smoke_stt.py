@@ -410,6 +410,7 @@ def _load_runtime(config: TransportConfig, artifact_path: Path):
         tau=config.transport.tau,
         causal_shift=config.transport.causal_shift,
         source_top_m=config.transport.source_top_m,
+        source_vocab_size=len(source_tokenizer),
     )
     return wrapper, source_tokenizer, target_tokenizer
 

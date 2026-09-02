@@ -42,6 +42,10 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 
 `torch.cuda.is_available()`、可见设备数量和显存门禁都可能通过，但预编译 wheel 仍不包含实际 GPU 的 kernel image。Job 241 在 RTX 5090/Blackwell `sm_120` 上使用 torch 2.6.0/cu124：两侧权重可以加载，直到首个 generation kernel 才报 `no kernel image is available for execution on the device`，浪费模型加载时间且无法形成报告。真实模型入口必须在加载权重前读取每个设备的 `get_device_capability()`，并确认对应 `sm_xy` 存在于 `torch.cuda.get_arch_list()`。当项目默认 torch pin 与新硬件不兼容时，不应原地覆盖共享 venv 或静默放宽版本；应以 `python3 -m venv` 创建任务隔离环境，定义精确、命名的硬件 runtime profile，并把 profile/实际 wheel/CUDA 设备写入产物 provenance。
 
+## LM head vocab 可能包含 tokenizer 之外的尾部 padding
+
+模型 `config.vocab_size`/LM head rows 不一定等于 `len(tokenizer)`。Qwen3-8B 的 head 为 151,936 rows，而锁定 tokenizer 只有 151,669 个真实 token；尾部 267 rows 是硬件对齐 padding，不能被 tokenizer 编码，也不应要求正式 T 为其构边。另一方面，简单开启 partial-support 会掩盖真实的 artifact 缺边。精确 STT 只能在 tokenizer fingerprint 已验证后显式传入 `source_vocab_size`，要求 artifact source IDs 完整且连续覆盖 `0..source_vocab_size-1`，然后在 softmax 前裁掉纯尾部 padded logits；未传 size、存在中间缺口或 artifact 未覆盖 tokenizer vocab 时仍严格失败。
+
 ## 稀疏 OT 必须同时覆盖两侧 support
 
 逐 source 的 special/exact/span/ANN 优先级只能保证每个正质量 source 有出边，不能保证每个正质量 target 有入边；尤其 source 存在未被语料实际使用的 exact target token 时，会遮蔽语料中真实出现的细粒度 target span。构图完成后必须对缺失 target 做反向 exact-byte 与 observed-span rescue，再执行两侧 support 和连通分量质量检查；没有安全证据时应失败，不能任意连边伪造可行性。

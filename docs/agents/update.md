@@ -119,3 +119,5 @@
 - 推送 Blackwell 修复未验收提交 `17762a1` 及 Guqq C2C 等价提交 `4fe0065`；登记独立 python venv/cu128 wheel 安装，避免覆盖项目默认环境。
 - Guqq 独立 python venv 成功安装 torch 2.7.1+cu128 与精确 smoke 依赖，全部 wheel、共享环境不变；登记以 Blackwell profile 和更新 code version 重提真实 Slurm smoke。
 - Blackwell runtime 的真实 smoke 已提交为 Job 243；空输出/队列门禁通过，开始只读验收 profile、sm_120、双路径报告与资源证据。
+- Job 243 已完成 Receiver-only，但 STT 暴露 Qwen LM head 151,936 与 tokenizer/T 151,669 的尾部 padding 差异；作业 Exit 1、无报告。进入显式 tokenizer vocab size 修复，仅允许裁掉连续尾部非 token rows，保持任意 partial support 严格失败。
+- 完成 LM-head padding 严格修复：loader 传入已验证 tokenizer len，soft transport 仅接受 artifact 完整连续覆盖该 vocab 后裁掉尾部 padded logits；partial/middle-gap 保持失败。定向 32/32、完整 149/149 与静态检查通过。

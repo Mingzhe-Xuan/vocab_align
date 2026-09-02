@@ -141,6 +141,7 @@ class TrainingFreeTransportModel(_ModuleBase):
         causal_shift: bool = True,
         source_top_m: int | None = None,
         receiver_start_token_id: int | None = None,
+        source_vocab_size: int | None = None,
     ) -> None:
         _require_torch()
         super().__init__()
@@ -155,6 +156,14 @@ class TrainingFreeTransportModel(_ModuleBase):
             or source_top_m <= 0
         ):
             raise TransportModelError("source_top_m must be null or a positive integer")
+        if source_vocab_size is not None and (
+            isinstance(source_vocab_size, bool)
+            or not isinstance(source_vocab_size, int)
+            or source_vocab_size <= 0
+        ):
+            raise TransportModelError(
+                "source_vocab_size must be null or a positive integer"
+            )
         if receiver_start_token_id is None:
             config = getattr(receiver_model, "config", None)
             receiver_start_token_id = getattr(config, "bos_token_id", None)
@@ -180,6 +189,7 @@ class TrainingFreeTransportModel(_ModuleBase):
         self.tau = float(tau)
         self.causal_shift = causal_shift
         self.source_top_m = source_top_m
+        self.source_vocab_size = source_vocab_size
         self.receiver_start_token_id = receiver_start_token_id
 
     def build_virtual_prompt(
@@ -234,6 +244,7 @@ class TrainingFreeTransportModel(_ModuleBase):
             receiver_weight,
             tau=self.tau,
             top_m=self.source_top_m,
+            source_vocab_size=self.source_vocab_size,
         )
         transported = transported.to(dtype=receiver_weight.dtype)
         active = source_attention_mask.bool().unsqueeze(-1)

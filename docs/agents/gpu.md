@@ -352,3 +352,4 @@
 
 - 连接用途：同步兼容分支后只读监控 Job 243 队列和增量日志；终态则收集报告、runtime/profile/arch、两路输出、transport stats、GNU time、MaxRSS、原子性与 SHA。
 - 权限判断与验收边界：仅只读、不取消或重提；验收标准完全沿用 04:55 条目。
+- 实际结果：Job 243 使用 cu128 环境成功加载两模型并完成 Receiver-only，证明 Blackwell kernel 兼容修复生效；STT 在 source transport 前以 `exact transport requires artifact coverage of the full source vocabulary` 失败。Qwen3 LM head 为对齐填充的 151,936 rows，而 fingerprint-verified tokenizer/T source vocab 为 151,669，尾部 267 rows 不是可编码 token。作业 0:14.99、Exit 1、MaxRSS 16,415,184 KiB、0 swap，无合格 JSON。

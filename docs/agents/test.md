@@ -718,3 +718,16 @@ Job 241 兼容修复追加计划：
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-profile test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：14 passed（9.71s），覆盖两个 runtime profile、Slurm override 和 `sm_120` 支持/拒绝门禁。
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/full-profile -q`：148 passed（74.19s），仅有既存 pandas 可选依赖 2 条 warning。
 - Black `format_str` 对最终 3 个变动 Python 文件检查 unchanged；内存 compile 3/3、Slurm `bash -n` 与 `git diff --check` 通过。
+
+真实 Job 243 结果与追加测试计划：
+
+- cu128 profile 通过 arch 门禁、加载两模型并完成 Receiver-only；STT 因 Qwen3 LM head 151,936 rows 与 tokenizer/T 151,669 的尾部 padded rows 不等而在 exact support 门禁失败。0:14.99、Exit 1、MaxRSS 16,415,184 KiB、0 swap，无合格报告。
+- 新增 explicit `source_vocab_size` 单元：当 artifact source IDs 恰为 `0..source_vocab_size-1` 且 logits 仅多连续尾部 padded rows 时，结果必须等于对 tokenizer logits 做精确 softmax/transport；统计质量为完整保留。
+- 未显式给出 tokenizer vocab size、artifact 存在中间缺口、size 超过 logits、或 artifact 不完整覆盖 tokenizer vocab 时仍必须报错；不能把 `allow_partial_support` 静默用于 exact STT。
+- wrapper/真实 loader 必须从 fingerprint 已验证的 source tokenizer `len()` 传递该值；tiny wrapper 回归继续验证默认严格路径。修复后重新跑定向、完整回归和真实 Slurm smoke。
+
+LM-head padding 修复本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/padded-vocab test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：32 passed（9.94s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-padded-vocab -q`：149 passed（74.57s），仅有既存 pandas 可选依赖 2 条 warning。
+- Black `format_str` 对最终 5 个变动 Python 文件检查 unchanged；内存 compile 5/5、`git diff --check` 通过。测试明确覆盖尾部 padded rows 等价 oracle、未显式 size、超界 size 和中间缺口即使请求 partial 也失败。
