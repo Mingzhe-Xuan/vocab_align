@@ -359,3 +359,9 @@
 - 连接用途：同步 padded-vocab 兼容提交 `f4de100`，确认 Job 243 无 JSON/partial、队列为空后，以 Blackwell venv/profile 和 `CODE_VERSION=b0bff17c9aa088ddad10fe98723a63b49f96e863` 重跑同一真实 smoke。
 - 权限判断与顺序：首项 ff-only pull；其余轻量门禁后仅通过 Slurm 运行模型。环境、artifact、prompt、2-token、1 GPU/192G/4h 保持与 Job 243 相同，只改变已本地验收的 tokenizer-vocab padding 修复。
 - 验收边界：沿用 04:55 全部标准，并要求 source input shape/virtual prompt 能跨过 151,936→151,669 显式裁剪，quality stats 有限且 retained/active mass 合理；无 JSON/partial 则失败。
+- 实际结果：pull 从 `4fe0065` 快进到 `f4de100`，HEAD/空输出及 partial/空队列门禁通过；padding 修复真实 smoke 已提交为 Job 244。
+
+## 2026-09-03 05:10 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 244 队列/日志；终态收集 schema v2 JSON 全字段、资源、原子性和 SHA。
+- 权限判断与验收边界：仅只读、不取消或重提；标准沿用 05:08 条目。
