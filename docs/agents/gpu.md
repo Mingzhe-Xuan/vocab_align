@@ -156,3 +156,9 @@
 - 连接用途：验证临时分支第二个 `[UNACCEPTED]` 提交 `463c3b9`，确认 `ftol=0` 是否消除 Job 232 的 `FACTR*EPSMCH` early termination，并在同一真实图达到严格 `1e-9`。
 - 权限判断：第一条远端操作为仓库内普通 `git pull`，随后仅 `git pull origin validation/job230-dual-increment`、版本/输入/队列轻量复核和 `sbatch`；所有 2.3M-edge 计算仍只在 64G/8h Slurm allocation 内。
 - 计划顺序：使用新的 `dual_ftol_validation` artifact/audit 路径，不覆盖 Job 230/232 现场；验收 termination 不再由 FACTR、累计 evaluation 不越界、两侧 residual、MaxRSS、checkpoint 与原子产物。失败仍不合并 main，并因同一任务连续第三次失败阈值复核 `docs/agents/lessons.md`。
+- 实际结果：首条 pull 约 90 秒后以 GnuTLS `-110` 失败；`bash net.sh` 成功，但 retry pull 约 135 秒后 GitHub 443 timeout。未同步临时提交、未执行版本/输入/队列查询，也未提交新 Slurm 作业；已退出。
+
+## 2026-09-02 09:22 +08:00
+
+- 连接用途：在用户确认 pull 可用的窗口做一次独立同步重试，目标仍为临时 `ftol=0` 提交 `463c3b9`/审计 `2e78433` 与 `dual_ftol_validation` Slurm 作业；若仍失败则停止本轮远端重试并保留 pending。
+- 权限判断与顺序：新会话第一条操作仍为 `cd vocab_align && git pull`；成功前不做任何其他远端操作。成功后才 pull 临时分支、复核并 `sbatch`，所有计算只在 Slurm。
