@@ -116,3 +116,4 @@
 - Job 241 在模型加载后因 torch 2.6.0 CUDA wheel 缺少节点 GPU 架构 kernel image 失败；26.39s、Exit 1、MaxRSS 5.58GiB、无有效报告。登记轻量 Slurm GPU capability 诊断，随后按计划的 CPU/offload 功能验收边界修复。
 - Job 242 确认 RTX 5090 32,607MiB/Blackwell sm_120/驱动 570.211.01；将修复收敛为隔离 torch 2.7.1+cu128 runtime profile 和 compiled-arch 加载前门禁，优先恢复 GPU 功能 smoke，不用 CPU fallback 掩盖环境不兼容。
 - 完成命名 runtime profile 与 compiled-arch preflight：默认项目 torch 2.6.0 不变，新增精确 `blackwell-cu128` 2.7.1+cu128 profile，Slurm 可显式选择并写入报告；定向 14/14、完整 148/148 和静态检查通过。
+- 推送 Blackwell 修复未验收提交 `17762a1` 及 Guqq C2C 等价提交 `4fe0065`；登记独立 python venv/cu128 wheel 安装，避免覆盖项目默认环境。

@@ -333,3 +333,9 @@
 - 连接用途：同步兼容分支后只读读取 Job 242 队列/终态与 `stt-gpu-cap-242.out/.err`，记录 GPU 硬件事实。
 - 权限判断与验收边界：仅只读，不提交新作业；根据硬件结果回到本地设计 CPU/offload fallback。
 - 实际结果：Job 242 已完成且 stderr 为空；GPU 为 NVIDIA GeForce RTX 5090、32,607 MiB，驱动 570.211.01、CUDA 12.8。RTX 5090 属 Blackwell `sm_120`，确认 torch 2.6.0/cu124 wheel 缺少其 kernel image，Job 241 根因成立。
+
+## 2026-09-03 04:45 +08:00
+
+- 连接用途：同步 Blackwell 兼容提交 `4fe0065`；创建独立 Python venv `C2C/.venv-smoke-cu128`，从 PyTorch 官方 cu128 index 安装 torch 2.7.1，并精确安装 smoke 依赖与记录最终版本。
+- 权限判断与顺序：第一项为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；随后仅执行 AGENTS 允许的 `python3 -m venv` 和 wheel 下载/安装，不初始化 CUDA、不加载模型或推理。网络失败用 `bash net.sh`；源码编译则停止。
+- 验收边界：共享 `C2C/.venv` 保持不变；新环境需报告 torch `2.7.1+cu128`、accelerate 1.9.0、transformers 4.52.4 及锁定数值依赖。GPU arch/kernel 验证留给后续 Slurm 作业。
