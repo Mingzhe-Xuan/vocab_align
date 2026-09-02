@@ -47,6 +47,8 @@ Job 232 实际结果：`39:06.15`、Exit 1、MaxRSS `1,847,136 KiB`、0 swap；2
 
 首次同步实际结果：首条 pull GnuTLS `-110`，`net.sh` 后 retry 为 GitHub 443 timeout；未同步/未提交 job。独立重试登记的首条 pull 与失败停止条件已复核，相关文档 `git diff --check` 通过。
 
+Job 233 提交检查：服务器同步 `7482ef5`，输入哈希与 Job 230/232 一致，无同名作业，独立 `dual_ftol_validation` 路径；监控至 14:49 后 SSH reset 但未取消 Slurm。恢复连接用途/首条 pull/只读边界一致，相关文档 `git diff --check` 通过。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。

@@ -162,3 +162,9 @@
 
 - 连接用途：在用户确认 pull 可用的窗口做一次独立同步重试，目标仍为临时 `ftol=0` 提交 `463c3b9`/审计 `2e78433` 与 `dual_ftol_validation` Slurm 作业；若仍失败则停止本轮远端重试并保留 pending。
 - 权限判断与顺序：新会话第一条操作仍为 `cd vocab_align && git pull`；成功前不做任何其他远端操作。成功后才 pull 临时分支、复核并 `sbatch`，所有计算只在 Slurm。
+- 实际结果：首条 pull 成功获取临时分支更新，随后 fast-forward 到 `7482ef5`；输入哈希一致、无同名作业，提交独立 `dual_ftol_validation` Job 233。作业持续 RUNNING 至至少 14:49，随后 SSH 被远端 reset；Slurm 未被取消，终态待新审计连接恢复检查。
+
+## 2026-09-02 09:43 +08:00
+
+- 连接用途：恢复持久监控 `ftol=0` 临时验证 Job 233；等待终态后读取 termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
+- 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；随后只运行 `squeue` 和结果只读检查，不提交新作业、不运行登录节点计算、不修改服务器源码/产物。

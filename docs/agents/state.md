@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。`ftol=0` 临时提交 `463c3b9` 的首次同步因 GnuTLS/443 timeout 失败，未提交新作业；已登记一次独立同步重试，main 不受影响。
+正在实施 Training-free Soft-Token Transport。独立同步成功并提交 `ftol=0` Slurm Job 233；作业运行至少 14:49 后监控 SSH 被 reset，但 Slurm 未中断。已登记恢复终态监控连接，main 不受影响。
 
 ## 当前计划
 
@@ -86,5 +86,6 @@
 - 2026-09-02 09:15 +08:00：`ftol=0` 选项与回归断言完成；定向 24/24、完整 129/129、Black/compile/diff 均通过。下一步推送第二个临时未验收提交并登记独立 Slurm 复验。
 - 2026-09-02 09:16 +08:00：第二个临时未验收提交 `463c3b9` 已推送；登记 Guqq `dual_ftol_validation` 独立 Slurm 回归，下一步提交审计记录后连接并首先 pull。
 - 2026-09-02 09:22 +08:00：Guqq 首条 pull 以 GnuTLS 失败，`net.sh` 后 retry 以 443 timeout 失败，未提交新 job。登记一次独立同步重试；若仍失败则暂停远端并保持验证 pending。
+- 2026-09-02 09:43 +08:00：独立重试成功同步 `7482ef5` 并提交 Job 233；相同输入/配置作业运行至少 14:49 后监控 SSH 被 reset，Slurm 未中断。登记新连接恢复终态只读验收。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
