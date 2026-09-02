@@ -182,6 +182,25 @@ Job 230 恢复检查：记录第三次 pull/输入哈希/提交及会话关闭�
 - `git diff --check`：通过（仅 Git 的 LF→CRLF 工作树提示，无 whitespace error）。
 - 远程集成验收计划：在 Guqq 通过 32G/4h Slurm 运行锁定 revision 的正式入口；要求 Exit 0、source prefix 恰为 500,000 rows、manifest 的 selected/unique/duplicate/train/dev 计数自洽、dataset/revision/raw split/selection/filtering/seed provenance 完整、records SHA-256 与 manifest 绑定一致、JSONL/manifest 均可解析且不存在 partial，并记录 GNU time/MaxRSS 与文件哈希。未满足任一项不得进入正式 T 构建。
 - 首次远程环境门禁实际结果：`.venv/bin/python -c 'import datasets'` 在提交前以 `ModuleNotFoundError` 退出，队列为空且未生成/覆盖输出；按计划先补齐并记录精确依赖，不把环境失败计作物化结果，也不降低脚本的 `datasets==4.0.0` 检查。
+- Job 239 远程实际结果：datasets 4.0.0/version/help 门禁通过；作业 2:00.06、Exit 0、MaxRSS `7,128,336 KiB`、0 swap。records 恰为 500,000 行/909,629,231 bytes，manifest 43,500,816 bytes；unique/duplicate/train/dev 为 500,000/0/495,000/5,000，split 内唯一且彼此无交叉；锁定 dataset/revision/raw split、identity、pinned-prefix selection、adapter filtering not-applied、seed 42 和输入指纹齐全。records SHA `539f2d30…5d485a` 与 manifest 绑定一致，manifest/SBATCH stderr SHA 为 `a50c0dca…7c60fa`/`c4a91c0d…728e65`，边界 JSON 可解析且无 partial；远程集成验收通过。
+
+正式 manifest-bound T Slurm 入口实现单元测试计划：
+
+- 新入口必须固定主 source/target 及两侧 revision、正式 records/manifest、`transport_train`、结构化 ANN、epsilon 0.5、tolerance `2e-3`、max_iter 10,000、smoothing `1e-8`、seed 42，并只写忽略的 artifact/audit/checkpoint/log 路径。
+- 环境变量仅允许覆盖 Python、输入输出、构建参数和 code version；脚本必须在提交目录/解释器/输入存在时才启动，创建输出目录，保留 GNU time telemetry，支持显式 `RESUME=1`，不硬编码 partition。
+- stub 集成测试捕获传给 builder 的参数与环境，验证 manifest 模式不混入 preview `--texts-jsonl`、默认值和 override 精确转发、失败码透传、resume 标志、SBATCH 资源/日志与 `bash -n`；完整 pytest、Black、compileall 和 diff 检查保持通过。
+- 真实 500k 构建属于明显计算负载，只能在临时 `[UNACCEPTED]` 提交经 Guqq Slurm 验收；要求正式 artifact/audit/checkpoint 原子完整、metadata 绑定 manifest/records/ANN、两侧 residual `<=2e-3`、严格列和/非负/特殊映射/目标统计有效，并记录 MaxRSS、耗时和哈希。
+
+实际结果：
+
+- `python -m pytest ... test_formal_transport_slurm.py test_build_vocab_transport_cli.py test_corpus.py test_materialize_openhermes_slurm.py ... -q`：17 passed in 28.14s；覆盖脚本语法/资源/锁定值、manifest 模式、默认与 override、resume 和失败传播。
+- 完整回归：`137 passed, 2 warnings in 68.64s`；warnings 仍仅为既有 pandas 可选 numexpr/bottleneck 版本提示。
+- 新测试文件 Black unchanged；重定向 bytecode cache 的 compileall、`bash -n script/transport/slurm/build_formal_transport.sbatch` 和 `git diff --check` 通过。真实 formal artifact 尚未构建，当前实现仅可进入临时 `[UNACCEPTED]` Slurm 验证提交。
+- Job 240 远程实际结果：兼容分支 C2C tree 与 main-based `5787a71` 一致；输入 records/manifest/ANN SHA 与 Job 239/既有 ANN 验收值一致，输出路径预先不存在。作业 51:57.26、Exit 0、MaxRSS `8,036,128 KiB`、0 swap。
+- 正式 artifact 为 39,951,267 bytes、shape `131069×151669`、nnz/candidate edges `2,733,518`；metadata code version 为 main 验收 `f433000fa8514296dd5849c619ecd99a4e449bed`，data provenance 为锁定 OpenHermes revision、transport_train、495,000 selected samples、997,233 canonical messages、records SHA `539f2d30…5d485a`、manifest SHA `a50c0dca…7c60fa`、ANN SHA `260f9804…e91652`，构建参数 `0.5/0.002/10000/1e-8`。
+- audit `valid=true`；row/column/transported L1 为 `1.9655245213e-3`/`1.0560509249e-13`/`1.9655245213e-3`，最大列和误差 `1.2299050667e-12`，minimum 0，transport cost `3.6869566806`、regularized objective `-1.2818040356` 均有限，dangerous special mappings 为空。checkpoint 为 `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。
+- artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 为 `1495d522…0aba97`/`79c4ad38…5caf84`/`53b6a464…1948de`/`13bbda9b…c2457e`/`4deb7afd…517ad7`；远程正式 T 集成验收通过。
+- Job 240 后最终本地回归：`137 passed, 2 warnings in 68.24s`，warnings 仍仅为 pandas 可选 numexpr/bottleneck 版本提示；新测试 Black unchanged、compileall、正式 Slurm 脚本 `bash -n`、两份计划路径与 `git diff --check` 全部通过。
 
 ## 2026-09-02：memory-bounded dual telemetry 单元
 

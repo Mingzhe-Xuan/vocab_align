@@ -29,3 +29,6 @@
 - 预检结果：`.venv/bin/python -c 'import datasets'` 报 `ModuleNotFoundError`；物化 Slurm 脚本明确要求 `datasets==4.0.0`，因此未提交不满足环境门禁的作业。
 - 计划安装命令：`.venv/bin/python -m pip install datasets==4.0.0`。依赖安装/下载属于登录节点允许的轻量环境操作；若发生源码编译或明显计算负载则停止并改走 Slurm。
 - 计划验证：打印 Python、datasets、pyarrow、huggingface-hub、fsspec、requests、tqdm、NumPy 和 SciPy 版本，并执行物化模块 import/help；实际版本与安装结果将在完成后追加，运行时仍使用 `PYTHONPATH=.` 和锁定 `HF_ENDPOINT`。
+- 实际安装：`.venv/bin/python -m pip install datasets==4.0.0` 成功；所有包均来自 wheel/cache 下载，无源码编译。安装将既有 fsspec 2026.7.0 按 datasets 约束降为 2025.3.0。
+- 验证结果：Python 3.10.12、datasets 4.0.0、pyarrow 25.0.1、huggingface-hub 0.36.2、fsspec 2025.3.0、requests 2.34.2、tqdm 4.70.0、NumPy 2.2.6、SciPy 1.15.3、pandas 2.3.3；`PYTHONPATH=. .venv/bin/python -m script.dataset.materialize_transport_corpus --help` 通过。
+- 新增传递依赖：aiohappyeyeballs 2.7.1、aiohttp 3.14.3、aiosignal 1.4.0、async-timeout 5.0.1、attrs 26.1.0、dill 0.3.8、frozenlist 1.8.0、multidict 6.7.1、multiprocess 0.70.16、propcache 0.5.2、python-dateutil 2.9.0.post0、pytz 2026.3.post1、six 1.17.0、tzdata 2026.3、xxhash 4.0.1、yarl 1.24.5。

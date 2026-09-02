@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 1 的真实 full-vocabulary 预览 artifact 已通过 `2e-3`、原子保存、独立稀疏审计和资源门禁，阶段 2 精确原型及阶段 4 approximation 核心已通过本地测试；正在整理 main 验收提交，随后进入正式 500k 语料物化、正式 T 构建和真实短序列 smoke。
+正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact 与正式 Slurm 入口均已通过本地和远端验收；当前进入真实模型短序列 STT smoke 的依赖、资源和运行入口审查。
 
 ## 当前计划
 
-1. 将已验证临时分支的最终净变更整理为 main 验收提交并推送。
-2. 通过 Slurm 物化锁定 revision 的 OpenHermes 500k pinned prefix，并生成/审计正式 transport manifest。
-3. 构建正式 T artifact，完成真实模型短序列 STT smoke；随后实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集评测。
+1. 复核真实模型 smoke CLI 的依赖、device map、正式 artifact、最短输入和 diagnostics 输出协议，明确 GPU/显存门禁。
+2. 实现并测试无 partition 的 smoke Slurm 入口，在 Guqq 运行最短序列 Receiver-only 与 STT diagnostics。
+3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
 
 ## 变更记录
 
@@ -107,5 +107,10 @@
 - 2026-09-03 01:31 +08:00：最终代码树完整回归 133/133；本分支实际修改的 10 个 Python 文件通过 Black，compileall、3 个 Slurm 脚本的 Bash syntax、计划路径和 `git diff --check` 均通过。进入临时证据提交与 main squash 验收提交阶段，`docs/assets/alignment.py` 继续作为未跟踪用户参考排除。
 - 2026-09-03 01:36 +08:00：验证净变更已 squash 为 main 验收提交 `f433000` 并推送；进入正式 OpenHermes 500k pinned-prefix 物化阶段。下一步按既有远程验收计划登记 Guqq 连接，先 pull main，再经 32G/4h Slurm 生成独立 corpus/manifest 并核验原子性、计数、provenance、资源与哈希。
 - 2026-09-03 01:42 +08:00：服务器 main 因 squash 与临时历史产生文档冲突，已用 merge abort 恢复并通过 `git pull --ff-only` 同步到 C2C 内容一致的验证分支；环境门禁发现 `.venv` 缺少脚本锁定的 datasets 4.0.0，未提交作业。下一步按 env 记录安装/复核依赖后再经 Slurm 物化，不绕过门禁。
+- 2026-09-03 02:00 +08:00：datasets 4.0.0 环境补齐后 Job 239 以 2:00.06/Exit 0/MaxRSS 7,128,336 KiB 完成正式物化；500,000 rows 全部唯一，495,000/5,000 split 无交叉，锁定 revision、prefix selection、未过滤状态、records hash 与无 partial 均通过。进入正式 manifest-bound T Slurm 入口实现单元。
+- 2026-09-03 02:04 +08:00：正式 T Slurm 入口、README 与 4 个 stub 集成测试完成；定向 17/17、完整 137/137，Black/compileall/Bash/diff 均通过。下一步创建 `validation/formal-transport-500k` 临时分支的 `[UNACCEPTED]` 提交并登记 Guqq 真实 500k 构建，远程通过前不合并 main。
+- 2026-09-03 02:06 +08:00：main-based 临时提交 `5787a71` 已推送；因 Guqq 旧历史不能快进 squash main，计划从服务器当前 `5a0368f` 建立 C2C 内容等价的兼容验证分支，仅供首条 ff-only pull 与 Slurm 运行。下一步提交该分支并复核 C2C tree 一致性后连接。
+- 2026-09-03 03:10 +08:00：兼容分支 `bb4bab6` 与 main-based `5787a71` 的 C2C tree 一致；Job 240 在 51:57.26/Exit 0/MaxRSS 8,036,128 KiB 下完成正式 T。495k/997,233 条数据 provenance、`1.9655e-3` row residual、严格列和、目标、special、complete checkpoint、无 partial 和哈希均通过。下一步补全记录、复跑最终本地验收并整理 main。
+- 2026-09-03 03:12 +08:00：Job 240 后最终代码树完整回归 137/137；新测试 Black unchanged、compileall、正式脚本 Bash syntax、两份计划路径和 diff 检查均通过。进入 main-based 临时分支证据提交与 squash 验收提交阶段，之后直接推进真实模型短序列 smoke。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
