@@ -20,6 +20,11 @@ does not modify the existing C2C projector or wrapper.
 - `corpus_materialization.py`: streaming pinned-source-prefix materialization
   matching `OpenHermesChatDataset` sample limiting, atomic JSONL publication,
   and selection-provenance manifests.
+- `approximations.py`: deterministic transport-hard embeddings, edge-chunk
+  sparse accumulation, precomputed source values, and zero-safe approximation
+  error metrics.
+- `orf.py`: seeded block-orthogonal positive random features, sparse-transport
+  vocabulary-block pre-aggregation, and online `u @ S.T / (u @ z)` mapping.
 - `token_metadata.py`: raw token bytes, character-to-byte offsets, tokenizer
   fingerprints, and special/control classification shared by builders/audits.
 - `baseline.py`: deterministic baseline snapshots that keep canonical messages

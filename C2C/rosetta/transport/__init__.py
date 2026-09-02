@@ -7,6 +7,15 @@ from .artifact import (
     load_transport_artifact,
     save_transport_artifact,
 )
+from .approximations import (
+    ApproximationError,
+    ApproximationErrorReport,
+    approximation_error,
+    chunked_transport_embeddings,
+    hard_transport_embeddings,
+    precompute_source_values,
+    precomputed_transport_embeddings,
+)
 from .ann_candidates import (
     AnnCandidateError,
     ByteLshConfig,
@@ -58,6 +67,14 @@ from .manifest import (
 )
 from .marginals import MarginalError, TokenMarginal, estimate_token_marginal
 from .metrics import MetricsError, TransportMetrics
+from .orf import (
+    OrfError,
+    OrfTransportState,
+    apply_orf_transport,
+    build_orf_directions,
+    build_orf_transport_state,
+    positive_orf_features,
+)
 from .sinkhorn import (
     ConvergenceReport,
     SparseCoupling,
@@ -84,6 +101,7 @@ from .soft_transport import (
     SoftTransportStats,
     transport_embeddings,
     transport_probabilities,
+    source_probabilities,
 )
 from .vocab_transport import (
     LocalTransportArtifact,
@@ -103,6 +121,8 @@ from .wrapper import (
 
 __all__ = [
     "AnnCandidateError",
+    "ApproximationError",
+    "ApproximationErrorReport",
     "ArtifactError",
     "BaselineError",
     "BaselineSnapshot",
@@ -121,6 +141,8 @@ __all__ = [
     "MarginalError",
     "MetricsError",
     "ModelSpec",
+    "OrfError",
+    "OrfTransportState",
     "SinkhornError",
     "SparseCoupling",
     "SoftTransportError",
@@ -137,9 +159,10 @@ __all__ = [
     "VocabTransportBuildResult",
     "TokenMetadata",
     "TokenMarginal",
-    "SelectionResult",
     "accumulate_byte_span_counts",
     "artifact_from_dense",
+    "approximation_error",
+    "apply_orf_transport",
     "audit_markdown",
     "audit_transport_artifact",
     "augment_candidate_graph_for_marginals",
@@ -150,6 +173,8 @@ __all__ = [
     "build_candidate_graph",
     "build_bidirectional_lsh_candidates",
     "build_corpus_manifest",
+    "build_orf_directions",
+    "build_orf_transport_state",
     "canonical_messages",
     "canonical_sample_id",
     "conditional_from_coupling",
@@ -166,6 +191,9 @@ __all__ = [
     "materialize_corpus",
     "load_transport_artifact",
     "ordinary_bytes_index",
+    "positive_orf_features",
+    "precompute_source_values",
+    "precomputed_transport_embeddings",
     "save_transport",
     "save_transport_artifact",
     "save_manifest",
@@ -179,6 +207,9 @@ __all__ = [
     "transport_to_dense",
     "transport_embeddings",
     "transport_probabilities",
+    "source_probabilities",
+    "hard_transport_embeddings",
+    "chunked_transport_embeddings",
     "sparse_conditional_from_coupling",
     "sparse_log_sinkhorn",
 ]

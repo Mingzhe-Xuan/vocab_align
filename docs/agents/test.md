@@ -1,5 +1,24 @@
 # 测试记录
 
+## 2026-09-02：阶段 4 transport approximation 核心单元
+
+计划范围：
+
+- `approximations.py`：TH 必须等于精确 `Tp` 的确定性 argmax 对应 receiver embedding（tie 取最小原 token ID）；edge-chunk sparse accumulation 与预计算 `C_i=W_in^B T[:,i]` 均对齐现有 exact embedding oracle；source top-m 全词表退化为 exact，丢弃质量沿 m 单调不增。
+- `orf.py`：按 `docs/assets/algo_detail.md`/用户提供的 `docs/assets/alignment.py` 使用 seeded block-orthogonal Gaussian directions和正特征；bias 与通信 tau 同时进入分子/分母，稀疏 T 分块构造 `S,z`，在线 row-vector 公式为 `u @ S.T / (u @ z)`。
+- ORF 固定 seed 字节级可复现，不同 feature count 的 shape/内存估算正确；非法维度/tau/chunk、fingerprint/vocab 不匹配、非有限特征或非正 denominator 显式失败。
+- cosine/relative error 对双零、单零向量给出明确有限/`inf` 语义，不产生 NaN；近似质量与 T 质量分开报告。
+- 运行新增 approximation/ORF oracle、现有 soft transport/wrapper 定向回归、optional-torch import、完整 pytest、Black 与 `git diff --check`。
+
+远端边界：Job 230 恢复连接 pull 先后因 GnuTLS `-110` 与 `net.sh` 后 443 timeout 失败，按 AGENTS 未执行后续查询；本单元完全本地、无需 GPU。
+
+实际结果：
+
+- approximation/ORF、现有 soft transport 与 optional-torch/public-export 定向回归：`26 passed in 2.46s`；新增 public export 单测独立复核：`2 passed in 1.88s`。
+- 完整回归：`127 passed, 2 warnings in 55.66s`；两条 warning 仅为既有 pandas 对可选 `numexpr`/`bottleneck` 版本的提示。
+- Black 首轮发现 5 个文件需格式化；完成格式化后复核 6 个相关 Python 文件全部保持不变。Windows ACL 阻止沙箱写入两个新测试文件时，按既有经验仅提升格式化写权限后成功复核，未缩减测试范围。
+- `git diff --check`：通过，仅有工作树 LF→CRLF 提示，无 whitespace error。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。

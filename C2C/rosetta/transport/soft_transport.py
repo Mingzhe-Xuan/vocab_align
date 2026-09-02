@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+
 try:
     import torch
 except ModuleNotFoundError:  # Tokenizer/audit-only environments do not need torch.
@@ -49,6 +50,39 @@ def transport_probabilities(
     Truncated or partial active-support probabilities are renormalized, and
     their retained mass is returned so approximation loss is never silent.
     """
+    normalized, stats = source_probabilities(
+        logits,
+        artifact,
+        tau=tau,
+        top_m=top_m,
+        allow_partial_support=allow_partial_support,
+    )
+
+    columns_np = np.repeat(
+        np.arange(artifact.shape[1], dtype=np.int64), np.diff(artifact.indptr)
+    )
+    rows = torch.as_tensor(artifact.indices, dtype=torch.long, device=logits.device)
+    columns = torch.as_tensor(columns_np, dtype=torch.long, device=logits.device)
+    weights = torch.as_tensor(artifact.data, dtype=logits.dtype, device=logits.device)
+    contributions = normalized.index_select(-1, columns) * weights
+    target = torch.zeros(
+        (*logits.shape[:-1], artifact.shape[0]),
+        dtype=logits.dtype,
+        device=logits.device,
+    )
+    target.index_add_(-1, rows, contributions)
+    return target, stats
+
+
+def source_probabilities(
+    logits: torch.Tensor,
+    artifact: TransportArtifact,
+    *,
+    tau: float,
+    top_m: int | None = None,
+    allow_partial_support: bool = False,
+) -> tuple[torch.Tensor, SoftTransportStats]:
+    """Return normalized probabilities on artifact compact source columns."""
     _require_torch()
     artifact.validate()
     if logits.ndim < 1 or not logits.is_floating_point():
@@ -63,7 +97,9 @@ def transport_probabilities(
             "exact transport requires artifact coverage of the full source vocabulary"
         )
     if top_m is not None and (
-        isinstance(top_m, bool) or not isinstance(top_m, int) or not 1 <= top_m <= vocab_size
+        isinstance(top_m, bool)
+        or not isinstance(top_m, int)
+        or not 1 <= top_m <= vocab_size
     ):
         raise SoftTransportError("top_m must be an integer in [1, source_vocab]")
 
@@ -84,24 +120,13 @@ def transport_probabilities(
         raise SoftTransportError("selected source probability has zero active mass")
     normalized = active / active_mass.unsqueeze(-1)
 
-    columns_np = np.repeat(
-        np.arange(artifact.shape[1], dtype=np.int64), np.diff(artifact.indptr)
-    )
-    rows = torch.as_tensor(artifact.indices, dtype=torch.long, device=logits.device)
-    columns = torch.as_tensor(columns_np, dtype=torch.long, device=logits.device)
-    weights = torch.as_tensor(artifact.data, dtype=logits.dtype, device=logits.device)
-    contributions = normalized.index_select(-1, columns) * weights
-    target = torch.zeros(
-        (*logits.shape[:-1], artifact.shape[0]), dtype=logits.dtype, device=logits.device
-    )
-    target.index_add_(-1, rows, contributions)
     stats = SoftTransportStats(
         retained_mass=active_mass,
         dropped_top_m_mass=dropped_top_m,
         active_support_mass=probabilities.index_select(-1, source_ids).sum(dim=-1),
         top_m=top_m,
     )
-    return target, stats
+    return normalized, stats
 
 
 def transport_embeddings(

@@ -18,3 +18,10 @@ def test_transport_metadata_import_does_not_require_torch():
         check=False,
     )
     assert process.returncode == 0, process.stderr
+
+
+def test_transport_public_exports_are_bound():
+    import rosetta.transport as transport
+
+    missing = [name for name in transport.__all__ if not hasattr(transport, name)]
+    assert missing == []

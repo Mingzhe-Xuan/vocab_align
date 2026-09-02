@@ -68,5 +68,8 @@
 - 完成 marginal-scaled dual 预条件：以 `sqrt(marginal)` 可逆坐标缩放保持同一 OT 目标并修复稀有 token 梯度尺度；极端 `1e-14` 边际 fixture 严格收敛，完整回归 118/118。
 - scaled-dual 提交 `f5ba846` 已推送；Guqq pull 在首轮 60 秒及 `net.sh` 后 90 秒 retry 均无输出，未提交新 preview 作业，进入第三次独立同步尝试。
 - 第三次 Guqq pull 约 90 秒后成功同步 scaled-dual；输入哈希一致并提交 Job 230。监控至 19:31 仍 RUNNING，终态因本地会话关闭待恢复检查。
+- Job 230 恢复验收连接因 GnuTLS、`net.sh` 后 GitHub 443 timeout 均未完成 pull，未执行后续远端查询；转入本地阶段 4 approximation 核心单元。
+- 开始 TH/分块稀疏累积/预计算 source values/ORF 单元，接口与算法分别置于 `approximations.py` 和 `orf.py`，不把核心算法放入脚本。
 - 开始修订 GPU 测试提交流程：引入临时分支上的未验收验证提交，测试通过后才能形成验收提交或合并到正式分支。
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。
+- 完成阶段 4 approximation 核心：新增 TH、edge-chunk、预计算 source values、零安全误差与 seeded block-ORF `S,z`/在线映射；定向 26/26、完整回归 127/127、Black 与 diff 检查通过，准备形成验收提交。

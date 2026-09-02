@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。marginal-scaled dual 已同步 Guqq，Job 230 在相同 64G/严格 `1e-9` 配置下提交且至少运行至 19:31；持久会话因用户消息关闭，现待恢复终态验收。
+正在实施 Training-free Soft-Token Transport。阶段 4 exact/hard/chunked/precomputed/ORF approximation 核心已通过 127 个本地测试，正在形成验收提交。Job 230 终态仍待 Guqq 网络恢复后的合规验收；远端无后续操作。
 
 ## 当前计划
 
-1. 恢复只读验收 Job 230 的 state/exit、residual、MaxRSS、checkpoint、artifact/audit。
-2. preview artifact 验收后安装锁定 `datasets==4.0.0` 并提交正式语料物化作业。
-3. 对照两份计划逐项审计并继续阶段 2–4 的未完成交付物。
+1. 提交并推送已通过本地验收的 approximation/ORF 核心，保持 `docs/assets/alignment.py` 为未跟踪参考文件。
+2. 登记新的 Guqq 连接用途，连接后先 `git pull`，再只读验收 Job 230 终态与 artifact/audit；网络异常时运行 `bash net.sh` 后重试。
+3. Job 230 通过后提交正式 OpenHermes 500k 物化作业；若失败则依据不降低标准的原则进入对应修复单元。
 
 ## 变更记录
 
@@ -76,5 +76,7 @@
 - 2026-09-02 03:00 +08:00：确认 unscaled dual Hessian 对角受极端边际尺度支配；改用保持同一目标的 `sqrt(marginal)` 坐标预条件。80×80/`1e-14` 病态图以 60 次 evaluations 达 `9.30e-10`，完整回归 118/118。下一步形成验收提交并重跑同一真实图。
 - 2026-09-02 03:07 +08:00：scaled-dual 已推送，但 Guqq 持久会话首条 pull 60 秒、`net.sh` 后 retry 90 秒均无输出，未提交作业。按既有网络经验再做一次独立连接；若仍失败则停止重试并推进本地后续单元。
 - 2026-09-02 07:49 +08:00：第三次 pull 已在约 90 秒后成功并提交 Job 230；作业运行中监控会话因用户消息关闭但 Slurm 未中断。按新 AGENTS 规范恢复终态只读验收，随后决定正式语料阶段或本地修复。
+- 2026-09-02 08:00 +08:00：Job 230 恢复连接首条 pull 以 GnuTLS 失败，`net.sh` 后重试以 GitHub 443 timeout 失败；未越权查询。计划调整为本地阶段 4 approximation 核心，模块边界为 `approximations.py`（TH/分块/预计算/误差）与 `orf.py`（随机特征/`S,z`/在线映射）。
+- 2026-09-02 08:08 +08:00：阶段 4 approximation 核心完成本地验收；TH、edge-chunk、预计算 source values 与 ORF `S,z`/在线公式通过 oracle，完整回归 127/127。下一步形成验收提交并在新登记连接中恢复 Job 230 终态检查。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
