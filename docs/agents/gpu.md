@@ -249,3 +249,4 @@
 - 连接用途：以已确认的 `C2C/.venv` 路径完成依赖/artifact/cache 只读预检，并用 `scontrol show node` 获取 GPU 型号/节点内存等 Slurm 资源细节。
 - 权限判断与顺序：第一条远端操作继续为兼容分支 ff-only pull；之后仅运行 `scontrol`、`pip show`、`stat` 和缓存目录 `ls`，不存在项允许返回非零但不中断其他检查。
 - 验收边界：本次只收集事实，不安装包、不下载或加载模型；根据结果在本地完成 smoke 入口后，另行登记环境安装及 Slurm 验证连接。
+- 实际结果：首项 pull 成功；`node221` 为 48 CPU、257,787 MiB 总内存、当前约 161,250 MiB free、`compute` 默认分区、`Gres=gpu:1`，Slurm 未暴露 GPU 型号。`C2C/.venv` 有 transformers 4.52.4、无 torch/accelerate；正式 artifact 为 39,951,267 bytes，两侧模型 cache 目录均存在。全程只读，未初始化 CUDA 或加载权重。

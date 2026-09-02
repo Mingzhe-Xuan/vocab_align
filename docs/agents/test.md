@@ -691,3 +691,11 @@ revision 修复本地结果：
 - Slurm 入口不固定 partition，显式申请已核实的 GPU/CPU/内存/时限，运行前检查解释器、正式 artifact、CUDA、依赖和模型缓存，使用原子 JSON 输出与 GNU time telemetry，禁止覆盖既有正式结果。
 - CLI help 和 tiny 单元测试不得访问网络或加载远程模型；完整 pytest、Black、compileall、Bash syntax、Markdown 路径/命令和 `git diff --check` 均须通过。
 - 真实验收仅通过 Slurm：固定 Qwen3-8B/Mistral-Nemo revisions、正式 Job 240 artifact 和短 prompt，要求 Receiver-only/STT 均成功生成、报告可解析、provenance/shape/有限质量统计完整、无 `.partial`，并记录 Job ID、ExitCode、Elapsed、MaxRSS、GPU 和产物 SHA-256。该结果只证明功能正确性，不进入正式 latency 表。
+
+本地实际结果：
+
+- 首次从仓库根运行定向 pytest 在收集阶段因 `rosetta` 不在 Python 根失败；切换到 `C2C` 后未降低断言。系统 `%TEMP%` 路径随后触发既有 Bash/ACL 问题，按 lessons 改用工作区全新 `--basetemp` 后消除。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-real-20260903c test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：12 passed（10.12s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-smoke-20260903 -q`：146 passed（73.44s），仅有既存 pandas 对可选 numexpr/bottleneck 版本的 2 条 warning。
+- Black 直接 CLI 在 Windows 现有目录 ACL 下遗留 worker 并无法替换新测试文件；只终止本轮启动的 worker 后，用同版本 Black `format_str` 内存比较 3 个变动 Python 文件，结果全部 unchanged。未终止昨日已有的两个 Python 进程。
+- 3 个变动 Python 文件的内存 `compile(..., "exec")`、新 Slurm 脚本 `bash -n`、recipe 结构化解析/锁定字段、README 路径/命令和 `git diff --check` 均通过；compileall 仅因既有 `test/transport/__pycache__` ACL 无法写 `.pyc`，不是源码语法失败。

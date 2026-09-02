@@ -39,3 +39,5 @@
 - 计划门禁：先查询 GPU 类型/显存和 Hugging Face 缓存；再检查 `torch`、`accelerate`、`transformers`、`safetensors` 的可导入版本。真实模型要求项目锁定的 `torch==2.6.0`、`accelerate==1.9.0`、`transformers==4.52.4`。
 - 若缺包，仅在登录节点执行 wheel 安装/下载并记录命令与最终版本；若出现源码编译或明显计算负载则停止。CUDA 可用性、模型加载和推理必须在 Slurm GPU allocation 内验证。
 - 真实模型文件可在登录节点下载到任务约定的 Hugging Face cache，但不会在登录节点加载模型；实际缓存状态和安装结果待远端预检后追加。
+- 预检结果：节点 Python venv 中 `transformers==4.52.4` 已满足，但 `torch` 与 `accelerate` 均未安装；正式 Job 240 artifact 为 39,951,267 bytes，两侧 Hugging Face 模型缓存目录均存在。集群仅暴露 `gpu:1`，GPU 型号/显存需在 Slurm allocation 内用 `nvidia-smi`/PyTorch 确认。
+- 项目依赖修订：`device_map: auto` 的真实模型入口依赖 Accelerate，因此在 `pyproject.toml` 中补充精确 `accelerate==1.9.0`，与 `environment.yml` 保持一致；远端计划安装 `torch==2.6.0 accelerate==1.9.0` 的 wheel，并复核 CUDA wheel 与驱动兼容性。
