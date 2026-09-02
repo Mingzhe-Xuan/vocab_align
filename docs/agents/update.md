@@ -118,3 +118,4 @@
 - 完成命名 runtime profile 与 compiled-arch preflight：默认项目 torch 2.6.0 不变，新增精确 `blackwell-cu128` 2.7.1+cu128 profile，Slurm 可显式选择并写入报告；定向 14/14、完整 148/148 和静态检查通过。
 - 推送 Blackwell 修复未验收提交 `17762a1` 及 Guqq C2C 等价提交 `4fe0065`；登记独立 python venv/cu128 wheel 安装，避免覆盖项目默认环境。
 - Guqq 独立 python venv 成功安装 torch 2.7.1+cu128 与精确 smoke 依赖，全部 wheel、共享环境不变；登记以 Blackwell profile 和更新 code version 重提真实 Slurm smoke。
+- Blackwell runtime 的真实 smoke 已提交为 Job 243；空输出/队列门禁通过，开始只读验收 profile、sm_120、双路径报告与资源证据。

@@ -125,5 +125,6 @@
 - 2026-09-03 04:42 +08:00：`project-cu124`/`blackwell-cu128` 命名 profile、实际版本 provenance、`get_arch_list` 对 compute capability 的加载前门禁和 Slurm override 已完成；定向 14/14、完整 148/148 通过。下一步推送更新的未验收/兼容分支并创建独立 Python cu128 venv。
 - 2026-09-03 04:45 +08:00：Blackwell 修复已推送为 main-based 未验收提交 `17762a1` 和 C2C 等价兼容提交 `4fe0065`；下一步同步兼容分支并创建 `.venv-smoke-cu128`，真实通过前仍不合并 main。
 - 2026-09-03 04:55 +08:00：独立 `.venv-smoke-cu128` 已以 python venv 创建，torch 2.7.1+cu128 与全部精确 smoke 依赖 wheel 安装/版本门禁通过，共享 venv 不变。下一步用 Blackwell profile 重提真实 smoke。
+- 2026-09-03 04:57 +08:00：Blackwell profile 真实 smoke 已提交为 Job 243，解释器 `.venv-smoke-cu128`、profile `blackwell-cu128`、code version `17762a1…`；进入只读终态监控。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

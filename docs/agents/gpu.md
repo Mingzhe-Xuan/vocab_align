@@ -346,3 +346,9 @@
 - 连接用途：同步兼容提交，复核 Job 241 未留下 JSON/partial 和队列后，使用 `.venv-smoke-cu128/bin/python`、`RUNTIME_PROFILE=blackwell-cu128`、`CODE_VERSION=17762a1...` 重提同一真实 smoke。
 - 权限判断与顺序：第一项为 ff-only pull；其余输入/空输出/队列为轻量门禁，CUDA arch 检查、模型加载和推理全部在脚本的 Slurm GPU allocation 内。
 - 验收边界：沿用 04:24 的 schema/两路/provenance/原子性/资源要求，并新增 runtime profile=`blackwell-cu128`、torch=`2.7.1+cu128`、compiled arches 包含 `sm_120`、device capability `[12,0]`。
+- 实际结果：pull/HEAD/空输出及 partial/空队列门禁通过，Blackwell profile 真实重跑已提交为 Job 243；解释器、profile 与 code version 均通过 sbatch export 显式传入。
+
+## 2026-09-03 04:57 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 243 队列和增量日志；终态则收集报告、runtime/profile/arch、两路输出、transport stats、GNU time、MaxRSS、原子性与 SHA。
+- 权限判断与验收边界：仅只读、不取消或重提；验收标准完全沿用 04:55 条目。
