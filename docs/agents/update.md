@@ -123,3 +123,5 @@
 - 完成 LM-head padding 严格修复：loader 传入已验证 tokenizer len，soft transport 仅接受 artifact 完整连续覆盖该 vocab 后裁掉尾部 padded logits；partial/middle-gap 保持失败。定向 32/32、完整 149/149 与静态检查通过。
 - 推送 padding 修复未验收提交 `b0bff17` 及 Guqq C2C 等价提交 `f4de100`；登记使用相同 Blackwell 环境/输入的真实 smoke 重跑。
 - padding 修复已同步 Guqq 并提交真实 smoke Job 244；开始只读验收双路径 schema、transport quality、runtime arch、资源和原子产物。
+- Job 244 跨过 vocab 修复后因完整 receiver embedding 表复制并升 float32 额外申请 2.50GiB 而 OOM；同一真实 smoke 第三次失败后已查阅/补充 lessons，进入 receiver-dtype target-chunk matmul 修复，不增加资源或放宽标准。
+- 完成 receiver embedding 8,192-row chunked matmul：连续 ID 用 view、非连续 ID 仅 gather 当前 chunk、receiver dtype 计算后小输出累加；定向 30/30、完整 150/150 与静态检查通过，准备相同资源真实复验。

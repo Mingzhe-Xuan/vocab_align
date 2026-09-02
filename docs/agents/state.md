@@ -130,5 +130,7 @@
 - 2026-09-03 05:05 +08:00：显式 `source_vocab_size` 已贯通 loader/wrapper/soft transport，只允许 fingerprint-verified tokenizer vocab 的连续完整前缀并在 softmax 前排除 LM-head 尾部 padding；partial/middle-gap 仍失败。定向 32/32、完整 149/149 与静态检查通过，下一步更新未验收/兼容分支再跑真实 smoke。
 - 2026-09-03 05:08 +08:00：padding 修复已推送为 main-based 未验收提交 `b0bff17` 和 C2C 等价兼容提交 `f4de100`；登记相同输入/环境的第三次真实 smoke，成功前仍不合并 main。
 - 2026-09-03 05:10 +08:00：padding 修复真实 smoke 已提交为 Job 244；进入只读终态与 schema/resource/provenance 验收。
+- 2026-09-03 05:13 +08:00：Job 244 跨过 vocab 修复后因完整 receiver embedding 表 `index_select`+float32 复制申请 2.50GiB 而 OOM；0:15.08/Exit 1/MaxRSS 16,525,048 KiB、无报告。同一任务第三次失败后已复查并补充 lessons，转为 receiver dtype 的 target-chunk matmul/累加，连续 token IDs 使用权重 view。
+- 2026-09-03 05:18 +08:00：receiver embedding 改为 8,192 target-row chunks，连续 IDs 使用 weight view、非连续 IDs 仅 gather 当前 chunk，以 receiver dtype matmul 并在小型输出上累加；定向 30/30、完整 150/150 与静态检查通过。下一步更新未验收/兼容分支并重新验证峰值显存。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

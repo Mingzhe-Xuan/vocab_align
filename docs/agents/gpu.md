@@ -365,3 +365,4 @@
 
 - 连接用途：同步兼容分支后只读监控 Job 244 队列/日志；终态收集 schema v2 JSON 全字段、资源、原子性和 SHA。
 - 权限判断与验收边界：仅只读、不取消或重提；标准沿用 05:08 条目。
+- 实际结果：Job 244 跨过 source vocab 修复，在 `receiver_embedding_weight.index_select(...).to(logits.dtype)` 申请完整 float32 active embedding 表时 OOM；请求 2.50 GiB，而 31.37 GiB GPU 仅余 528.56 MiB。作业 0:15.08、Exit 1、MaxRSS 16,525,048 KiB、0 swap，无 JSON。三次真实失败后已复查 `lessons.md`，确认需新增模型并行内存约束并做 chunked receiver embedding 累加，而非提高资源或改精度标准。

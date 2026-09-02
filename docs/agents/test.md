@@ -731,3 +731,16 @@ LM-head padding 修复本地实际结果：
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/padded-vocab test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：32 passed（9.94s）。
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/full-padded-vocab -q`：149 passed（74.57s），仅有既存 pandas 可选依赖 2 条 warning。
 - Black `format_str` 对最终 5 个变动 Python 文件检查 unchanged；内存 compile 5/5、`git diff --check` 通过。测试明确覆盖尾部 padded rows 等价 oracle、未显式 size、超界 size 和中间缺口即使请求 partial 也失败。
+
+真实 Job 244 结果与第三次失败后的追加计划：
+
+- source-vocab 修复生效，但完整 receiver active embedding 表先 `index_select` 再由 BF16 升为 float32，额外请求 2.50 GiB；GPU 已被两模型占用约 30.8 GiB，故 OOM。0:15.08、Exit 1、MaxRSS 16,525,048 KiB、0 swap、无 JSON。
+- 已按连续失败三次规则复查 `docs/agents/lessons.md` 并补充模型并行内存经验；不提高 GPU 资源、不降低模型/统计精度要求。
+- 新测试以 float32 target probabilities + BF16 receiver weight 验证输出保持 receiver dtype、数值匹配高精度 oracle；连续 prefix token IDs 不复制完整权重表，非连续映射也按固定 target chunk 正确累加。
+- chunk size 必须有正整数门禁；tiny vocab、非整除 chunk、原 token ID 映射和现有 dense oracle 全部回归。修复后重跑定向、完整测试和真实 Slurm。
+
+chunked receiver embedding 本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/chunked-embedding test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py -q`：30 passed（4.04s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-chunked-embedding -q`：150 passed（73.58s），仅有既存 pandas 可选依赖 2 条 warning。
+- BF16 receiver/chunk size 2/non-divisible 5-row vocab 与 float32 oracle 在明确容差内一致，输出为 BF16；chunk size 0 拒绝，既有非连续 target ID oracle 继续通过。Black unchanged、内存 compile 2/2、`git diff --check` 通过。

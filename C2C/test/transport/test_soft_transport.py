@@ -96,6 +96,30 @@ def test_explicit_tokenizer_vocab_excludes_only_trailing_lm_head_padding():
         transport_probabilities(logits, artifact, tau=1, source_vocab_size=5)
 
 
+def test_receiver_embedding_is_chunked_in_receiver_dtype():
+    artifact = _artifact(np.eye(5), np.full(5, 0.2), np.full(5, 0.2))
+    logits = torch.tensor([[0.0, 1.0, 2.0, 3.0, 4.0]], dtype=torch.float32)
+    receiver = torch.arange(15, dtype=torch.bfloat16).reshape(5, 3)
+    embeddings, probabilities, _ = transport_embeddings(
+        logits,
+        artifact,
+        receiver,
+        tau=1,
+        embedding_chunk_size=2,
+    )
+    expected = probabilities @ receiver.float()
+    assert embeddings.dtype == torch.bfloat16
+    torch.testing.assert_close(embeddings.float(), expected, atol=0.04, rtol=0.01)
+    with pytest.raises(SoftTransportError, match="embedding_chunk_size"):
+        transport_embeddings(
+            logits,
+            artifact,
+            receiver,
+            tau=1,
+            embedding_chunk_size=0,
+        )
+
+
 def test_original_token_id_mappings_control_gather_and_receiver_embedding():
     artifact = _artifact(np.eye(2), [0.5, 0.5], [0.5, 0.5])
     artifact = replace(
