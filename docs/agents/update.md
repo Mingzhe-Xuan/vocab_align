@@ -101,3 +101,5 @@
 - 最终本地验收完成：完整 pytest 133/133；净变更 10 个 Python 文件 Black unchanged，compileall、3 个 Slurm 脚本 Bash syntax、计划路径和 diff 检查通过。准备保存临时验证证据并把最终净变更 squash 为 main 验收提交。
 - main 验收提交 `f433000` 已推送；开始正式 OpenHermes 500k pinned-prefix 物化阶段，沿用已测试的锁定 revision、原子 JSONL/manifest、seed 42 的 99/1 split 和 Slurm-only 批量处理边界。
 - 首次物化预检未提交作业：服务器已通过验证分支快进获得与 main 一致的 C2C 代码，但现有 Python venv 缺少 datasets；已记录精确 `datasets==4.0.0` 安装与版本复核计划，补齐环境后继续。
+- datasets 4.0.0 wheel 环境补齐后，Job 239 在 2:00.06 内成功物化正式 OpenHermes 500k corpus/manifest；500k/495k/5k 计数、锁定 revision、prefix provenance、无交叉、raw hash、原子输出和 6.8 GiB 峰值内存均通过。开始正式 T Slurm 入口实现。
+- 完成 manifest-bound 正式 T Slurm 入口：固定 transport_train/模型和数据 provenance/ANN/`2e-3`，保留 64G/24h、原子 audit/checkpoint、resume 和 telemetry；定向 17/17、完整 137/137 及静态检查通过，准备临时分支真实验证。

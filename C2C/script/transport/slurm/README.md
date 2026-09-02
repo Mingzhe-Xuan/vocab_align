@@ -28,6 +28,14 @@ revision and materializes its first 500,000 source rows plus JSONL/manifest
 materialization entirely inside Slurm. It requires `datasets==4.0.0` in the
 task Python venv and writes only to ignored corpus/manifest/cache/log paths.
 
+`build_formal_transport.sbatch` consumes that hash-bound manifest's
+`transport_train` split and the structured ANN candidates to build the formal
+Qwen3-8B to Mistral-Nemo artifact. It defaults to the registered `2e-3`
+full-vocabulary marginal tolerance, writes an independent audit/checkpoint,
+and reserves 64G for up to 24 hours because canonicalizing and tokenizing the
+500k corpus is batch work. `BUILD_SPLIT` exists for explicit dev validation;
+the formal default remains `transport_train`.
+
 Example:
 
 ```bash
@@ -40,4 +48,6 @@ TEXTS_JSONL=local/transport/inputs/preview_texts.jsonl \
 TEXTS_JSONL=local/transport/inputs/preview_texts.jsonl \
 ANN_CANDIDATES_JSON=local/transport/artifacts/qwen3_8b_to_mistral_nemo_ann.json \
   sbatch script/transport/slurm/build_full_support_preview.sbatch
+
+sbatch script/transport/slurm/build_formal_transport.sbatch
 ```
