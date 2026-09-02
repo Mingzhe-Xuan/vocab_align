@@ -2,14 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact、正式 Slurm 入口与真实模型 Receiver-only/STT 短序列 smoke 均已通过本地和远端验收；当前整理阶段 2 验收提交并进入阶段 3 统一 evaluator。
+正在实施 Training-free Soft-Token Transport。阶段 2 已以 main `66b9809` 验收；阶段 3 的版本化逐题记录、失败恢复、确定性合并/汇总、STT adapter、统一 evaluator 窄入口、固定 MMLU-Redux recipe 与 Slurm 脚本已完成本地实现，完整回归 168/168。当前准备临时验证提交和 Guqq 真实 5 题评测。
 
 ## 当前计划
 
-1. 补齐 Job 245 与 runtime/padded-vocab/chunked-memory 证据，最终复跑本地回归并把阶段 2 净变更整理为 main 验收提交。
-2. 进入阶段 3 统一 evaluator 实现单元：先记录接口结构与测试计划，复用现有题目格式化/答案解析/保存逻辑，不改变旧 C2C 路径。
-3. 完成 R/S/T2T/C2C 的统一 schema、分卡/断点续跑和 tiny evaluator smoke，再通过 Slurm 做最小真实集成。
-3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
+1. 在临时验证分支提交并推送阶段 3 实现；登记 Guqq 连接，服务器先 pull，再预取/核验 MMLU-Redux 小子集缓存。
+2. 通过 Slurm 执行固定 5 题 STT 评测，验收逐题 schema、失败记录、summary、runtime/artifact provenance、资源和原子性；失败则保持未验收并修复。
+3. 真实评测通过后整理阶段 3 main 验收提交，再进入阶段 4 冻结近似与消融。
 
 ## 变更记录
 
@@ -137,5 +136,7 @@
 - 2026-09-03 05:26 +08:00：Job 245 初步成功：0:16.67/Exit 0/MaxRSS 16,560,968 KiB/0 swap、无异常栈，chunked 路径跨过旧 OOM并写出 JSON。下一步只读验收报告全字段、SHA 与无 partial 后再整理 main。
 - 2026-09-03 05:29 +08:00：Job 245 报告最终验收通过：schema v2、Receiver-only/STT 各 2 tokens、runtime/profile/sm_120、正式 artifact provenance、shape、有限 support mass/metrics、JSON/stderr SHA 与无 partial 全部完整。进入阶段 2 main 验收整理，之后推进阶段 3 evaluator。
 - 2026-09-03 05:32 +08:00：Job 245 后最终代码树完整回归 150/150；6 个变动 Python 文件 Black unchanged/内存 compile、Slurm Bash、两份计划证据路径与 diff 检查全部通过。进入未验收证据提交与 main squash 验收提交。
+- 2026-09-03 05:36 +08:00：阶段 2 已以 main 验收提交 `66b9809` 推送；进入阶段 3 统一 evaluator 核心单元。代码结构为 `rosetta/transport/evaluation.py`（统一 sample/result/record、resume/merge/summary 与 adapter 协议）、`script/transport/summarize_transport.py`（CLI 聚合）、eval recipe 和独立 evaluation tests；随后再以窄分支接入既有 `unified_evaluator.py`，避免先在 1,800+ 行循环中复制 STT 逻辑。
+- 2026-09-03 05:24 +08:00：阶段 3 本地实现完成：统一入口按 `training_free_transport` 分派到独立 adapter/runner，逐题 JSONL 支持失败继续、prompt/method 安全恢复、确定性 rank merge 与原子 summary；固定 Blackwell 5 题 MMLU-Redux recipe 和 Slurm 入口。定向 28/28、完整 168/168 通过；下一步形成临时验证提交并执行 Guqq Slurm 真机验收。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

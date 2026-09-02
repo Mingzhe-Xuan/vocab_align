@@ -45,6 +45,9 @@ does not modify the existing C2C projector or wrapper.
 - `soft_transport.py`: temperature softmax, exact sparse transport, source
   top-m accounting, and receiver embedding expectation.
 - `metrics.py`: evaluator-compatible segmented latency, length, and memory data.
+- `evaluation.py`: append-only per-sample records, prompt-safe resume, explicit
+  failures, deterministic rank merge, and atomic aggregate summaries shared by
+  receiver/source/T2T/C2C/STT adapters.
 - `wrapper.py`: no-grad source prefill, explicit causal-shift virtual prompts,
   receiver KV-cache decoding, and an independent receiver-only baseline path.
 

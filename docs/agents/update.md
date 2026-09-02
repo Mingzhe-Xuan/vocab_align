@@ -130,3 +130,5 @@
 - Job 245 初步 Exit 0：16.67s、MaxRSS 15.79GiB、0 swap、无异常栈并写出 JSON；进入独立报告/provenance/hash/partial 只读验收，尚不合并 main。
 - Job 245 最终验收通过：schema v2 双路径各 2 tokens、Blackwell cu128/sm_120 provenance、正式 T metadata、shape、support mass、分段 metrics、JSON/stderr SHA 和无 partial 全部完整；进入阶段 2 main 验收整理并准备阶段 3 evaluator。
 - Job 245 后最终本地验收 150/150；6 个变动 Python 文件 Black/compile、Slurm Bash、计划证据路径和 diff 检查均通过，开始整理阶段 2 main 验收提交。
+- 阶段 2 已以 main 提交 `66b9809` 验收推送；开始阶段 3 evaluator 核心，先建立统一 record/adapter/resume/merge/summary 模块及 CLI/recipe/tests，再以窄接口接入既有 evaluator，保持旧模型路径不变。
+- 完成阶段 3 本地 evaluator 实现：新增统一逐题 schema/恢复/合并/汇总、STT adapter/runner、统一入口分派、固定 MMLU-Redux recipe 与 Slurm 脚本；定向 28/28、完整 168/168 通过，准备临时分支远端验收。

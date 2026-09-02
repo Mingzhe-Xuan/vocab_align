@@ -39,7 +39,6 @@ from rosetta.utils.evaluate import (
     build_prompt,
     apply_generation_config
 )
-from rosetta.utils.matheval import GSM8KEvaluator, MATH500Evaluator
 from rosetta.model.wrapper import RosettaModel
 from rosetta.model.aligner import TokenAligner, AlignmentStrategy
 from rosetta.train.dataset_adapters import generate_kv_cache_index
@@ -329,7 +328,12 @@ class UnifiedEvaluator:
         except Exception as e:
             print(f"Failed to dump bad sample for {subject} #{question_id}: {e}")
     
-    def format_example(self, example: Dict[str, Any], use_cot: bool = True) -> str:
+    def format_example(
+        self,
+        example: Dict[str, Any],
+        use_cot: bool = True,
+        use_template: bool = True,
+    ) -> str:
         """
         Format an example into a prompt.
         
@@ -341,21 +345,37 @@ class UnifiedEvaluator:
             Formatted prompt string
         """
         if self.dataset_name == "mmmlu":
-            return self._format_mmmlu_example(example, use_cot)
+            return self._format_mmmlu_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "mmlu-redux":
-            return self._format_mmlu_redux_example(example, use_cot)
+            return self._format_mmlu_redux_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "gpqa":
-            return self._format_gpqa_example(example, use_cot)
+            return self._format_gpqa_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name in ["math-500", "gsm8k"]:
-            return self._format_math_problem_example(example, use_cot)
+            return self._format_math_problem_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "openbookqa":
-            return self._format_openbookqa_example(example, use_cot)
+            return self._format_openbookqa_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "ai2-arc":
-            return self._format_ai2_arc_example(example, use_cot)
+            return self._format_ai2_arc_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "mmlu-pro":
-            return self._format_mmlu_pro_example(example, use_cot)
+            return self._format_mmlu_pro_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "ceval":
-            return self._format_ceval_example(example, use_cot)
+            return self._format_ceval_example(
+                example, use_cot, use_template=use_template
+            )
         elif self.dataset_name == "longbench":
             return self._format_longbench_example(example)
         else:
@@ -1044,8 +1064,12 @@ class UnifiedEvaluator:
         # Prepare rule-based math evaluators if needed
         rule_evaluator = None
         if self.dataset_name == "gsm8k":
+            from rosetta.utils.matheval import GSM8KEvaluator
+
             rule_evaluator = GSM8KEvaluator()
         elif self.dataset_name == "math-500":
+            from rosetta.utils.matheval import MATH500Evaluator
+
             rule_evaluator = MATH500Evaluator()
 
         cors = []
@@ -1800,6 +1824,13 @@ class UnifiedEvaluator:
     
     def run(self):
         """Run the evaluation."""
+        if self.model_config["model_name"].lower() == "training_free_transport":
+            from script.evaluation.transport_runner import (
+                run_training_free_transport_evaluation,
+            )
+
+            run_training_free_transport_evaluation(self)
+            return
         gpu_ids = self.eval_config["gpu_ids"]
         num_gpus = len(gpu_ids)
         print(f"Using {num_gpus} GPUs: {gpu_ids}")

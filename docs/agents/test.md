@@ -756,3 +756,26 @@ chunked receiver embedding 本地实际结果：
 
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/final-stage2 -q`：150 passed（72.90s），仅有既存 pandas 可选依赖 2 条 warning。
 - 最终 6 个变动 Python 文件经 Black `format_str` 检查全部 unchanged、内存 compile 6/6；`smoke_real_models.sbatch` Bash syntax、两份计划的 Job 245/脚本/Blackwell profile 路径和 `git diff --check` 均通过。
+
+## 2026-09-03：阶段 3 统一 evaluator 核心单元
+
+测试计划：
+
+- R/S/T2T/C2C/STT 的 stub adapters 对同一 fixture 共享完全相同的 `sample_id`、canonical messages、prompt hash/metadata、true answer 和严格 answer parser；方法差异只出现在 generation/metrics/diagnostics。
+- 逐样本成功记录采用版本化统一 schema，STT 分段 latency、source/virtual/output lengths、peak memory 和 transport quality 可原样保存；非有限 metrics 或缺字段明确失败。
+- 单样本异常写入 status=`failed` 记录和独立 bad-sample JSONL，继续后续样本；summary 分母只含成功记录，失败不静默算错或丢弃。
+- resume 跳过已有完整 success，重试 failed/incomplete；重复 success、输入 sample ID 重复或既有记录与当前 prompt fingerprint 不符时失败。
+- 多 rank JSONL merge 按 subject/question index/sample ID 确定排序并拒绝重复；summary/category 计数守恒，逐题 records 是唯一统计输入。
+- CLI 从 records JSONL 生成原子 summary，输入缺失/空 success/非法 JSON 显式失败；help 不加载模型或访问网络。完整 pytest、Black、compile、README/recipe/计划路径与 diff 检查均须通过。
+
+本地实际结果：
+
+- `python -m pytest ... test_evaluation.py test_summarize_transport.py test_transport_runner.py test_smoke_stt.py`：28 passed（31.07s），覆盖五类 method schema、STT adapter 指标/diagnostics、配置 factory、失败恢复、重复/漂移拒绝、rank merge、runner 输出和既有 smoke 回归。
+- `python -m pytest -o addopts= --basetemp local/pytest-stage3-full`：168 passed（103.78s），仅有既存 pandas 可选依赖 2 条 warning；新增 Slurm/recipe 静态门禁通过。
+- `python -m script.evaluation.unified_evaluator --help` 与 summary CLI help 通过；数学评测的可选 `math_verify` 已改为对应数据集才延迟导入。
+- 生产 Python 文件已由 Black 格式化，测试格式通过 Black diff 校验；内存语法编译与 `git diff --check` 通过。Windows pytest/Black 的缓存原子替换受目录 ACL 限制，改用 workspace `local/` basetemp 与只读格式 diff，不改变测试标准。
+
+真实集成待验收：
+
+- 固定 `abstract_algebra` 前 5 题、greedy 64-token、正式 500k artifact、`blackwell-cu128`、单 RTX 5090；加载前必须通过 CUDA/锁定依赖/30GiB/compiled-arch/artifact 门禁。
+- Slurm 成功后检查 5 条逐题 success 或显式 failure、canonical/prompt metadata、source/virtual/output lengths、分段 latency、support quality、summary 计数与 accuracy、无 `.partial`、作业 Exit/MaxRSS/日志哈希。
