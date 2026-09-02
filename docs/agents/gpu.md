@@ -385,3 +385,9 @@
 - 连接用途：同步兼容分支后只读收集 Job 245 JSON 全文、文件大小/SHA-256、stderr SHA 和 `.partial` 状态，逐项验收 runtime/profile/arch、artifact provenance、Receiver-only/STT shapes/outputs、质量统计与 metrics。
 - 权限判断与验收边界：首项 ff-only pull；仅 `stat`/`sha256sum`/`test`/`cat` 读取，不修改或复制服务器结果。全部字段通过后才回本地形成验收提交。
 - 实际结果：报告 8,581 bytes、SHA-256 `a14da4b15a368eefbd905d61ad4be71af143fdf2ab6df74071fa487c6b867c26`，stderr SHA-256 `6ecddddcca89383eeaf4c211c6b3fcbf412c4713c4dc301d2cc55401ff86eccc`，无 `.partial`。schema v2/code version `024beacd...`；runtime 为 Python 3.10.12、`blackwell-cu128`、torch 2.7.1+cu128/accelerate 1.9.0/transformers 4.52.4，compiled arches 含 `sm_120`，设备 RTX 5090 `[12,0]`/33,679,736,832 bytes。Receiver-only 输入 8、输出 2 tokens，文本 ` Gravity is`；STT source/virtual/output shapes `[1,7]`/`[1,7,5120]`/`[1,2]`，文本 `I'm`。retained/active mass 范围 `0.9999999404..1.0000005960`、dropped top-m 0；STT total 2.35798s、peak 31,074,283,520 bytes。模型/tokenizer/dataset revisions、正式 artifact 131,069×151,669/2,733,518 nnz 和 artifact provenance 完整。最终验收通过，时延仅作功能诊断。
+
+## 2026-09-03 05:26 +08:00
+
+- 连接用途：同步阶段 3 统一 evaluator 的 Guqq 兼容临时分支，检查 MMLU-Redux `abstract_algebra` 小子集是否已缓存；若未缓存，仅在登录节点预取锁定数据资源。随后检查正式 artifact、Blackwell venv、空输出/partial 与队列，再提交固定 5 题 STT Slurm 评测。
+- 权限判断与顺序：连接后第一项必须 `git pull --ff-only`；源码只通过兼容分支快进同步，不在服务器编辑。数据下载/缓存检查属于轻量操作；模型加载和推理只经 `sbatch script/transport/slurm/evaluate_stt_mmlu_redux.sbatch`，不在登录节点运行。
+- 验收边界：要求 Job Exit 0、5 条逐题 success 或显式失败记录、summary 只统计 success、canonical/prompt metadata、分段 latency/长度/显存、transport quality、正式 artifact/runtime provenance、无 `.partial`，并记录 GNU time/MaxRSS/日志与产物 SHA。真实通过前分支保持 `[UNACCEPTED]`。
