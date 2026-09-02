@@ -276,3 +276,9 @@
 - 连接用途：同步兼容分支后，只读检查 Mistral snapshot/`.incomplete` 状态；为避免 SSH 生命周期再次中断大文件续传，提交一个 1 CPU/2G/2h、无 GPU 的轻量 Slurm 下载作业，继续锁定 revision 的 Hugging Face cache 下载。
 - 权限判断与顺序：第一条远端操作为 ff-only pull；只读检查后通过 Slurm 运行下载 CLI，写入既有任务 cache 和独立日志，不加载模型、不修改源码。下载/续传本可在登录节点执行，改用 Slurm 仅为进程持久性；不申请 GPU。
 - 验收边界：下载 job 必须 Exit 0，snapshot 的 5 分片/index/config 齐全且无 `.incomplete`；通过前不提交真实 smoke。
+- 提交尝试：SSH/tool 调用在约 30 秒后结束且未返回 stdout/stderr、Job ID 或可轮询 session，无法证明 `sbatch` 是否执行。按未知状态处理，不盲目重复提交。
+
+## 2026-09-03 04:15 +08:00
+
+- 连接用途：先同步兼容分支，再用 `squeue`/`sacct`、`mistral-download-*.out/.err` 与 cache `.incomplete` 只读确认上一下载提交是否存在及其终态；仅在确定没有活动/已提交作业时补交一次相同轻量下载作业。
+- 权限判断与验收边界：首项仍为 ff-only pull；只读状态检查优先，避免重复下载 job。若补交，资源与锁定 revision 沿用 04:10 条目；本连接不提交真实 smoke。
