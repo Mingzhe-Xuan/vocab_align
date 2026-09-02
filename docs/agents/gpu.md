@@ -320,3 +320,9 @@
 - 连接用途：同步兼容分支后提交一个 1 CPU/1G/5min 的 Slurm GPU 诊断，仅运行 `nvidia-smi --query-gpu=name,memory.total,compute_cap,driver_version`，确认 Job 241 的硬件兼容根因。
 - 权限判断与顺序：首项为 ff-only pull；GPU 查询通过 Slurm allocation，不在登录节点初始化设备。该诊断无模型加载/推理，不覆盖 Job 241 日志或结果。
 - 验收边界：记录 GPU 型号、显存、compute capability 和驱动；若确认锁定 torch wheel 不支持该架构，则依据计划允许的 CPU/offload 功能路径新增独立 Slurm fallback，仍不把其耗时纳入 latency 表。
+- 提交结果：首项 pull 成功，但远端 `--wrap` 的引号未形成单一参数，`nvidia-smi --query-gpu=...` 被 sbatch 误解析并报 unrecognized option；诊断 job 未提交。
+
+## 2026-09-03 04:33 +08:00
+
+- 连接用途：改用无需引号的 `--wrap=nvidia-smi` 提交相同 1 CPU/1G/5min GPU 诊断；默认输出足以记录型号、显存和驱动，并据型号确认 compute capability。
+- 权限判断与验收边界：其余顺序与只读硬件诊断边界沿用 04:31 条目；不加载模型或运行 smoke。
