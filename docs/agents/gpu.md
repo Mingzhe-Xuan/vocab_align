@@ -222,3 +222,9 @@
 - 权限判断与顺序：第一条远端操作使用 `git pull --ff-only origin validation/job230-dual-increment`，避免服务器旧 main 与 squash main 冲突且只执行快进同步；随后仅执行允许的 venv 依赖安装与短时 import/version/help 检查。500k 数据遍历、规范化、去重、划分和校验全部通过 Slurm，不在登录节点运行。
 - 验收边界：安装必须使用 wheel/普通包下载且精确为 datasets 4.0.0；若触发编译或异常资源负载则停止。作业沿用 01:37 条目的独立路径、计数/provenance/原子性/资源/哈希标准，提交前不得存在目标或 partial 文件。
 - 实际结果：前三次 pull 分别为 TLS/443 失败，第四次 `net.sh` 后快进 pull 成功且已是 `5a0368f`。datasets 4.0.0 及 wheel 依赖安装/版本/help 门禁通过；正式输出与 partial 均不存在、队列为空，提交 Job 239。作业 2:00.06 后 Exit 0，MaxRSS `7,128,336 KiB`、0 swap；生成 500,000 行、909,629,231-byte records 和 43,500,816-byte manifest。manifest 为锁定 dataset/revision/raw train、pinned-source-prefix-v1、seed 42、adapter filtering not-applied，unique/duplicate/train/dev 为 500,000/0/495,000/5,000，split 唯一且无交叉，raw SHA 与 records 一致，边界 JSON 可解析且无 partial。records/manifest/stderr SHA-256 为 `539f2d30…5d485a`/`a50c0dca…7c60fa`/`c4a91c0d…728e65`；已退出服务器，正式物化验收通过。
+
+## 2026-09-03 02:06 +08:00
+
+- 连接用途：验证 main-based 临时提交 `5787a71` 的正式 T Slurm 入口；为避免 Guqq 旧验证历史与 squash main 分叉，服务器将通过从其当前 `5a0368f` 派生的 `validation/guqq-formal-transport-500k` 兼容分支做纯快进 pull，该分支的全部 C2C 文件必须与 `5787a71` 相同。
+- 权限判断与顺序：新连接第一条远端操作为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；随后以 `git diff --exit-code 5787a71 -- C2C` 等价检查、环境/输入哈希、正式输出路径和队列轻量复核。500k manifest 加载、tokenization、候选统计、Sinkhorn 和 audit 全部由 64G/24h Slurm 作业执行，不在登录节点直接运行。
+- 验收边界：使用默认正式 artifact/audit/checkpoint 路径，提交时显式把 main 验收代码版本 `f433000b...` 写入 metadata；要求 Exit 0、manifest/records/ANN provenance、两侧 residual `<=2e-3`、严格列和/非负/特殊映射/有限目标、checkpoint complete、无 partial、MaxRSS/耗时/哈希完整。远程通过前不合并 main-based 临时分支。

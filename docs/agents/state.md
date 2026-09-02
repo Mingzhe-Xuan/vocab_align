@@ -109,5 +109,6 @@
 - 2026-09-03 01:42 +08:00：服务器 main 因 squash 与临时历史产生文档冲突，已用 merge abort 恢复并通过 `git pull --ff-only` 同步到 C2C 内容一致的验证分支；环境门禁发现 `.venv` 缺少脚本锁定的 datasets 4.0.0，未提交作业。下一步按 env 记录安装/复核依赖后再经 Slurm 物化，不绕过门禁。
 - 2026-09-03 02:00 +08:00：datasets 4.0.0 环境补齐后 Job 239 以 2:00.06/Exit 0/MaxRSS 7,128,336 KiB 完成正式物化；500,000 rows 全部唯一，495,000/5,000 split 无交叉，锁定 revision、prefix selection、未过滤状态、records hash 与无 partial 均通过。进入正式 manifest-bound T Slurm 入口实现单元。
 - 2026-09-03 02:04 +08:00：正式 T Slurm 入口、README 与 4 个 stub 集成测试完成；定向 17/17、完整 137/137，Black/compileall/Bash/diff 均通过。下一步创建 `validation/formal-transport-500k` 临时分支的 `[UNACCEPTED]` 提交并登记 Guqq 真实 500k 构建，远程通过前不合并 main。
+- 2026-09-03 02:06 +08:00：main-based 临时提交 `5787a71` 已推送；因 Guqq 旧历史不能快进 squash main，计划从服务器当前 `5a0368f` 建立 C2C 内容等价的兼容验证分支，仅供首条 ff-only pull 与 Slurm 运行。下一步提交该分支并复核 C2C tree 一致性后连接。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
