@@ -19,6 +19,25 @@
 - Black 首轮发现 5 个文件需格式化；完成格式化后复核 6 个相关 Python 文件全部保持不变。Windows ACL 阻止沙箱写入两个新测试文件时，按既有经验仅提升格式化写权限后成功复核，未缩减测试范围。
 - `git diff --check`：通过，仅有工作树 LF→CRLF 提示，无 whitespace error。
 
+## 2026-09-02：scaled-dual early-termination 修复单元
+
+计划范围：
+
+- 固定与 Job 230 相同的对偶、gauge 和 `sqrt(marginal)` 坐标，验证相对当前 Sinkhorn 点的增量目标及解析梯度与中心有限差分一致，并在大绝对 dual/小增量下避免原目标常数项抵消。
+- 模拟 SciPy 首次仅消耗少量 evaluation 即返回未改善候选，验证求解器会在同一总 `acceleration_max_evaluations` 内确定性重启，而不是永久回到标准 scaling；每次候选必须使两侧原始 L1 residual 的最大值严格改善才可接受。
+- 病态稀疏图必须在原 `1e-9` 两侧 residual 与总 `max_iter` 内收敛；`maxcor`、累计 evaluation、termination provenance 与非有限/预算失败语义显式且有界。
+- 运行 sparse Sinkhorn/facade/audit 定向回归、完整 pytest、Black、compile 与 `git diff --check`；真实 2.3M-edge preview 只通过临时未验收提交和 Slurm 验证。
+
+远端前置证据：Job 230 为 Exit 1，40:50.55，MaxRSS 1,847,076 KiB/0 swap；27 次 acceleration evaluations 后总 10,000 次仍为 row/column residual `4.6615468745e-4`/`6.0559911057e-14`，checkpoint `building`，artifact/audit 不存在。
+
+本地阶段实际结果：
+
+- 首次直接运行 pytest 因系统 Python 未安装项目配置引用的 pytest-cov 而在收集前失败；使用项目既有的 `-o addopts="--strict-markers --strict-config"` 离线测试协议重跑，未跳过任何用例。
+- 首轮 sparse 回归 10/13 通过；3 个失败均为新协议 fixture 不一致（固定 gauge kernel、重启覆盖参数捕获、有限差分预算不足）。修正 fixture 后 sparse 13/13、facade/artifact/audit 24/24 通过。
+- 完整本地回归：`129 passed, 2 warnings in 51.43s`；warnings 仍仅为 pandas 可选依赖版本提示。
+- Black 首轮要求格式化 `sinkhorn.py`，沙箱内因 Windows ACL 无法原子替换；按既有经验仅提升两个明确文件的格式化权限，最终 `2 files would be left unchanged`。`compileall`、格式化后的 24 个定向回归和 `git diff --check` 均通过。
+- 真实 2.3M-edge preview 尚未执行；本单元仍为未验收状态，只能创建临时验证分支提交，不得合并/形成 main 验收提交。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。

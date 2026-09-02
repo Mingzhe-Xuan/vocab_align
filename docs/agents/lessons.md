@@ -55,3 +55,7 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 ## ORF transport 的温度、偏置与数值平移必须成对处理
 
 source logits 为 `h W^T + b` 时，通信温度作用于整个 logits：ORF query 必须使用 `h/tau`，而词表 key 保持 `W_i`，偏置权重使用 `exp(b_i/tau)`。为避免偏置指数溢出，可以从所有 active source bias 中减去同一个全局最大值；该公共因子会在分子和分母中抵消，但不能按 source chunk 使用不同平移。离线 key features 与在线 query features 也不能各自采用不一致的跨 token 平移；在线只允许对每个 query 减去共同最大 log-feature，因为该因子同样在 `u @ S.T / (u @ z)` 中抵消。实现和测试均应保持 row-vector 方向，避免把预聚合矩阵 `S` 的转置关系静默写反。
+
+## 对偶加速应优化当前点的增量而不是大绝对变量
+
+稀疏 Sinkhorn warm-up 后，gauge-fixed dual 变量可具有很大的相消绝对值；直接把绝对变量交给 L-BFGS 时，目标中的 `mass.sum()` 与边际线性项会在浮点精度内抵消，SciPy 可能只做几十次 evaluation 就以函数值停滞或 line-search 状态返回，而严格 residual 几乎未改善。应固定当前 Sinkhorn 点 `x0`，优化缩放增量 `delta`，用 `mass0 * expm1(A delta)` 计算相对目标，并保留同一解析梯度、kernel、边际与 gauge。优化器返回的候选还必须用原始两侧 L1 residual 复验，只在最大 residual 严格下降时接受；短退可在总 evaluation cap 内于后续 warm-up 点重启，所有 termination 原因都写入 convergence provenance。

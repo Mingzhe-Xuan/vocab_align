@@ -25,6 +25,8 @@ class ConvergenceReport:
     method: str = "sinkhorn"
     sinkhorn_iterations: int | None = None
     acceleration_evaluations: int = 0
+    acceleration_attempts: int = 0
+    acceleration_terminations: Tuple[str, ...] = ()
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -254,6 +256,49 @@ def _dual_value_gradient(
     return value, gradient, mass
 
 
+def _dual_increment_value_gradient(
+    increments: np.ndarray,
+    base_variables: np.ndarray,
+    row_positions: np.ndarray,
+    column_positions: np.ndarray,
+    log_kernel: np.ndarray,
+    source: np.ndarray,
+    target: np.ndarray,
+) -> Tuple[float, np.ndarray, np.ndarray]:
+    """Evaluate a dual change without subtracting large baseline constants."""
+    row_count = len(target)
+    column_count = len(source)
+    expected_shape = (row_count + column_count - 1,)
+    if increments.shape != expected_shape or base_variables.shape != expected_shape:
+        raise SinkhornError("dual increment shape does not match active marginals")
+    base_u = base_variables[:row_count]
+    base_v = np.concatenate((base_variables[row_count:], np.zeros(1)))
+    delta_u = increments[:row_count]
+    delta_v = np.concatenate((increments[row_count:], np.zeros(1)))
+    base_log_mass = log_kernel + base_u[row_positions] + base_v[column_positions]
+    edge_increment = delta_u[row_positions] + delta_v[column_positions]
+    log_mass = base_log_mass + edge_increment
+    if np.max(log_mass, initial=-np.inf) > 700:
+        return float("inf"), np.full_like(increments, 1e100), np.empty(0)
+    base_mass = np.exp(base_log_mass)
+    mass = np.exp(log_mass)
+    if not np.all(np.isfinite(base_mass)) or not np.all(np.isfinite(mass)):
+        return float("inf"), np.full_like(increments, 1e100), np.empty(0)
+    mass_change = np.empty_like(mass)
+    small = np.abs(edge_increment) <= 50
+    mass_change[small] = base_mass[small] * np.expm1(edge_increment[small])
+    mass_change[~small] = mass[~small] - base_mass[~small]
+    value = float(mass_change.sum() - np.dot(target, delta_u) - np.dot(source, delta_v))
+    row_mass = np.bincount(row_positions, weights=mass, minlength=row_count)
+    column_mass = np.bincount(column_positions, weights=mass, minlength=column_count)
+    gradient = np.concatenate((row_mass - target, (column_mass - source)[:-1]))
+    return value, gradient, mass
+
+
+class _EvaluationBudgetExceeded(RuntimeError):
+    pass
+
+
 def _accelerate_sparse_dual(
     rows: np.ndarray,
     columns: np.ndarray,
@@ -267,7 +312,7 @@ def _accelerate_sparse_dual(
     *,
     max_evaluations: int,
     history_size: int,
-) -> Tuple[np.ndarray, np.ndarray, int]:
+) -> Tuple[np.ndarray, np.ndarray, int, str]:
     from scipy.optimize import minimize
 
     row_lookup = np.full(len(target), -1, dtype=np.int64)
@@ -291,37 +336,64 @@ def _accelerate_sparse_dual(
     variable_scale = np.sqrt(
         np.concatenate((target[active_rows], source[active_columns][:-1]))
     )
-    scaled_initial = initial * variable_scale
+    evaluation_count = 0
+    best_value = float("inf")
+    best_delta = np.zeros_like(initial)
 
-    def objective(scaled_variables: np.ndarray) -> Tuple[float, np.ndarray]:
-        variables = scaled_variables / variable_scale
-        value, gradient, _ = _dual_value_gradient(
-            variables,
+    def objective(scaled_delta: np.ndarray) -> Tuple[float, np.ndarray]:
+        nonlocal evaluation_count, best_value, best_delta
+        if evaluation_count >= max_evaluations:
+            raise _EvaluationBudgetExceeded
+        evaluation_count += 1
+        increments = scaled_delta / variable_scale
+        value, gradient, _ = _dual_increment_value_gradient(
+            increments,
+            initial,
             row_positions,
             column_positions,
             log_kernel,
             source[active_columns],
             target[active_rows],
         )
+        if np.isfinite(value) and value < best_value:
+            best_value = value
+            best_delta = scaled_delta.copy()
         return value, gradient / variable_scale
 
-    result = minimize(
-        objective,
-        scaled_initial,
-        method="L-BFGS-B",
-        jac=True,
-        options={
-            "maxiter": max_evaluations,
-            "maxfun": max_evaluations,
-            "maxcor": history_size,
-            "ftol": 1e-15,
-            "gtol": 1e-13,
-            "maxls": 40,
-        },
-    )
-    if not np.all(np.isfinite(result.x)):
+    try:
+        result = minimize(
+            objective,
+            np.zeros_like(initial),
+            method="L-BFGS-B",
+            jac=True,
+            options={
+                "maxiter": max_evaluations,
+                "maxfun": max_evaluations,
+                "maxcor": history_size,
+                "ftol": 1e-15,
+                "gtol": 1e-13,
+                "maxls": 40,
+            },
+        )
+        result_delta = np.asarray(result.x, dtype=np.float64)
+        termination = f"{getattr(result, 'status', 'unknown')}:{getattr(result, 'message', 'unknown')}"
+        if np.all(np.isfinite(result_delta)):
+            result_value, _, _ = _dual_increment_value_gradient(
+                result_delta / variable_scale,
+                initial,
+                row_positions,
+                column_positions,
+                log_kernel,
+                source[active_columns],
+                target[active_rows],
+            )
+            if np.isfinite(result_value) and result_value < best_value:
+                best_delta = result_delta
+    except _EvaluationBudgetExceeded:
+        termination = "budget:objective evaluation limit reached"
+    if not np.all(np.isfinite(best_delta)):
         raise SinkhornError("sparse dual acceleration produced non-finite variables")
-    optimized = result.x / variable_scale
+    optimized = initial + best_delta / variable_scale
     accelerated_u = log_u.copy()
     accelerated_v = log_v.copy()
     accelerated_u[active_rows] = optimized[: len(active_rows)]
@@ -329,7 +401,7 @@ def _accelerate_sparse_dual(
         (optimized[len(active_rows) :], np.zeros(1, dtype=np.float64))
     )
     accelerated_v[active_columns] = active_v
-    return accelerated_u, accelerated_v, int(result.nfev)
+    return accelerated_u, accelerated_v, evaluation_count, termination
 
 
 def sparse_log_sinkhorn(
@@ -407,7 +479,9 @@ def sparse_log_sinkhorn(
     log_v[active_columns] = 0.0
     row_residual = column_residual = float("inf")
     acceleration_evaluations = 0
-    accelerated = False
+    acceleration_attempts = 0
+    acceleration_terminations: list[str] = []
+    next_acceleration = acceleration_after
 
     for iteration in range(1, max_iter + 1):
         row_norm = np.full_like(target, -np.inf)
@@ -438,38 +512,64 @@ def sparse_log_sinkhorn(
                 True,
                 tolerance,
                 max_iter,
-                "sinkhorn-scaled-lbfgs-sinkhorn" if accelerated else "sinkhorn",
+                (
+                    "sinkhorn-scaled-lbfgs-sinkhorn"
+                    if acceleration_attempts
+                    else "sinkhorn"
+                ),
                 iteration,
                 acceleration_evaluations,
+                acceleration_attempts,
+                tuple(acceleration_terminations),
             )
         if (
-            not accelerated
-            and acceleration_after is not None
-            and iteration == acceleration_after
-            and iteration < max_iter
+            next_acceleration is not None
+            and iteration >= next_acceleration
+            and acceleration_evaluations < acceleration_max_evaluations
+            and iteration + acceleration_evaluations < max_iter
         ):
-            budget = min(acceleration_max_evaluations, max_iter - iteration)
-            log_u, log_v, acceleration_evaluations = _accelerate_sparse_dual(
-                rows,
-                columns,
-                log_kernel,
-                source,
-                target,
-                active_rows,
-                active_columns,
-                log_u,
-                log_v,
-                max_evaluations=budget,
-                history_size=acceleration_history_size,
+            budget = min(
+                acceleration_max_evaluations - acceleration_evaluations,
+                max_iter - iteration - acceleration_evaluations,
             )
-            accelerated = True
-            data = np.exp(log_u[rows] + log_kernel + log_v[columns])
-            row_mass = np.zeros_like(target)
-            column_mass = np.zeros_like(source)
-            np.add.at(row_mass, rows, data)
-            np.add.at(column_mass, columns, data)
-            row_residual = float(np.abs(row_mass - target).sum())
-            column_residual = float(np.abs(column_mass - source).sum())
+            candidate_u, candidate_v, evaluations, termination = (
+                _accelerate_sparse_dual(
+                    rows,
+                    columns,
+                    log_kernel,
+                    source,
+                    target,
+                    active_rows,
+                    active_columns,
+                    log_u,
+                    log_v,
+                    max_evaluations=budget,
+                    history_size=acceleration_history_size,
+                )
+            )
+            acceleration_evaluations += evaluations
+            acceleration_attempts += 1
+            acceleration_terminations.append(termination)
+            candidate_data = np.exp(
+                candidate_u[rows] + log_kernel + candidate_v[columns]
+            )
+            candidate_row_mass = np.zeros_like(target)
+            candidate_column_mass = np.zeros_like(source)
+            np.add.at(candidate_row_mass, rows, candidate_data)
+            np.add.at(candidate_column_mass, columns, candidate_data)
+            candidate_row_residual = float(np.abs(candidate_row_mass - target).sum())
+            candidate_column_residual = float(
+                np.abs(candidate_column_mass - source).sum()
+            )
+            if np.all(np.isfinite(candidate_data)) and max(
+                candidate_row_residual, candidate_column_residual
+            ) < max(row_residual, column_residual):
+                log_u = candidate_u
+                log_v = candidate_v
+                data = candidate_data
+                row_residual = candidate_row_residual
+                column_residual = candidate_column_residual
+            next_acceleration = iteration + acceleration_after
             if max(row_residual, column_residual) <= tolerance:
                 coupling = SparseCoupling(
                     rows, columns, data, (len(target), len(source))
@@ -484,6 +584,8 @@ def sparse_log_sinkhorn(
                     "sinkhorn-scaled-lbfgs-sinkhorn",
                     iteration,
                     acceleration_evaluations,
+                    acceleration_attempts,
+                    tuple(acceleration_terminations),
                 )
         if iteration + acceleration_evaluations >= max_iter:
             break
@@ -494,9 +596,11 @@ def sparse_log_sinkhorn(
         False,
         tolerance,
         max_iter,
-        "sinkhorn-scaled-lbfgs-sinkhorn" if accelerated else "sinkhorn",
+        "sinkhorn-scaled-lbfgs-sinkhorn" if acceleration_attempts else "sinkhorn",
         iteration,
         acceleration_evaluations,
+        acceleration_attempts,
+        tuple(acceleration_terminations),
     )
     raise SinkhornError(f"sparse Sinkhorn did not converge: {report.to_dict()}")
 

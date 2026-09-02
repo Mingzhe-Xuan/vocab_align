@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 4 approximation/ORF 核心已通过 127 个本地测试并以 `06e9c7c` 推送。已登记新的 Guqq 连接用途，准备先 pull 再验收 Job 230 终态。
+正在实施 Training-free Soft-Token Transport。Job 230 的 early termination 修复已通过 129 个本地测试：stable incremental dual、有界 evaluation 与短退重启均完成；真实 2.3M-edge Slurm 回归尚未通过，因此准备临时分支上的明确未验收验证提交，不进入 main。
 
 ## 当前计划
 
-1. 提交并推送已通过本地验收的 approximation/ORF 核心，保持 `docs/assets/alignment.py` 为未跟踪参考文件。
-2. 登记新的 Guqq 连接用途，连接后先 `git pull`，再只读验收 Job 230 终态与 artifact/audit；网络异常时运行 `bash net.sh` 后重试。
-3. Job 230 通过后提交正式 OpenHermes 500k 物化作业；若失败则依据不降低标准的原则进入对应修复单元。
+1. 从 main 创建临时验证分支并提交 `[UNACCEPTED]` commit，推送后登记 Guqq 连接用途；`docs/assets/alignment.py` 继续排除。
+2. Guqq 首先 pull 临时提交，再通过 Slurm 用同一输入、64G/8h、epsilon 0.5、`1e-9`/10,000 重跑；验收 termination provenance、严格 residual、artifact/audit。
+3. 仅当真实回归通过时，才把修复整理为 main 验收提交；失败则保留临时分支并按证据继续修复。
 
 ## 变更记录
 
@@ -79,5 +79,7 @@
 - 2026-09-02 08:00 +08:00：Job 230 恢复连接首条 pull 以 GnuTLS 失败，`net.sh` 后重试以 GitHub 443 timeout 失败；未越权查询。计划调整为本地阶段 4 approximation 核心，模块边界为 `approximations.py`（TH/分块/预计算/误差）与 `orf.py`（随机特征/`S,z`/在线映射）。
 - 2026-09-02 08:08 +08:00：阶段 4 approximation 核心完成本地验收；TH、edge-chunk、预计算 source values 与 ORF `S,z`/在线公式通过 oracle，完整回归 127/127。下一步形成验收提交并在新登记连接中恢复 Job 230 终态检查。
 - 2026-09-02 08:12 +08:00：approximation/ORF 验收提交 `06e9c7c` 已推送；已登记同步该提交与只读验收 Job 230 的 Guqq 连接。下一步提交审计记录，然后连接并首先执行 `git pull`。
+- 2026-09-02 08:19 +08:00：Guqq 经 `net.sh` 后成功 pull；Job 230 以 40:50/Exit 1 严格不收敛，MaxRSS 1.76 GiB 排除内存，27 次 scaled L-BFGS 后 row residual 仍为 `4.66e-4`，无 artifact/audit。进入稳定增量 dual + 有界重启修复单元，不降低 `1e-9` 标准。
+- 2026-09-02 08:27 +08:00：stable incremental dual、严格 evaluation cap、termination provenance 与短退重启完成；病态/集成 24/24、完整回归 129/129 通过。真实 preview 仍是必需验收，下一步仅创建临时分支未验收提交并经 Slurm 验证。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

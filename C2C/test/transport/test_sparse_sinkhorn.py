@@ -11,6 +11,7 @@ from rosetta.transport.candidate_graph import (
 )
 from rosetta.transport.sinkhorn import (
     SinkhornError,
+    _dual_increment_value_gradient,
     _dual_value_gradient,
     candidate_edge_costs,
     dense_sinkhorn,
@@ -43,6 +44,46 @@ def test_sparse_dual_gradient_matches_finite_difference():
         numerical[index] = (upper - lower) / (2 * step)
     assert np.isfinite(value)
     np.testing.assert_allclose(gradient, numerical, atol=1e-9)
+
+
+def test_sparse_dual_increment_gradient_is_stable_around_large_baseline():
+    rows = np.repeat(np.arange(2), 3)
+    columns = np.tile(np.arange(3), 2)
+    log_kernel = np.log(np.array([0.7, 0.2, 0.1, 0.1, 0.3, 0.6]))
+    log_kernel[columns == 2] -= 120.0
+    source = np.array([0.2, 0.3, 0.5])
+    target = np.array([0.4, 0.6])
+    base = np.array([120.2, 119.9, -120.0, -120.3])
+    increments = np.array([2e-5, -1e-5, 1e-5, -2e-5])
+    value, gradient, _ = _dual_increment_value_gradient(
+        increments, base, rows, columns, log_kernel, source, target
+    )
+    numerical = np.empty_like(gradient)
+    step = 1e-7
+    for index in range(len(increments)):
+        offset = np.zeros_like(increments)
+        offset[index] = step
+        upper, _, _ = _dual_increment_value_gradient(
+            increments + offset,
+            base,
+            rows,
+            columns,
+            log_kernel,
+            source,
+            target,
+        )
+        lower, _, _ = _dual_increment_value_gradient(
+            increments - offset,
+            base,
+            rows,
+            columns,
+            log_kernel,
+            source,
+            target,
+        )
+        numerical[index] = (upper - lower) / (2 * step)
+    assert np.isfinite(value)
+    np.testing.assert_allclose(gradient, numerical, atol=1e-8)
 
 
 def test_dual_acceleration_converges_on_pathological_sparse_scaling():
@@ -89,13 +130,13 @@ def test_dual_acceleration_converges_on_pathological_sparse_scaling():
 
 
 def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
-    captured = {}
+    captured = []
 
     def fake_minimize(objective, initial, *, method, jac, options):
         value, gradient = objective(initial)
         assert np.isfinite(value)
         assert np.all(np.isfinite(gradient))
-        captured.update(method=method, jac=jac, options=options)
+        captured.append({"method": method, "jac": jac, "options": options})
         return SimpleNamespace(x=initial, nfev=1)
 
     monkeypatch.setattr("scipy.optimize.minimize", fake_minimize)
@@ -122,10 +163,11 @@ def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
         acceleration_max_evaluations=2,
         acceleration_history_size=2,
     )
-    assert captured["method"] == "L-BFGS-B"
-    assert captured["jac"] is True
-    assert captured["options"]["maxcor"] == 2
-    assert captured["options"]["maxfun"] == 2
+    assert captured[0]["method"] == "L-BFGS-B"
+    assert captured[0]["jac"] is True
+    assert captured[0]["options"]["maxcor"] == 2
+    assert captured[0]["options"]["maxfun"] == 2
+    assert all(item["options"]["maxfun"] <= 2 for item in captured)
     with pytest.raises(SinkhornError, match="history size"):
         sparse_log_sinkhorn(
             graph,
@@ -165,9 +207,58 @@ def test_dual_acceleration_scaled_gradient_matches_finite_difference(monkeypatch
         tolerance=1e-9,
         max_iter=100,
         acceleration_after=1,
-        acceleration_max_evaluations=2,
+        acceleration_max_evaluations=32,
     )
     assert checked
+
+
+def test_dual_acceleration_restarts_after_early_unimproved_termination(monkeypatch):
+    import scipy.optimize
+
+    real_minimize = scipy.optimize.minimize
+    calls = 0
+
+    def short_then_real(objective, initial, *, method, jac, options):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            objective(initial)
+            return SimpleNamespace(x=initial, status=2, message="forced short return")
+        return real_minimize(
+            objective, initial, method=method, jac=jac, options=options
+        )
+
+    monkeypatch.setattr("scipy.optimize.minimize", short_then_real)
+    size = 80
+    graph = CandidateGraph(
+        size,
+        size,
+        tuple(
+            [CandidateEdge(i, i, EdgeSource.EXACT_BYTE, 1.0) for i in range(size)]
+            + [CandidateEdge(i, 0, EdgeSource.ANN, 1e-6) for i in range(1, size)]
+            + [CandidateEdge(0, j, EdgeSource.ANN, 1e-6) for j in range(1, size)]
+        ),
+    )
+    source = np.geomspace(1.0, 1e-14, size)
+    source /= source.sum()
+    target = source[::-1].copy()
+    graph, _ = augment_candidate_graph_for_marginals(graph, source, target)
+    coupling, report = sparse_log_sinkhorn(
+        graph,
+        source,
+        target,
+        epsilon=0.5,
+        tolerance=1e-9,
+        max_iter=1_500,
+        acceleration_after=10,
+        acceleration_max_evaluations=800,
+    )
+    assert calls >= 2
+    assert report.acceleration_attempts >= 2
+    assert "forced short return" in report.acceleration_terminations[0]
+    assert report.acceleration_evaluations <= 800
+    np.testing.assert_allclose(coupling.to_dense().sum(axis=0), source, atol=1e-9)
+    np.testing.assert_allclose(coupling.to_dense().sum(axis=1), target, atol=1e-9)
 
 
 def test_marginal_augmentation_repairs_connected_capacity_infeasibility():

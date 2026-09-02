@@ -74,3 +74,5 @@
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。
 - 完成阶段 4 approximation 核心：新增 TH、edge-chunk、预计算 source values、零安全误差与 seeded block-ORF `S,z`/在线映射；定向 26/26、完整回归 127/127、Black 与 diff 检查通过，准备形成验收提交。
 - approximation/ORF 验收提交 `06e9c7c` 已推送；登记新的 Guqq 连接用于先同步该提交，再只读验收 Job 230 终态与产物边界。
+- Guqq 经 `net.sh` 后同步成功；Job 230 运行 40:50 后严格不收敛，scaled L-BFGS 仅 27 evaluations，row residual `4.66e-4`，MaxRSS 1,847,076 KiB、0 swap，且无 artifact/audit。开始稳定增量 dual 与有界重启修复。
+- 完成 stable incremental dual、有界 objective evaluation、termination provenance 与短退重启的本地实现；定向 24/24、完整回归 129/129。真实 preview 尚未通过，只准备临时分支 `[UNACCEPTED]` 验证提交。
