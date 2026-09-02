@@ -39,3 +39,16 @@
 - 计划门禁：先查询 GPU 类型/显存和 Hugging Face 缓存；再检查 `torch`、`accelerate`、`transformers`、`safetensors` 的可导入版本。真实模型要求项目锁定的 `torch==2.6.0`、`accelerate==1.9.0`、`transformers==4.52.4`。
 - 若缺包，仅在登录节点执行 wheel 安装/下载并记录命令与最终版本；若出现源码编译或明显计算负载则停止。CUDA 可用性、模型加载和推理必须在 Slurm GPU allocation 内验证。
 - 真实模型文件可在登录节点下载到任务约定的 Hugging Face cache，但不会在登录节点加载模型；实际缓存状态和安装结果待远端预检后追加。
+- 预检结果：节点 Python venv 中 `transformers==4.52.4` 已满足，但 `torch` 与 `accelerate` 均未安装；正式 Job 240 artifact 为 39,951,267 bytes，两侧 Hugging Face 模型缓存目录均存在。集群仅暴露 `gpu:1`，GPU 型号/显存需在 Slurm allocation 内用 `nvidia-smi`/PyTorch 确认。
+- 项目依赖修订：`device_map: auto` 的真实模型入口依赖 Accelerate，因此在 `pyproject.toml` 中补充精确 `accelerate==1.9.0`，与 `environment.yml` 保持一致；远端计划安装 `torch==2.6.0 accelerate==1.9.0` 的 wheel，并复核 CUDA wheel 与驱动兼容性。
+- 实际安装：`C2C/.venv/bin/python -m pip install torch==2.6.0 accelerate==1.9.0` 成功，全部命中预构建 manylinux wheel/cache，无源码编译。最终直接版本为 torch 2.6.0、accelerate 1.9.0、transformers 4.52.4；torch wheel 绑定 CUDA 12.4 运行库，并安装 triton 3.2.0、cuDNN 9.1.0.70、NCCL 2.21.5 等锁定传递包。CUDA 可用性仍按规范留给 Slurm allocation 验证。
+- 安装前磁盘：仓库与 cache 所在文件系统 1.8T，总使用 1.5T、可用约 252G；Qwen3-8B cache 约 16G，Mistral-Nemo cache 仅 9.1M，后者缺模型权重，需要按锁定 revision 继续下载。
+
+## Guqq Blackwell smoke 隔离环境计划（2026-09-03）
+
+- 原因：Job 242 确认 GPU 为 RTX 5090/Blackwell `sm_120`；共享项目 venv 的 torch 2.6.0/cu124 不含该架构。保留共享 venv 不变，创建任务专用 `/home/xmz/vocab_align/C2C/.venv-smoke-cu128`。
+- 创建命令：`python3 -m venv C2C/.venv-smoke-cu128`；不使用 uv。PyTorch 依照官方 cu128 index 安装 `torch==2.7.1`，预期包版本 `2.7.1+cu128`；再精确安装 `accelerate==1.9.0 transformers==4.52.4 numpy==2.2.6 PyYAML==6.0.3 scipy==1.15.3 safetensors==0.8.0`。
+- 安装属于许可的 wheel 下载/环境配置；若发生源码编译则停止。CUDA import、`get_arch_list()`/`sm_120` 和 kernel 运行验证全部放入 Slurm，不在登录节点初始化 GPU。
+- smoke 使用命名 profile `blackwell-cu128`，报告必须同时记录 profile、实际 `torch==2.7.1+cu128`、compiled arches、RTX 5090 compute capability；默认 `project-cu124` profile 仍精确锁定 torch 2.6.0。
+- 实际创建/安装成功：`python3 -m venv C2C/.venv-smoke-cu128`；`pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128` 得到 `torch==2.7.1+cu128`，随后精确安装 accelerate 1.9.0、transformers 4.52.4、NumPy 2.2.6、PyYAML 6.0.3、SciPy 1.15.3、safetensors 0.8.0。全部为预构建 wheel，无源码编译。
+- 主要 CUDA 传递版本：cuBLAS 12.8.3.14、cuDNN 9.7.1.26、NCCL 2.26.2、Triton 3.3.1；共享 `/home/xmz/vocab_align/C2C/.venv` 未修改。实际 CUDA/compiled arch/kernel 继续由 Slurm smoke 门禁和推理验证。

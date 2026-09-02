@@ -34,9 +34,19 @@ Guqq 登录节点可能能解析 GitHub，却在 `git pull` 时出现 GnuTLS `re
 
 source 位置 `t` 的 logits 预测下一 token，因此等长 virtual prompt 的首个有效位置必须由 receiver 原生起始 token embedding 注入，其余位置使用前一有效 source logits；padding 位置不能参与 transport 时序。source 与 receiver 的 token ID 空间不同，生成结果不得把 source prompt IDs 与 receiver token IDs 拼成一条伪序列；wrapper 只返回 receiver 新生成 token，receiver-only 基线则独立直通 receiver 原生 `generate`。模型并行时 source logits、receiver embedding 和 receiver 输出 logits 可能位于不同设备，索引与 transport 前必须显式对齐设备。
 
+模型并行下也不能为对齐 dtype/ID 整表复制 receiver embedding。Job 244 在 32GiB GPU 已加载两个 8B 模型后，对 131k×hidden 的 BF16 权重先 `index_select`、再升为 float32，额外请求 2.50GiB 并 OOM。transport probabilities 可以保留 float32 统计，但与 receiver 权重相乘时应按固定 target chunk 转为 receiver dtype并累加到小型 `[batch, sequence, hidden]` 输出；连续 prefix ID 直接取权重 view，非连续 ID 也只 gather 当前 chunk。这样峰值额外空间为 O(chunk×hidden)，而不是 O(target_vocab×hidden)，且 receiver prefill 原本就需要 receiver dtype embedding。
+
 ## GPU 分段计时与 padding 统计
 
 CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的阶段边界若不显式 `synchronize`，计时会被错误归入后续阶段；CPU 路径不应伪造显存峰值。transport 的 retained/dropped mass 张量覆盖 batch 的物理 shape，但 smoke 汇总只能选择 attention mask 中的有效位置，否则 padding logits 会污染近似质量统计。
+
+## CUDA 可用不等于 wheel 支持设备架构
+
+`torch.cuda.is_available()`、可见设备数量和显存门禁都可能通过，但预编译 wheel 仍不包含实际 GPU 的 kernel image。Job 241 在 RTX 5090/Blackwell `sm_120` 上使用 torch 2.6.0/cu124：两侧权重可以加载，直到首个 generation kernel 才报 `no kernel image is available for execution on the device`，浪费模型加载时间且无法形成报告。真实模型入口必须在加载权重前读取每个设备的 `get_device_capability()`，并确认对应 `sm_xy` 存在于 `torch.cuda.get_arch_list()`。当项目默认 torch pin 与新硬件不兼容时，不应原地覆盖共享 venv 或静默放宽版本；应以 `python3 -m venv` 创建任务隔离环境，定义精确、命名的硬件 runtime profile，并把 profile/实际 wheel/CUDA 设备写入产物 provenance。
+
+## LM head vocab 可能包含 tokenizer 之外的尾部 padding
+
+模型 `config.vocab_size`/LM head rows 不一定等于 `len(tokenizer)`。Qwen3-8B 的 head 为 151,936 rows，而锁定 tokenizer 只有 151,669 个真实 token；尾部 267 rows 是硬件对齐 padding，不能被 tokenizer 编码，也不应要求正式 T 为其构边。另一方面，简单开启 partial-support 会掩盖真实的 artifact 缺边。精确 STT 只能在 tokenizer fingerprint 已验证后显式传入 `source_vocab_size`，要求 artifact source IDs 完整且连续覆盖 `0..source_vocab_size-1`，然后在 softmax 前裁掉纯尾部 padded logits；未传 size、存在中间缺口或 artifact 未覆盖 tokenizer vocab 时仍严格失败。
 
 ## 稀疏 OT 必须同时覆盖两侧 support
 

@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact 与正式 Slurm 入口均已通过本地和远端验收；当前进入真实模型短序列 STT smoke 的依赖、资源和运行入口审查。
+正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact、正式 Slurm 入口与真实模型 Receiver-only/STT 短序列 smoke 均已通过本地和远端验收；当前整理阶段 2 验收提交并进入阶段 3 统一 evaluator。
 
 ## 当前计划
 
-1. 完成真实模型 smoke 的资源预检：确认 Guqq GPU 申请语法、可用显存、模型缓存和 Python venv 中 `torch==2.6.0`/`accelerate==1.9.0` 门禁。
-2. 扩展 smoke CLI，使同一短 prompt 原子保存 Receiver-only 与 STT 输出；新增无 partition 的 Slurm 入口，默认仅生成 2 个 token。
-3. 本地测试通过后形成临时未验收提交，在 Guqq 通过 Slurm 运行真实模型 smoke 并验收 diagnostics、资源和 provenance。
+1. 补齐 Job 245 与 runtime/padded-vocab/chunked-memory 证据，最终复跑本地回归并把阶段 2 净变更整理为 main 验收提交。
+2. 进入阶段 3 统一 evaluator 实现单元：先记录接口结构与测试计划，复用现有题目格式化/答案解析/保存逻辑，不改变旧 C2C 路径。
+3. 完成 R/S/T2T/C2C 的统一 schema、分卡/断点续跑和 tiny evaluator smoke，再通过 Slurm 做最小真实集成。
 3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
 
 ## 变更记录
@@ -114,5 +114,28 @@
 - 2026-09-03 03:10 +08:00：兼容分支 `bb4bab6` 与 main-based `5787a71` 的 C2C tree 一致；Job 240 在 51:57.26/Exit 0/MaxRSS 8,036,128 KiB 下完成正式 T。495k/997,233 条数据 provenance、`1.9655e-3` row residual、严格列和、目标、special、complete checkpoint、无 partial 和哈希均通过。下一步补全记录、复跑最终本地验收并整理 main。
 - 2026-09-03 03:12 +08:00：Job 240 后最终代码树完整回归 137/137；新测试 Black unchanged、compileall、正式脚本 Bash syntax、两份计划路径和 diff 检查均通过。进入 main-based 临时分支证据提交与 squash 验收提交阶段，之后直接推进真实模型短序列 smoke。
 - 2026-09-03 03:22 +08:00：进入真实模型短序列 smoke 实现单元；确认现有 CLI 仅输出 STT 且正式 recipe 为 128 tokens。计划补齐同 prompt Receiver-only 对照、2-token 最短运行、GPU/依赖/正式 artifact 预检、原子报告和无 partition Slurm 入口；先查询 Guqq 资源与缓存，再冻结脚本资源值。
+- 2026-09-03 03:41 +08:00：真实 smoke 本地实现完成：同 prompt Receiver-only/STT schema v2、1—2 token 限制、锁定依赖/CUDA/显存/artifact/覆盖门禁、正式 2-token recipe 和 `gpu:1`/192G/4h 无 partition Slurm 入口；定向 12/12、完整 146/146 通过。下一步形成 `[UNACCEPTED]` 提交并在 Guqq 补齐环境、经 Slurm 真机验收。
+- 2026-09-03 03:46 +08:00：main-based `[UNACCEPTED]` 提交 `036df80` 与 C2C 内容等价的 Guqq 兼容提交 `d559a6f` 均已推送；正式 main 尚未合并。下一步同步兼容分支并补齐锁定 torch/accelerate 环境，之后单独登记 Slurm smoke。
+- 2026-09-03 03:58 +08:00：Guqq 经 `net.sh` 后快进至 `d559a6f`，torch 2.6.0/accelerate 1.9.0 wheel 环境门禁通过；Qwen 权重 cache 16G，但 Mistral-Nemo 仅 9.1M tokenizer/cache。下一步下载锁定 Mistral 权重，完整后再提交 Slurm smoke。
+- 2026-09-03 04:10 +08:00：Mistral 五个 indexed shard 已下载完成，但额外 consolidated 文件传输中 SSH 被远端关闭，完整性尾检未执行。调整为轻量无 GPU Slurm 续传以脱离 SSH 生命周期；cache 无 incomplete 且 job Exit 0 前不提交 smoke。
+- 2026-09-03 04:24 +08:00：显式恢复检查确认 Mistral cache 46G、锁定 snapshot 五个 indexed shards 齐全且无 `.incomplete`；先前下载 sbatch 实际未提交，但登录节点下载已完整。下一步按已登记资源提交真实 1-GPU smoke。
+- 2026-09-03 04:28 +08:00：所有输入/环境/空输出门禁通过，真实 Receiver-only/STT smoke 已提交为 Job 241，运行代码 `d559a6f`、报告 code version `036df809…`。下一步只读监控终态并按 schema/资源/provenance 验收。
+- 2026-09-03 04:31 +08:00：Job 241 在 0:26.39/Exit 1/MaxRSS 5,845,204 KiB 下失败，Receiver-only 首 kernel 报 torch CUDA wheel 无该 GPU kernel image；无报告产物，保持未验收。先通过 Slurm 查询 GPU compute capability，再实现计划明确允许的 CPU/offload 功能 fallback 或兼容方案。
+- 2026-09-03 04:37 +08:00：Job 242 确认 GPU 为 RTX 5090 32,607 MiB（Blackwell `sm_120`）、驱动 570.211.01/CUDA 12.8；项目 torch 2.6.0/cu124 不支持该架构。计划从 CPU fallback 调整为更强的隔离 `blackwell-cu128` profile，并增加 compiled-arch 加载前门禁；默认项目环境保持不变。
+- 2026-09-03 04:42 +08:00：`project-cu124`/`blackwell-cu128` 命名 profile、实际版本 provenance、`get_arch_list` 对 compute capability 的加载前门禁和 Slurm override 已完成；定向 14/14、完整 148/148 通过。下一步推送更新的未验收/兼容分支并创建独立 Python cu128 venv。
+- 2026-09-03 04:45 +08:00：Blackwell 修复已推送为 main-based 未验收提交 `17762a1` 和 C2C 等价兼容提交 `4fe0065`；下一步同步兼容分支并创建 `.venv-smoke-cu128`，真实通过前仍不合并 main。
+- 2026-09-03 04:55 +08:00：独立 `.venv-smoke-cu128` 已以 python venv 创建，torch 2.7.1+cu128 与全部精确 smoke 依赖 wheel 安装/版本门禁通过，共享 venv 不变。下一步用 Blackwell profile 重提真实 smoke。
+- 2026-09-03 04:57 +08:00：Blackwell profile 真实 smoke 已提交为 Job 243，解释器 `.venv-smoke-cu128`、profile `blackwell-cu128`、code version `17762a1…`；进入只读终态监控。
+- 2026-09-03 05:00 +08:00：Job 243 已证明 cu128/RTX 5090 和 Receiver-only 可运行，但 STT 因 Qwen LM head 151,936 与 tokenizer/T 151,669 的尾部 padding 差异失败；0:14.99/Exit 1/MaxRSS 16,415,184 KiB、无报告。进入显式 tokenizer vocab size 修复，默认/任意缺口严格校验保持不变。
+- 2026-09-03 05:05 +08:00：显式 `source_vocab_size` 已贯通 loader/wrapper/soft transport，只允许 fingerprint-verified tokenizer vocab 的连续完整前缀并在 softmax 前排除 LM-head 尾部 padding；partial/middle-gap 仍失败。定向 32/32、完整 149/149 与静态检查通过，下一步更新未验收/兼容分支再跑真实 smoke。
+- 2026-09-03 05:08 +08:00：padding 修复已推送为 main-based 未验收提交 `b0bff17` 和 C2C 等价兼容提交 `f4de100`；登记相同输入/环境的第三次真实 smoke，成功前仍不合并 main。
+- 2026-09-03 05:10 +08:00：padding 修复真实 smoke 已提交为 Job 244；进入只读终态与 schema/resource/provenance 验收。
+- 2026-09-03 05:13 +08:00：Job 244 跨过 vocab 修复后因完整 receiver embedding 表 `index_select`+float32 复制申请 2.50GiB 而 OOM；0:15.08/Exit 1/MaxRSS 16,525,048 KiB、无报告。同一任务第三次失败后已复查并补充 lessons，转为 receiver dtype 的 target-chunk matmul/累加，连续 token IDs 使用权重 view。
+- 2026-09-03 05:18 +08:00：receiver embedding 改为 8,192 target-row chunks，连续 IDs 使用 weight view、非连续 IDs 仅 gather 当前 chunk，以 receiver dtype matmul 并在小型输出上累加；定向 30/30、完整 150/150 与静态检查通过。下一步更新未验收/兼容分支并重新验证峰值显存。
+- 2026-09-03 05:21 +08:00：chunked embedding 修复已推送为 main-based 未验收提交 `024beac` 与 C2C 等价兼容提交 `6e08989`；登记相同资源的真实复验，继续保持未验收。
+- 2026-09-03 05:23 +08:00：chunked embedding 真实复验已提交为 Job 245；进入只读终态验收。
+- 2026-09-03 05:26 +08:00：Job 245 初步成功：0:16.67/Exit 0/MaxRSS 16,560,968 KiB/0 swap、无异常栈，chunked 路径跨过旧 OOM并写出 JSON。下一步只读验收报告全字段、SHA 与无 partial 后再整理 main。
+- 2026-09-03 05:29 +08:00：Job 245 报告最终验收通过：schema v2、Receiver-only/STT 各 2 tokens、runtime/profile/sm_120、正式 artifact provenance、shape、有限 support mass/metrics、JSON/stderr SHA 与无 partial 全部完整。进入阶段 2 main 验收整理，之后推进阶段 3 evaluator。
+- 2026-09-03 05:32 +08:00：Job 245 后最终代码树完整回归 150/150；6 个变动 Python 文件 Black unchanged/内存 compile、Slurm Bash、两份计划证据路径与 diff 检查全部通过。进入未验收证据提交与 main squash 验收提交。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

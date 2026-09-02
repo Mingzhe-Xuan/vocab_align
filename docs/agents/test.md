@@ -691,3 +691,68 @@ revision 修复本地结果：
 - Slurm 入口不固定 partition，显式申请已核实的 GPU/CPU/内存/时限，运行前检查解释器、正式 artifact、CUDA、依赖和模型缓存，使用原子 JSON 输出与 GNU time telemetry，禁止覆盖既有正式结果。
 - CLI help 和 tiny 单元测试不得访问网络或加载远程模型；完整 pytest、Black、compileall、Bash syntax、Markdown 路径/命令和 `git diff --check` 均须通过。
 - 真实验收仅通过 Slurm：固定 Qwen3-8B/Mistral-Nemo revisions、正式 Job 240 artifact 和短 prompt，要求 Receiver-only/STT 均成功生成、报告可解析、provenance/shape/有限质量统计完整、无 `.partial`，并记录 Job ID、ExitCode、Elapsed、MaxRSS、GPU 和产物 SHA-256。该结果只证明功能正确性，不进入正式 latency 表。
+
+本地实际结果：
+
+- 首次从仓库根运行定向 pytest 在收集阶段因 `rosetta` 不在 Python 根失败；切换到 `C2C` 后未降低断言。系统 `%TEMP%` 路径随后触发既有 Bash/ACL 问题，按 lessons 改用工作区全新 `--basetemp` 后消除。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-real-20260903c test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：12 passed（10.12s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-smoke-20260903 -q`：146 passed（73.44s），仅有既存 pandas 对可选 numexpr/bottleneck 版本的 2 条 warning。
+- Black 直接 CLI 在 Windows 现有目录 ACL 下遗留 worker 并无法替换新测试文件；只终止本轮启动的 worker 后，用同版本 Black `format_str` 内存比较 3 个变动 Python 文件，结果全部 unchanged。未终止昨日已有的两个 Python 进程。
+- 3 个变动 Python 文件的内存 `compile(..., "exec")`、新 Slurm 脚本 `bash -n`、recipe 结构化解析/锁定字段、README 路径/命令和 `git diff --check` 均通过；compileall 仅因既有 `test/transport/__pycache__` ACL 无法写 `.pyc`，不是源码语法失败。
+
+真实 Job 241 结果：
+
+- 环境、artifact、cache、输出和 Slurm 提交门禁通过；作业加载两侧模型后在 Receiver-only 首个 CUDA generation kernel 失败，错误为 `no kernel image is available for execution on the device`。
+- GNU time：0:26.39、Exit 1、MaxRSS 5,845,204 KiB、0 swap；无合格 JSON/验收结果。该失败不降低测试标准，代码继续位于 `[UNACCEPTED]` 分支。
+- 初步归因是 torch 2.6.0/CUDA 12.4 wheel 不包含节点旧 GPU 架构；待 Slurm `nvidia-smi` capability 诊断确认。随后仅允许走计划已有的 CPU/offload 功能 smoke，结果不得进入正式 latency 表。
+
+Job 241 兼容修复追加计划：
+
+- Job 242 已确认硬件实际是新 GPU：RTX 5090 32,607 MiB、Blackwell `sm_120`、驱动 570.211.01/CUDA 12.8；修正“旧 GPU”初步判断，根因仍是 torch 2.6.0/cu124 compiled arch 不包含 `sm_120`。
+- runtime 门禁增加命名 profile：项目默认继续精确要求 torch 2.6.0/accelerate 1.9.0/transformers 4.52.4；Guqq Blackwell profile 精确要求 torch 2.7.1+cu128，并把选择的 profile 写入报告。
+- CUDA preflight 必须比较可见设备 compute capability 与 `torch.cuda.get_arch_list()`，缺少 `sm_120` 时在加载任何模型权重前明确失败；tiny mock 覆盖支持/不支持两种情况。
+- Slurm stub 测试验证 `RUNTIME_PROFILE` override 被转发；Guqq 使用独立 `python3 -m venv .venv-smoke-cu128`，避免覆盖项目 venv。修复后重新运行定向、完整回归和真实 Job，不接受 CPU fallback 代替可用的兼容 GPU profile。
+
+兼容修复本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/smoke-profile test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：14 passed（9.71s），覆盖两个 runtime profile、Slurm override 和 `sm_120` 支持/拒绝门禁。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-profile -q`：148 passed（74.19s），仅有既存 pandas 可选依赖 2 条 warning。
+- Black `format_str` 对最终 3 个变动 Python 文件检查 unchanged；内存 compile 3/3、Slurm `bash -n` 与 `git diff --check` 通过。
+
+真实 Job 243 结果与追加测试计划：
+
+- cu128 profile 通过 arch 门禁、加载两模型并完成 Receiver-only；STT 因 Qwen3 LM head 151,936 rows 与 tokenizer/T 151,669 的尾部 padded rows 不等而在 exact support 门禁失败。0:14.99、Exit 1、MaxRSS 16,415,184 KiB、0 swap，无合格报告。
+- 新增 explicit `source_vocab_size` 单元：当 artifact source IDs 恰为 `0..source_vocab_size-1` 且 logits 仅多连续尾部 padded rows 时，结果必须等于对 tokenizer logits 做精确 softmax/transport；统计质量为完整保留。
+- 未显式给出 tokenizer vocab size、artifact 存在中间缺口、size 超过 logits、或 artifact 不完整覆盖 tokenizer vocab 时仍必须报错；不能把 `allow_partial_support` 静默用于 exact STT。
+- wrapper/真实 loader 必须从 fingerprint 已验证的 source tokenizer `len()` 传递该值；tiny wrapper 回归继续验证默认严格路径。修复后重新跑定向、完整回归和真实 Slurm smoke。
+
+LM-head padding 修复本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/padded-vocab test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py test/transport/test_real_smoke_slurm.py -q`：32 passed（9.94s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-padded-vocab -q`：149 passed（74.57s），仅有既存 pandas 可选依赖 2 条 warning。
+- Black `format_str` 对最终 5 个变动 Python 文件检查 unchanged；内存 compile 5/5、`git diff --check` 通过。测试明确覆盖尾部 padded rows 等价 oracle、未显式 size、超界 size 和中间缺口即使请求 partial 也失败。
+
+真实 Job 244 结果与第三次失败后的追加计划：
+
+- source-vocab 修复生效，但完整 receiver active embedding 表先 `index_select` 再由 BF16 升为 float32，额外请求 2.50 GiB；GPU 已被两模型占用约 30.8 GiB，故 OOM。0:15.08、Exit 1、MaxRSS 16,525,048 KiB、0 swap、无 JSON。
+- 已按连续失败三次规则复查 `docs/agents/lessons.md` 并补充模型并行内存经验；不提高 GPU 资源、不降低模型/统计精度要求。
+- 新测试以 float32 target probabilities + BF16 receiver weight 验证输出保持 receiver dtype、数值匹配高精度 oracle；连续 prefix token IDs 不复制完整权重表，非连续映射也按固定 target chunk 正确累加。
+- chunk size 必须有正整数门禁；tiny vocab、非整除 chunk、原 token ID 映射和现有 dense oracle 全部回归。修复后重跑定向、完整测试和真实 Slurm。
+
+chunked receiver embedding 本地实际结果：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/chunked-embedding test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py -q`：30 passed（4.04s）。
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/full-chunked-embedding -q`：150 passed（73.58s），仅有既存 pandas 可选依赖 2 条 warning。
+- BF16 receiver/chunk size 2/non-divisible 5-row vocab 与 float32 oracle 在明确容差内一致，输出为 BF16；chunk size 0 拒绝，既有非连续 target ID oracle 继续通过。Black unchanged、内存 compile 2/2、`git diff --check` 通过。
+
+真实 Job 245 最终结果：
+
+- Job 245：0:16.67、Exit 0、MaxRSS 16,560,968 KiB、0 swap；JSON 8,581 bytes，SHA-256 `a14da4b15a368eefbd905d61ad4be71af143fdf2ab6df74071fa487c6b867c26`，stderr SHA-256 `6ecddddcca89383eeaf4c211c6b3fcbf412c4713c4dc301d2cc55401ff86eccc`，无 partial。
+- schema v2；Receiver-only 输入 8/输出 2 tokens，STT source 7/virtual 7/output 2 tokens，virtual shape `[1,7,5120]`。两路均有 token IDs/解码文本。
+- runtime 为 `blackwell-cu128`、torch 2.7.1+cu128、compiled arches 含 `sm_120`、RTX 5090 capability `[12,0]`；正式 artifact shape/nnz/provenance、锁定 revisions 和 code version `024beacd...` 完整。
+- retained/active support mass 在 `0.9999999404..1.0000005960`，top-m dropped mass 全零；分段 metrics 有限，peak memory 31,074,283,520 bytes。真实功能 smoke 验收通过，其耗时不进入 latency 表。
+
+最终本地验收：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/final-stage2 -q`：150 passed（72.90s），仅有既存 pandas 可选依赖 2 条 warning。
+- 最终 6 个变动 Python 文件经 Black `format_str` 检查全部 unchanged、内存 compile 6/6；`smoke_real_models.sbatch` Bash syntax、两份计划的 Job 245/脚本/Blackwell profile 路径和 `git diff --check` 均通过。

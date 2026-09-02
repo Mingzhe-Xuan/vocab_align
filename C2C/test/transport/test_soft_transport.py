@@ -42,7 +42,9 @@ def test_sparse_transport_and_embeddings_match_dense_oracles():
     )
     torch.testing.assert_close(via_embeddings, probabilities)
     torch.testing.assert_close(embeddings, probabilities @ receiver)
-    torch.testing.assert_close(probabilities.sum(dim=-1), torch.ones((1, 2), dtype=torch.float64))
+    torch.testing.assert_close(
+        probabilities.sum(dim=-1), torch.ones((1, 2), dtype=torch.float64)
+    )
     assert embeddings.dtype == logits.dtype
     assert stats.retained_mass.shape == logits.shape[:-1]
 
@@ -74,6 +76,50 @@ def test_invalid_temperature_vocab_and_partial_support_fail():
         transport_probabilities(torch.zeros(1, 2), partial, tau=1)
 
 
+def test_explicit_tokenizer_vocab_excludes_only_trailing_lm_head_padding():
+    artifact = _artifact(np.eye(2), [0.5, 0.5], [0.5, 0.5])
+    logits = torch.tensor([[0.0, 2.0, 100.0, 200.0]])
+    probabilities, stats = transport_probabilities(
+        logits, artifact, tau=1, source_vocab_size=2
+    )
+    torch.testing.assert_close(probabilities, torch.softmax(logits[:, :2], dim=-1))
+    torch.testing.assert_close(stats.retained_mass, torch.ones(1))
+    with pytest.raises(SoftTransportError, match="tokenizer vocabulary"):
+        transport_probabilities(
+            logits,
+            replace(artifact, source_token_ids=np.array([0, 2])),
+            tau=1,
+            source_vocab_size=2,
+            allow_partial_support=True,
+        )
+    with pytest.raises(SoftTransportError, match="source_vocab_size"):
+        transport_probabilities(logits, artifact, tau=1, source_vocab_size=5)
+
+
+def test_receiver_embedding_is_chunked_in_receiver_dtype():
+    artifact = _artifact(np.eye(5), np.full(5, 0.2), np.full(5, 0.2))
+    logits = torch.tensor([[0.0, 1.0, 2.0, 3.0, 4.0]], dtype=torch.float32)
+    receiver = torch.arange(15, dtype=torch.bfloat16).reshape(5, 3)
+    embeddings, probabilities, _ = transport_embeddings(
+        logits,
+        artifact,
+        receiver,
+        tau=1,
+        embedding_chunk_size=2,
+    )
+    expected = probabilities @ receiver.float()
+    assert embeddings.dtype == torch.bfloat16
+    torch.testing.assert_close(embeddings.float(), expected, atol=0.04, rtol=0.01)
+    with pytest.raises(SoftTransportError, match="embedding_chunk_size"):
+        transport_embeddings(
+            logits,
+            artifact,
+            receiver,
+            tau=1,
+            embedding_chunk_size=0,
+        )
+
+
 def test_original_token_id_mappings_control_gather_and_receiver_embedding():
     artifact = _artifact(np.eye(2), [0.5, 0.5], [0.5, 0.5])
     artifact = replace(
@@ -83,9 +129,7 @@ def test_original_token_id_mappings_control_gather_and_receiver_embedding():
     )
     logits = torch.tensor([[0.0, 2.0]])
     receiver = torch.tensor([[10.0], [20.0], [30.0]])
-    embeddings, target, _ = transport_embeddings(
-        logits, artifact, receiver, tau=1.0
-    )
+    embeddings, target, _ = transport_embeddings(logits, artifact, receiver, tau=1.0)
     source = torch.softmax(logits, dim=-1)
     torch.testing.assert_close(target, source[:, [1, 0]])
     expected = source[:, 1] * 30.0 + source[:, 0] * 10.0
