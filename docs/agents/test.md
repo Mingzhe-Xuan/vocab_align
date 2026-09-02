@@ -120,6 +120,7 @@ Job 235 实际结果与 sparse audit 修复测试计划：
 - 10,000×10,000、10,000 nnz 对角 artifact 在 monkeypatch dense helper 为强制失败时完成 audit，证明正式路径不调用 dense 转换；candidate cost 使用 NumPy pair key 排序/searchsorted，不再建立 230 万 Python edge/dict。
 - 完整回归 `133 passed, 2 warnings in 55.63s`；warnings 仅为既有 pandas 可选依赖版本提示。Black 两文件 unchanged、compileall 和 `git diff --check` 通过。
 - 真实 2.3M-edge artifact 尚未经新 audit 完成，当前仍只能形成临时 `[UNACCEPTED]` 验证提交。
+- sparse audit 实现已形成并推送临时 `[UNACCEPTED]` 提交 `76ee480`；远程将使用全新 `sparse_audit_validation` 路径验收完整 audit、目标统计和 MaxRSS，不复用 Job 235 partial。
 
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 

@@ -96,3 +96,4 @@
 - 临时 `[UNACCEPTED]` 提交 `5207cc9` 已推送；登记 Guqq 同输入/资源和独立 `tolerance_2e3_validation` 路径，准备验证新阈值下的原子 artifact、独立 audit 与 complete checkpoint。
 - Job 235 在 partial 落盘后因 audit dense 展开被 signal 9，MaxRSS 255,870,840 KiB，无最终 artifact/audit。进入 O(nnz + vocab) sparse audit 修复，保持 64G 资源与原子产物边界。
 - 完成 O(nnz + vocab) sparse audit：CSC 直接统计边际/熵，NumPy pair-key 对齐 cost，禁止正式路径 dense 展开；定向 18/18、完整 133/133 和静态检查通过，准备临时 Slurm 重跑。
+- sparse audit 临时 `[UNACCEPTED]` 提交 `76ee480` 已推送；登记全新 `sparse_audit_validation` Slurm 路径，准备验收完整 artifact/audit 与显著低于 64G 的 MaxRSS。

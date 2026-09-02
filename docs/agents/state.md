@@ -102,5 +102,6 @@
 - 2026-09-02 12:12 +08:00：临时未验收提交 `5207cc9` 已推送；已登记同输入/资源、`2e-3` 默认和独立 `tolerance_2e3_validation` 产物路径的 Guqq 验证。下一步提交审计记录，再连接并首先执行 `git pull`。
 - 2026-09-02 13:25 +08:00：Job 235 约 22:36 后 signal 9，MaxRSS 255,870,840 KiB；partial 已写出但无最终 artifact/audit，根因定位为独立 audit 的 full-vocabulary dense 展开。进入 sparse audit 实现单元，不提升资源、不使用 partial 冒充有效产物。
 - 2026-09-02 13:32 +08:00：audit 的列和、边际、entropy、cost 与正则目标已全部改为 CSC/NumPy pair-key 稀疏统计；手算/大 shape 定向与完整 133/133、Black/compile/diff 通过。下一步推送临时验证提交并重跑真实 artifact 链。
+- 2026-09-02 13:34 +08:00：sparse audit 临时提交 `76ee480` 已推送；已登记全新 `sparse_audit_validation` 路径的 Guqq 重跑。下一步提交审计记录，再连接且首项执行 `git pull`。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
