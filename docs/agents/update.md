@@ -111,3 +111,4 @@
 - 推送 main-based 未验收提交 `036df80` 及 C2C tree 等价的 Guqq 快进兼容提交 `d559a6f`；登记服务器环境安装连接，GPU smoke 通过前保持不进入 main。
 - Guqq 经 net.sh 后成功同步兼容提交，wheel-only 安装 torch 2.6.0/accelerate 1.9.0 并通过版本门禁；发现 Mistral-Nemo 仅有 9.1M tokenizer 缓存，登记锁定 revision 权重下载，下载完整前不提交 smoke。
 - Mistral-Nemo 的五个 indexed weight shards 已完成，但 consolidated 副本传输时 SSH 关闭；改用 1 CPU/2G/2h 无 GPU Slurm 作业续传并做 cache 完整性门禁，真实 smoke 继续等待。
+- 恢复检查确认未产生重复下载 job，Mistral cache 已 46G、五个锁定分片齐全且无 incomplete；下载门禁通过，登记真实 1-GPU/192G/4h Receiver-only/STT smoke 提交。
