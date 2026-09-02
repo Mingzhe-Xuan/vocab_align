@@ -260,6 +260,40 @@ def test_runtime_preflight_rejects_unlocked_dependencies(tmp_path, monkeypatch):
         )
 
 
+@pytest.mark.parametrize(
+    ("compiled_arches", "should_fail"),
+    [(["sm_90"], True), (["sm_90", "sm_120"], False)],
+)
+def test_runtime_preflight_checks_compiled_cuda_architecture(
+    tmp_path, monkeypatch, compiled_arches, should_fail
+):
+    artifact = tmp_path / "artifact.npz"
+    artifact.write_bytes(b"fixture")
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 1)
+    monkeypatch.setattr(
+        torch.cuda,
+        "get_device_properties",
+        lambda index: SimpleNamespace(total_memory=32 * 1024**3),
+    )
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda index: (12, 0))
+    monkeypatch.setattr(torch.cuda, "get_arch_list", lambda: compiled_arches)
+    arguments = (
+        artifact,
+        tmp_path / "smoke.json",
+    )
+    keywords = {
+        "require_cuda": True,
+        "require_locked_runtime": False,
+        "min_gpu_memory_gib": 20,
+    }
+    if should_fail:
+        with pytest.raises(SmokeError, match="lacks visible GPU architectures"):
+            validate_runtime_requirements(*arguments, **keywords)
+    else:
+        validate_runtime_requirements(*arguments, **keywords)
+
+
 def test_smoke_cli_help_does_not_load_remote_models():
     process = subprocess.run(
         [sys.executable, "-m", "script.transport.smoke_stt", "--help"],

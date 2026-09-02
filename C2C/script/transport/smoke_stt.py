@@ -28,10 +28,17 @@ class SmokeError(ValueError):
     """Raised when smoke inputs or structured outputs are incomplete."""
 
 
-LOCKED_RUNTIME = {
-    "torch": "2.6.0",
-    "accelerate": "1.9.0",
-    "transformers": "4.52.4",
+RUNTIME_PROFILES = {
+    "project-cu124": {
+        "torch": "2.6.0",
+        "accelerate": "1.9.0",
+        "transformers": "4.52.4",
+    },
+    "blackwell-cu128": {
+        "torch": "2.7.1+cu128",
+        "accelerate": "1.9.0",
+        "transformers": "4.52.4",
+    },
 }
 
 
@@ -95,6 +102,7 @@ def validate_runtime_requirements(
     require_cuda: bool,
     require_locked_runtime: bool,
     min_gpu_memory_gib: float,
+    runtime_profile: str = "project-cu124",
 ) -> None:
     if not isinstance(min_gpu_memory_gib, (int, float)) or not (
         0 < float(min_gpu_memory_gib) < float("inf")
@@ -106,8 +114,10 @@ def validate_runtime_requirements(
     if output_path.exists() or partial.exists():
         raise SmokeError(f"refusing to overwrite smoke output: {output_path}")
     if require_locked_runtime:
+        if runtime_profile not in RUNTIME_PROFILES:
+            raise SmokeError(f"unknown runtime profile: {runtime_profile}")
         mismatches = []
-        for package, expected in LOCKED_RUNTIME.items():
+        for package, expected in RUNTIME_PROFILES[runtime_profile].items():
             try:
                 actual = importlib.metadata.version(package)
             except importlib.metadata.PackageNotFoundError:
@@ -129,11 +139,23 @@ def validate_runtime_requirements(
             f"largest visible GPU has {available_gib:.1f} GiB; "
             f"at least {min_gpu_memory_gib:.1f} GiB is required"
         )
+    compiled_arches = set(torch.cuda.get_arch_list())
+    unsupported = []
+    for index in range(torch.cuda.device_count()):
+        major, minor = torch.cuda.get_device_capability(index)
+        architecture = f"sm_{major}{minor}"
+        if architecture not in compiled_arches:
+            unsupported.append(f"cuda:{index}={architecture}")
+    if unsupported:
+        raise SmokeError(
+            "PyTorch wheel lacks visible GPU architectures "
+            f"{unsupported}; compiled arches are {sorted(compiled_arches)}"
+        )
 
 
-def runtime_metadata() -> dict[str, Any]:
+def runtime_metadata(runtime_profile: str) -> dict[str, Any]:
     packages = {}
-    for package in LOCKED_RUNTIME:
+    for package in RUNTIME_PROFILES["project-cu124"]:
         try:
             packages[package] = importlib.metadata.version(package)
         except importlib.metadata.PackageNotFoundError:
@@ -147,12 +169,17 @@ def runtime_metadata() -> dict[str, Any]:
                     "index": index,
                     "name": properties.name,
                     "total_memory_bytes": int(properties.total_memory),
+                    "compute_capability": list(torch.cuda.get_device_capability(index)),
                 }
             )
     return {
         "python": platform.python_version(),
+        "profile": runtime_profile,
         "packages": packages,
         "cuda_available": torch.cuda.is_available(),
+        "compiled_cuda_arches": (
+            torch.cuda.get_arch_list() if torch.cuda.is_available() else []
+        ),
         "cuda_devices": cuda_devices,
     }
 
@@ -261,6 +288,7 @@ def build_smoke_report(
         "config": config.to_dict(),
         "artifact_input_fingerprint": artifact.metadata.get("input_fingerprint"),
         "code_version": code_version,
+        "runtime": dict(runtime or {}),
     }
     input_fingerprint = hashlib.sha256(
         json.dumps(
@@ -332,6 +360,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--require-cuda", action="store_true")
     parser.add_argument("--require-locked-runtime", action="store_true")
     parser.add_argument("--min-gpu-memory-gib", type=float, default=20.0)
+    parser.add_argument(
+        "--runtime-profile",
+        choices=sorted(RUNTIME_PROFILES),
+        default="project-cu124",
+    )
     return parser.parse_args(argv)
 
 
@@ -397,6 +430,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         require_cuda=args.require_cuda,
         require_locked_runtime=args.require_locked_runtime,
         min_gpu_memory_gib=args.min_gpu_memory_gib,
+        runtime_profile=args.runtime_profile,
     )
     torch.manual_seed(config.seed)
     wrapper, source_tokenizer, target_tokenizer = _load_runtime(config, args.artifact)
@@ -408,7 +442,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         generation=config.generation,
         config=config,
         code_version=args.code_version or _git_version(),
-        runtime=runtime_metadata(),
+        runtime=runtime_metadata(args.runtime_profile),
     )
     save_smoke_report(report, args.output)
     return 0
