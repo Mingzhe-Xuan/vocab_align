@@ -235,3 +235,10 @@
 - 连接用途：为真实模型最短序列 smoke 做轻量资源预检；同步兼容验证分支后，仅查询 `sinfo`/GPU 类型与显存、现有 Hugging Face 模型缓存、Python venv 的 torch/accelerate/transformers 版本和正式 Job 240 artifact 是否存在，不加载模型、不运行推理。
 - 权限判断与顺序：新连接第一条远端操作为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；随后仅做允许的集群、环境、缓存和文件元数据检查。若网络异常先运行 `bash net.sh` 再重试；模型推理和 CUDA 验证留给后续 Slurm 作业。
 - 验收边界：据实际集群资源冻结 smoke Slurm 的 GPU/CPU/内存/时限与预检门禁；不修改服务器源码或现有环境/产物，本次不提交计算作业。
+- 实际结果：首项 ff-only pull 成功且兼容分支已是最新；随后 `sinfo -o` 的含管道格式被远端 shell 拆分，未取得资源表，后续环境/缓存检查因 `&&` 短路而未执行。会话已结束，未加载模型、未修改环境或产物。
+
+## 2026-09-03 03:25 +08:00
+
+- 连接用途：重试真实模型 smoke 的轻量资源预检；修正 `sinfo` 为不含 shell 管道符的 `--Format` 写法，并读取 venv 包元数据、正式 artifact 大小和两侧模型缓存目录。
+- 权限判断与顺序：新连接第一条远端操作仍为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；其余仅为 `sinfo`、`pip show`、`stat`、`ls` 等轻量只读检查，不执行 CUDA 初始化、模型加载或推理。
+- 验收边界：取得足以冻结 Slurm 资源和依赖安装计划的证据后退出；不存在的包或缓存只记录，不在本连接安装/下载。
