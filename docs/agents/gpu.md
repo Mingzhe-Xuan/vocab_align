@@ -168,3 +168,9 @@
 
 - 连接用途：恢复持久监控 `ftol=0` 临时验证 Job 233；等待终态后读取 termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
 - 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；随后只运行 `squeue` 和结果只读检查，不提交新作业、不运行登录节点计算、不修改服务器源码/产物。
+- 实际结果：首次连接在 shell 前关闭；同用途 retry 建立会话后首条 pull 成功，并同步临时分支至 `4dbb598`。Job 233 持续 RUNNING 至至少 25:40；随后对话中断，恢复轮询时 SSH 已被远端 reset。Slurm 未被取消，终态仍待检查。
+
+## 2026-09-02 10:02 +08:00
+
+- 连接用途：再次恢复 Job 233 终态只读验收，读取 Slurm state/日志、termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
+- 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；之后只运行 `squeue` 及结果文件只读命令，不提交作业、不直接运行计算、不修改服务器源码或实验产物。

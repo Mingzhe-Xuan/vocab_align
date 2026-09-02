@@ -49,6 +49,8 @@ Job 232 实际结果：`39:06.15`、Exit 1、MaxRSS `1,847,136 KiB`、0 swap；2
 
 Job 233 提交检查：服务器同步 `7482ef5`，输入哈希与 Job 230/232 一致，无同名作业，独立 `dual_ftol_validation` 路径；监控至 14:49 后 SSH reset 但未取消 Slurm。恢复连接用途/首条 pull/只读边界一致，相关文档 `git diff --check` 通过。
 
+Job 233 第二次恢复检查：服务器同步 `4dbb598`，作业至至少 25:40 仍 RUNNING；会话关闭不等于作业终止。再次恢复用途、首条 pull 与只读产物验收边界一致，相关文档 `git diff --check` 通过。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。
