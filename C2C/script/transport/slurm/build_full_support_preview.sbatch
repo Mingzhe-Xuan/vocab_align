@@ -42,7 +42,7 @@ arguments=(
   --audit-json "$audit_json"
   --audit-markdown "$audit_markdown"
   --epsilon "${TRANSPORT_EPSILON:-0.5}"
-  --tolerance "${TRANSPORT_TOLERANCE:-1e-9}"
+  --tolerance "${TRANSPORT_TOLERANCE:-2e-3}"
   --max-iter "${TRANSPORT_MAX_ITER:-10000}"
   --smoothing "$smoothing"
   --seed 42

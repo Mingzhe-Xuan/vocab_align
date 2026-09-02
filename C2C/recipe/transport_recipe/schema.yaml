@@ -18,6 +18,13 @@ data:
   revision: 40-character hexadecimal commit SHA
   build_splits_forbid_substring: test
   dev_fraction: exclusive range (0, 1)
+construction:
+  optional_for_legacy_configs: true
+  default: {epsilon: 0.5, tolerance: 1.0e-9, max_iter: 10000, smoothing: 1.0e-8}
+  epsilon: finite positive number
+  tolerance: finite positive L1 residual threshold
+  max_iter: positive integer
+  smoothing: finite positive number
 transport:
   tau: finite positive number distinct from generation temperature
   causal_shift: boolean

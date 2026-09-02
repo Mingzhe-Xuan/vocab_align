@@ -19,6 +19,113 @@
 - Black 首轮发现 5 个文件需格式化；完成格式化后复核 6 个相关 Python 文件全部保持不变。Windows ACL 阻止沙箱写入两个新测试文件时，按既有经验仅提升格式化写权限后成功复核，未缩减测试范围。
 - `git diff --check`：通过，仅有工作树 LF→CRLF 提示，无 whitespace error。
 
+## 2026-09-02：scaled-dual early-termination 修复单元
+
+计划范围：
+
+- 固定与 Job 230 相同的对偶、gauge 和 `sqrt(marginal)` 坐标，验证相对当前 Sinkhorn 点的增量目标及解析梯度与中心有限差分一致，并在大绝对 dual/小增量下避免原目标常数项抵消。
+- 模拟 SciPy 首次仅消耗少量 evaluation 即返回未改善候选，验证求解器会在同一总 `acceleration_max_evaluations` 内确定性重启，而不是永久回到标准 scaling；每次候选必须使两侧原始 L1 residual 的最大值严格改善才可接受。
+- 病态稀疏图必须在原 `1e-9` 两侧 residual 与总 `max_iter` 内收敛；`maxcor`、累计 evaluation、termination provenance 与非有限/预算失败语义显式且有界。
+- 运行 sparse Sinkhorn/facade/audit 定向回归、完整 pytest、Black、compile 与 `git diff --check`；真实 2.3M-edge preview 只通过临时未验收提交和 Slurm 验证。
+
+远端前置证据：Job 230 为 Exit 1，40:50.55，MaxRSS 1,847,076 KiB/0 swap；27 次 acceleration evaluations 后总 10,000 次仍为 row/column residual `4.6615468745e-4`/`6.0559911057e-14`，checkpoint `building`，artifact/audit 不存在。
+
+本地阶段实际结果：
+
+- 首次直接运行 pytest 因系统 Python 未安装项目配置引用的 pytest-cov 而在收集前失败；使用项目既有的 `-o addopts="--strict-markers --strict-config"` 离线测试协议重跑，未跳过任何用例。
+- 首轮 sparse 回归 10/13 通过；3 个失败均为新协议 fixture 不一致（固定 gauge kernel、重启覆盖参数捕获、有限差分预算不足）。修正 fixture 后 sparse 13/13、facade/artifact/audit 24/24 通过。
+- 完整本地回归：`129 passed, 2 warnings in 51.43s`；warnings 仍仅为 pandas 可选依赖版本提示。
+- Black 首轮要求格式化 `sinkhorn.py`，沙箱内因 Windows ACL 无法原子替换；按既有经验仅提升两个明确文件的格式化权限，最终 `2 files would be left unchanged`。`compileall`、格式化后的 24 个定向回归和 `git diff --check` 均通过。
+- 真实 2.3M-edge preview 尚未执行；本单元仍为未验收状态，只能创建临时验证分支提交，不得合并/形成 main 验收提交。
+- 临时提交登记检查：branch `validation/job230-dual-increment`、commit `cfa1a87`、首条 pull、同配置 Slurm 边界与独立 job 后缀产物路径一致；相关文档 `git diff --check` 在连接前复核。
+
+Job 232 实际结果：`39:06.15`、Exit 1、MaxRSS `1,847,136 KiB`、0 swap；21 attempts/1,000 evaluations，前 20 个 termination 均为 SciPy `RELATIVE REDUCTION OF F <= FACTR*EPSMCH`，最终 row/column residual `1.6915612104e-3`/`2.6332792027e-14`。checkpoint `building/fresh`，artifact/audit 不存在。本单元未验收；新增回归必须断言 `ftol=0`，防止严格 residual 前由函数值相对下降条件退出。
+
+`ftol=0` 本地结果：sparse/facade/artifact/audit `24 passed in 5.80s`；完整回归 `129 passed, 2 warnings in 58.25s`，warnings 仍仅为 pandas 可选依赖版本提示；Black 两文件无需修改，`compileall` 与 `git diff --check` 通过。真实 Slurm 回归前仍保持 `[UNACCEPTED]`。
+
+第二次临时验证登记检查：commit `463c3b9`、首条普通 pull、临时分支 pull、同输入/资源/数值参数、独立 `dual_ftol_validation` 路径及第三次失败 lessons 阈值均明确；连接前执行相关文档 `git diff --check`。
+
+首次同步实际结果：首条 pull GnuTLS `-110`，`net.sh` 后 retry 为 GitHub 443 timeout；未同步/未提交 job。独立重试登记的首条 pull 与失败停止条件已复核，相关文档 `git diff --check` 通过。
+
+Job 233 提交检查：服务器同步 `7482ef5`，输入哈希与 Job 230/232 一致，无同名作业，独立 `dual_ftol_validation` 路径；监控至 14:49 后 SSH reset 但未取消 Slurm。恢复连接用途/首条 pull/只读边界一致，相关文档 `git diff --check` 通过。
+
+Job 233 第二次恢复检查：服务器同步 `4dbb598`，作业至至少 25:40 仍 RUNNING；会话关闭不等于作业终止。再次恢复用途、首条 pull 与只读产物验收边界一致，相关文档 `git diff --check` 通过。
+
+Job 233 实际结果：`39:06.84`、Exit 1、MaxRSS `1,847,040 KiB`、0 swap；`ftol=0` 下仍有 20 个 `FACTR*EPSMCH` termination，21 attempts/1,000 evaluations 后 row/column residual 与 Job 232 相同，为 `1.6915612104e-3`/`2.6332792027e-14`；checkpoint `building/fresh`，artifact/audit 不存在。该方案未验收。
+
+Newton-CG 调整测试计划：
+
+- scaled dual Hessian-vector 必须与解析梯度中心有限差分一致，且 `D^-1 H D^-1`/对角 preconditioner 的 shape、有限性和 gauge-fixed 方向正确。
+- monkeypatch CG 验证 `LinearOperator`、`rtol/atol/maxiter` 与 matvec 计数；CG matvec 加 backtracking 候选复验不得超过总 acceleration budget，非有限方向/无改善 step 显式记录并回到标准 scaling。
+- Newton 候选只在原始 row/column L1 的最大值严格下降时接受；极端边际病态图仍在 `1e-9` 与总 1,500 预算内收敛，method/provenance 改为 `sinkhorn-scaled-newton-cg-sinkhorn`。
+- 运行 sparse/facade/artifact/audit、完整 pytest、Black、compile 和 `git diff --check`；真实图继续只用临时未验收分支和 Slurm。
+
+Newton-CG 本地实际结果：
+
+- scaled Hessian-vector 中心有限差分、病态图严格收敛、CG LinearOperator/预条件器/预算与无改善重启通过；sparse/facade/artifact/audit `23 passed in 6.35s`，格式化后复核 `23 passed in 6.06s`。
+- 完整回归 `128 passed, 2 warnings in 65.41s`；warnings 仍仅为 pandas 可选依赖版本提示。
+- Black 首次要求格式化 `sinkhorn.py`，沙箱内 ACL 拒绝原子替换；仅提升明确文件权限后完成，最终两文件无需修改。`compileall` 与 `git diff --check` 通过。
+- method/provenance 已改为 `sinkhorn-scaled-newton-cg-sinkhorn`，无 L-BFGS/FACTR 路径；真实 Slurm 未通过前仍为临时未验收实现。
+- 最终代码形态再次复核：定向 `23 passed in 8.13s`，重定向 bytecode cache 后 compileall 通过；首次完整回归因既有 `%TEMP%/pytest-of-asus` ACL 导致一个 Slurm 包装测试失败（其余 127 通过）。按 `lessons.md` 改用忽略目录 `local/test-tmp/newton-full-2` 的全新 `--basetemp` 后，完整回归 `128 passed, 2 warnings in 75.88s`，未跳过任何测试。
+- 上述代码与文档已形成并推送临时分支提交 `f62c540`（明确 `[UNACCEPTED]`）；远程真实图验收仍待 Slurm 执行。
+- Job 234 真实图验收失败：37:11.54、Exit 1、MaxRSS 1,847,260 KiB、0 swap；12 attempts/1,000 evaluations 后 row/column residual `1.6915304665e-3`/`6.2669379185e-14`，method 为 `sinkhorn-scaled-newton-cg-sinkhorn`。checkpoint `building/fresh`，artifact/audit 不存在；该提交不得作为验收提交或进入正式分支。
+
+Reduced row-dual Newton-CG 修复测试计划：
+
+- 对消去 column dual 后的 Schur-complement Hessian-vector 做中心有限差分；验证 gauge anchor 选择最大 target marginal，变量 shape 只含 `n_rows - 1`，缩放/对角预条件均有限且为正。
+- 每个 trial step 先改变 row dual，再按 source marginal 精确重归一化每一 column；断言候选 column residual 保持机器精度，而 row L1 residual 严格下降后才接受。
+- 构造 truncated CG 会明显破坏 full-dual column residual、但 reduced feasible step 可接受非微小步的病态图回归；保留总 acceleration evaluation cap、无改善重启和显式失败语义。
+- 运行 sparse/facade/artifact/audit 定向测试、完整 pytest、Black、compileall 与 `git diff --check`；真实 2.3M-edge 图仍只经新的临时 `[UNACCEPTED]` 提交和 Slurm 验收。
+
+真实全词表 OT 精度需求调整文档单元：
+
+- 将真实 2.3M-edge/full-vocabulary 构建的两侧最大 L1 边际残差验收阈值明确改为 `2e-3`，覆盖 Job 234 的 `1.6915304665e-3`；不得把该结果描述为在原 `1e-9` 要求下通过。
+- toy/dense oracle、Hessian 有限差分和小图算法回归继续保留 `1e-9` 或各测试原有更严阈值，避免产品级近似容差降低数值单元测试标准。
+- 同步 `docs/plan/T_plan.md`、`docs/plan/T_implementation_plan.md` 与 `assets/T_method.md`；检查相对链接、公式、命令、阈值分层和 Markdown 格式，并运行 `git diff --check`。本单元仅改文档，不运行代码单元测试。
+- 上述 reduced row-dual 修复计划因用户明确接受当前真实图精度而取消，不实施代码改动；其诊断保留为历史经验，后续只有在精度需求重新收紧时再启用。
+
+实际结果：
+
+- `docs/plan/T_plan.md` 已定义真实 full-vocabulary `2e-3` 与 toy/dense `1e-9`（或原更严阈值）的精度分层，并明确 `delta_marginal=2e-3`、实际 residual/tolerance provenance 和旧 Job 234 不可直接转为有效 artifact。
+- `docs/plan/T_implementation_plan.md` 与 `assets/T_method.md` 已同步测试边界、非单元验收、Job 234 结果和重跑要求；相对链接 `./T_plan.md` 目标存在，三份目标文档路径检查通过。
+- `git diff --check` 通过，仅有既有 LF/CRLF 转换 warning；本单元只改文档，未运行代码测试。
+
+真实 full-vocabulary tolerance 配置实现单元：
+
+- 新增可序列化、严格校验的 transport construction 配置，固定 `epsilon=0.5`、`tolerance=2e-3`、`max_iter=10000`、`smoothing=1e-8`；缺省配置保持兼容，非法/非有限/非正数和布尔伪整数显式失败。
+- 主 Qwen3→Mistral-Nemo recipe 与 schema 显式记录上述构建参数；配置 round-trip 和 pinned recipe 测试验证 `2e-3` 已进入结构化 provenance，而不是只存在于说明文字。
+- `build_full_support_preview.sbatch` 默认转发 `2e-3`，环境变量 override 仍按原值转发；普通小语料 preview、库/CLI 默认和 toy/dense 测试继续使用 `1e-9`。
+- artifact 保存/加载/独立 audit 从 `metadata.build_config.tolerance` 读取边际 L1 阈值，且拒绝高于当前预注册上限 `2e-3` 的 metadata；非负性和逐列归一化仍使用 dtype 级数值阈值，不能随边际容差放宽。
+- 运行 config/full-support Slurm 定向测试、完整 pytest、Bash syntax、Black/compileall 与 `git diff --check`；真实 artifact 仍需临时分支 Slurm 重跑后验收。
+
+实际结果：
+
+- config/full-support 初始定向 `14 passed`；补齐 artifact tolerance 链后，config/full-support/artifact/audit/build CLI `25 passed`，最终 save→load→independent audit 相关集合 `21 passed`。
+- 最终完整回归 `131 passed, 2 warnings in 157.33s`；warnings 仍仅为 pandas 可选 numexpr/bottleneck 版本提示。
+- `TransportConstructionSpec` round-trip/缺省兼容/非法值、主 recipe `0.002`、Slurm 默认 `2e-3` 与 `4e-3` override、metadata 上限、边际近似通过且列和严格失败均有直接回归覆盖。
+- Bash syntax、重定向 bytecode cache 的 compileall、Black（6 files unchanged）和 `git diff --check` 通过；compileall 临时缓存已在验证工作区边界后删除。
+- 本地验收完成；真实 artifact 尚未生成，当前代码只能形成临时 `[UNACCEPTED]` 验证提交。
+- 上述实现已形成并推送临时 `[UNACCEPTED]` 提交 `5207cc9`；真实验证将使用独立 `tolerance_2e3_validation` 路径，验收实际 residual、metadata tolerance、严格列和、save/load/audit 与 complete checkpoint。
+
+Job 235 实际结果与 sparse audit 修复测试计划：
+
+- Job 235 在约 22:36 被 signal 9 终止，MaxRSS `255,870,840 KiB`、0 swap；34 MiB partial 已产生但 checkpoint 仍为 `building/fresh`，无最终 artifact/audit。根因是独立 audit 对 full-vocabulary transport/coupling/entropy 做 dense 展开，该运行不验收。
+- 用小矩阵手算对照 sparse audit 的列和、两侧边际、`Ta-b`、每列 entropy、transport cost 和正则目标；结果必须与现有定义一致。
+- monkeypatch `transport_to_dense` 为失败并审计一个大 shape/低 nnz artifact，证明正式 audit 不依赖 dense helper，工作内存/中间数组仅为 O(nnz + source vocab + target vocab)。公开 dense helper 保留给 tiny oracle，不删除其行为。
+- 运行 artifact/audit/build CLI 定向测试、完整 pytest、Black/compileall/diff；通过后仅形成新的临时 `[UNACCEPTED]` 提交，并用独立 `sparse_audit_validation` 路径经 Slurm 重跑。
+
+实际结果：
+
+- artifact/audit/facade/build CLI 定向 `18 passed in 9.57s`；2×2 手算覆盖列和、row/column/transported marginal、每列 entropy、candidate cost 和正则目标。
+- 10,000×10,000、10,000 nnz 对角 artifact 在 monkeypatch dense helper 为强制失败时完成 audit，证明正式路径不调用 dense 转换；candidate cost 使用 NumPy pair key 排序/searchsorted，不再建立 230 万 Python edge/dict。
+- 完整回归 `133 passed, 2 warnings in 55.63s`；warnings 仅为既有 pandas 可选依赖版本提示。Black 两文件 unchanged、compileall 和 `git diff --check` 通过。
+- 真实 2.3M-edge artifact 尚未经新 audit 完成，当前仍只能形成临时 `[UNACCEPTED]` 验证提交。
+- sparse audit 实现已形成并推送临时 `[UNACCEPTED]` 提交 `76ee480`；远程将使用全新 `sparse_audit_validation` 路径验收完整 audit、目标统计和 MaxRSS，不复用 Job 235 partial。
+- Job 236 使用代码 `9036c70af78b09f3dad69d962731038b50e72350`、相同 preview/ANN 输入哈希、`epsilon=0.5`、`tolerance=0.002`、`max_iter=10000`、64G/8h Slurm 配置完成；GNU time 为 20:23.32、Exit 0、MaxRSS `2,113,980 KiB`、0 swap。
+- 最终 artifact shape `131069×151669`、nnz/candidate edges `2,620,553`；audit `valid=true`，row/column/transported marginal L1 为 `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，最大列和误差 `1.1883827256e-12`，transport cost `7.1692051605`、regularized objective `3.8293241068` 均有限，dangerous special mappings 为空。
+- artifact metadata 保存 `tolerance=0.002`、真实 convergence 和输入 provenance；checkpoint 为 `complete/fresh`。最终 `.npz`、JSON、Markdown 均存在且无同名 partial；SHA-256 分别为 `b1ada569…18aca2`、`c8467f09…99d7d1`、`56ef61f7…fb739`，checkpoint 为 `88c9f4ff…c23501`，stderr 为 `3f9c2ee3…ec2784`。远程集成验收通过。
+- 最终本地验收：`python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/accept-20260903 -q` 为 `133 passed, 2 warnings in 126.61s`，warnings 仅为既有 pandas 可选 numexpr/bottleneck 版本提示；净变更的 10 个 Python 文件 Black 检查全部 unchanged，重定向 pycache 的 compileall、3 个相关 Slurm 脚本 `bash -n`、两份计划路径和 `git diff --check` 均通过。一次对整个 transport 目录的过宽 Black 探测只命中 9 个未被本分支修改的既有文件，未改写或纳入本次验收范围。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。
@@ -538,3 +645,18 @@ revision 修复本地结果：
 - `python -m compileall -q rosetta/transport script/transport`：通过。
 - `import script.transport.compare_tokenizers`：通过（13.45s）；本地 pandas 报告既有 numexpr/bottleneck 版本 warning，不影响导入。
 - `git diff --check`：通过。
+
+## 2026-09-02：前后 sparse OT 加速方法说明文档
+
+测试计划：
+
+- 对照临时提交 `463c3b9` 的增量 scaled L-BFGS-B 与当前工作树的 residual-driven scaled Newton-CG，检查 `assets/T_method.md` 中的流程、变量缩放、停止/接受条件和预算描述与源码一致。
+- 检查 Markdown 标题、公式、表格、仓库内路径以及方法标识；运行 `git diff --check`，预期无空白错误。
+- 本单元仅新增/更新文档，不修改算法源码，因此不新增或运行代码单元测试。
+
+实际结果：
+
+- 已逐项对照临时提交 `463c3b9` 的 `_dual_increment_value_gradient`、L-BFGS-B 参数/外层接受逻辑，以及当前 `_scaled_dual_hessian_product`、CG、residual backtracking 和共享预算实现；说明与源码一致。
+- `rg` 检查方法参数和 provenance 标识通过：旧版 `acceleration_history_size` / `sinkhorn-scaled-lbfgs-sinkhorn`，新版 `acceleration_cg_iterations` / `sinkhorn-scaled-newton-cg-sinkhorn`。
+- 文档无外部链接；仓库路径 `assets/T_method.md` 存在，Markdown 标题、公式和表格人工检查通过。
+- `git diff --check`：通过；仅报告工作树既有 LF/CRLF 转换 warning，无 whitespace error。

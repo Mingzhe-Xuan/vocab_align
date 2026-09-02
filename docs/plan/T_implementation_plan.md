@@ -139,7 +139,7 @@ C2C/
 | `sinkhorn.py` | 提供小矩阵 dense Sinkhorn oracle，以及大词表 sparse/log-domain 实现；返回 `Pi` 和收敛报告。 |
 | `vocab_transport.py` | 作为公共 facade 编排候选图、代价、Sinkhorn 和 `T = Pi Diag(a)^-1`；保留 local 列归一化 baseline。 |
 | `artifact.py` | 保存 CSC/等价稀疏结构、`a`、`b`、候选图、配置、指纹和收敛信息；支持安全加载与 schema migration。 |
-| `audit.py` | 检查非负性、列和、两侧边际、`Ta=b`、覆盖率、熵、截断质量及危险 special 映射。 |
+| `audit.py` | 直接在 CSC 上以 O(nnz + vocab) 检查非负性、列和、两侧边际、`Ta=b`、覆盖率、熵、目标值及危险 special 映射；dense helper 仅限 tiny oracle。 |
 | `build_vocab_transport.py` | 流式读取 manifest，支持 resume/checkpoint，构建正式 artifact。 |
 | `audit_vocab_transport.py` | 只读加载 artifact，重算关键不变量并输出 JSON/Markdown 报告。 |
 
@@ -160,7 +160,7 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
   - 图外边的 kernel 质量严格为零。
 - Sinkhorn
   - 2×3、3×2 非方阵的 dense oracle 满足两侧边际。
-  - sparse/log-domain 输出与 dense oracle 在小图上误差低于容忍度。
+  - sparse/log-domain 输出与 dense oracle 在小图上误差低于 `1e-9` 或用例原有更严阈值；真实图的近似验收阈值不得反向降低该单元测试标准。
   - 极小 epsilon、极端频率下不产生 NaN/Inf。
   - 不可行支撑图、未收敛和超过 `max_iter` 时构建失败。
   - 收敛报告包含迭代数、row/column residual 和 converged 状态。
@@ -169,12 +169,13 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
   - save/load round trip 保持稀疏索引、dtype、数值和 metadata。
   - tokenizer 指纹或 schema 不匹配时拒绝加载。
   - 损坏、缺列或非有限数值的 artifact 不可通过审计。
+  - 大 shape/低 nnz artifact 的正式 audit 不调用 dense 转换；稀疏统计与小矩阵手算结果一致。
 
 ### 4.3 非单元验收
 
 - 用 toy vocab 同时运行 dense 与 sparse 构建，保存可复算的 oracle 报告。
-- 用真实 tokenizer 和小语料构建预览 artifact，确认所有正质量行/列有可行支撑。
-- 正式语料运行必须记录 checkpoint/resume 状态，不将半成品标为有效 artifact。
+- 用真实 tokenizer 和小语料构建预览 artifact，确认所有正质量行/列有可行支撑。真实 Qwen3→Mistral-Nemo full-vocabulary coupling 的两侧最大 L1 residual 验收阈值为 `2e-3`。
+- 正式语料运行必须记录 checkpoint/resume 状态、实际 row/column residual 和使用的 tolerance；不将半成品标为有效 artifact。旧 Job 234 虽达到新精度，但因在 `1e-9` 配置下失败且未生成 artifact，不能作为有效产物。按新配置重跑的 Job 236 已完成原子保存和独立稀疏审计：row/column residual 为 `1.9975102855e-3`/`8.5268617950e-14`，checkpoint 为 `complete/fresh`，峰值 RSS 为 `2,113,980 KiB`。
 
 ## 5. 阶段 2：STT 精确推理原型
 

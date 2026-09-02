@@ -11,6 +11,7 @@ import numpy as np
 
 
 SCHEMA_VERSION = 1
+MAX_MARGINAL_L1_TOLERANCE = 2e-3
 
 
 class ArtifactError(ValueError):
@@ -45,7 +46,12 @@ class TransportArtifact:
         default_factory=lambda: np.asarray([], dtype="U16")
     )
 
-    def validate(self, tolerance: float = 1e-8) -> None:
+    def validate(
+        self,
+        tolerance: float = 1e-8,
+        *,
+        marginal_tolerance: Optional[float] = None,
+    ) -> None:
         dtype_tolerance = (
             float(np.finfo(self.data.dtype).eps) * 10
             if self.data.dtype.kind == "f"
@@ -77,7 +83,9 @@ class TransportArtifact:
             or len(np.unique(source_token_ids)) != source_size
             or len(np.unique(target_token_ids)) != target_size
         ):
-            raise ArtifactError("active token ID mappings must be unique nonnegative integers")
+            raise ArtifactError(
+                "active token ID mappings must be unique nonnegative integers"
+            )
         if self.indptr.shape != (source_size + 1,):
             raise ArtifactError("CSC indptr length does not match source vocabulary")
         if self.indptr.dtype.kind not in "iu" or self.indices.dtype.kind not in "iu":
@@ -117,6 +125,24 @@ class TransportArtifact:
             raise ArtifactError(f"artifact metadata missing: {sorted(missing)}")
         if self.metadata["schema_version"] != SCHEMA_VERSION:
             raise ArtifactError("unsupported artifact schema version")
+        if marginal_tolerance is None:
+            marginal_tolerance = self.metadata.get("build_config", {}).get(
+                "tolerance", tolerance
+            )
+        if (
+            isinstance(marginal_tolerance, bool)
+            or not isinstance(marginal_tolerance, (int, float))
+            or not np.isfinite(float(marginal_tolerance))
+            or float(marginal_tolerance) <= 0
+        ):
+            raise ArtifactError(
+                "artifact marginal tolerance must be finite and positive"
+            )
+        if float(marginal_tolerance) > MAX_MARGINAL_L1_TOLERANCE:
+            raise ArtifactError(
+                "artifact marginal tolerance exceeds the pre-registered maximum"
+            )
+        effective_marginal_tolerance = max(float(marginal_tolerance), dtype_tolerance)
 
         candidate_lengths = {
             len(self.candidate_rows),
@@ -143,9 +169,7 @@ class TransportArtifact:
             if self.candidate_sources.dtype.kind not in "US":
                 raise ArtifactError("candidate source labels must be strings")
 
-        column_sums = np.add.reduceat(
-            np.append(self.data, 0.0), self.indptr[:-1]
-        )
+        column_sums = np.add.reduceat(np.append(self.data, 0.0), self.indptr[:-1])
         empty = self.indptr[1:] == self.indptr[:-1]
         column_sums[empty] = 0.0
         if np.max(np.abs(column_sums - 1.0)) > effective_tolerance:
@@ -156,7 +180,10 @@ class TransportArtifact:
             transported[self.indices[start:end]] += (
                 self.data[start:end] * self.source_marginal[source_id]
             )
-        if np.abs(transported - self.target_marginal).sum() > effective_tolerance:
+        if (
+            np.abs(transported - self.target_marginal).sum()
+            > effective_marginal_tolerance
+        ):
             raise ArtifactError("transported source marginal does not match target")
 
 

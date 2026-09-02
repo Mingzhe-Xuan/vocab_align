@@ -9,6 +9,7 @@ from rosetta.transport.config import (
     ModelSpec,
     PENDING_CHECKPOINT,
     TransportConfig,
+    TransportConstructionSpec,
     TransportInferenceSpec,
 )
 
@@ -44,6 +45,12 @@ def _payload():
         "seed": 42,
         "output_path": "local/transport/artifacts/main.npz",
         "output_schema": "stt-result-v1",
+        "construction": {
+            "epsilon": 0.5,
+            "tolerance": 0.002,
+            "max_iter": 10_000,
+            "smoothing": 1e-8,
+        },
         "transport": {"tau": 0.7, "causal_shift": True, "source_top_m": 128},
         "generation": {"max_new_tokens": 64, "do_sample": False},
     }
@@ -113,6 +120,25 @@ def test_transport_inference_defaults_and_validation():
         TransportConfig.from_dict(payload)
 
 
+def test_transport_construction_defaults_and_validation():
+    payload = _payload()
+    del payload["construction"]
+    assert TransportConfig.from_dict(payload).construction == (
+        TransportConstructionSpec()
+    )
+
+    for field, value in (
+        ("epsilon", 0),
+        ("tolerance", float("inf")),
+        ("smoothing", True),
+        ("max_iter", False),
+    ):
+        payload = _payload()
+        payload["construction"][field] = value
+        with pytest.raises(ConfigError, match=field):
+            TransportConfig.from_dict(payload)
+
+
 def test_pinned_recipe_explicitly_enables_causal_shift():
     recipe = (
         Path(__file__).resolve().parents[2]
@@ -126,3 +152,9 @@ def test_pinned_recipe_explicitly_enables_causal_shift():
     assert config.transport.causal_shift is True
     assert config.transport.tau == 1.0
     assert config.transport.source_top_m is None
+    assert config.construction == TransportConstructionSpec(
+        epsilon=0.5,
+        tolerance=0.002,
+        max_iter=10_000,
+        smoothing=1e-8,
+    )

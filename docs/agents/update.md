@@ -74,3 +74,28 @@
 - 完成 GPU 测试提交流程修订及文档检查；正式分支继续只接收通过计划测试的验收提交。
 - 完成阶段 4 approximation 核心：新增 TH、edge-chunk、预计算 source values、零安全误差与 seeded block-ORF `S,z`/在线映射；定向 26/26、完整回归 127/127、Black 与 diff 检查通过，准备形成验收提交。
 - approximation/ORF 验收提交 `06e9c7c` 已推送；登记新的 Guqq 连接用于先同步该提交，再只读验收 Job 230 终态与产物边界。
+- Guqq 经 `net.sh` 后同步成功；Job 230 运行 40:50 后严格不收敛，scaled L-BFGS 仅 27 evaluations，row residual `4.66e-4`，MaxRSS 1,847,076 KiB、0 swap，且无 artifact/audit。开始稳定增量 dual 与有界重启修复。
+- 完成 stable incremental dual、有界 objective evaluation、termination provenance 与短退重启的本地实现；定向 24/24、完整回归 129/129。真实 preview 尚未通过，只准备临时分支 `[UNACCEPTED]` 验证提交。
+- 临时验证提交 `cfa1a87` 已推送至 `validation/job230-dual-increment`；登记 Guqq 同配置 Slurm 回归，独立输出路径确保不覆盖 Job 230 失败现场。
+- Job 232 真实回归失败：21 次 acceleration 前 20 次均由 `FACTR*EPSMCH` 函数值条件短退，1,000 evaluations 后 row residual `1.69e-3`。保持临时分支未验收，调整为 `ftol=0` 后重试。
+- `ftol=0` 修复通过定向 24/24 与完整回归 129/129，Black/compile/diff 通过；准备推送下一临时未验收提交做真实回归。
+- 第二个临时未验收提交 `463c3b9` 已推送；登记独立 `dual_ftol_validation` Slurm 回归，保持相同输入/资源/严格标准。
+- `ftol=0` 首次远端同步因 GnuTLS 与 `net.sh` 后 443 timeout 失败，未提交新 job；登记一次独立重试，失败则暂停远端验证。
+- 独立同步重试成功并提交 Job 233；作业运行至少 14:49 后监控 SSH reset，Slurm 未中断，登记新连接恢复终态检查。
+- Job 233 恢复监控至至少 25:40 仍 RUNNING；会话再次关闭，Slurm 未被取消，登记下一只读终态连接。
+- Job 233 终态失败且与 Job 232 数值相同；`ftol=0` 仍因目标值精度平台触发 FACTR。同一任务第三次失败后查阅/补充 lessons，转为不依赖函数值的 scaled Newton-CG。
+- residual-driven scaled Newton-CG 完成本地实现：Hessian-vector/预条件 CG/strict residual backtracking 共享有界预算；定向 23/23、完整回归 128/128、静态检查通过，准备临时 Slurm 验证。
+- 完成 `assets/T_method.md`：对照历史增量 scaled L-BFGS-B 与当前 residual-driven scaled Newton-CG，记录共同 OT 目标、公式、接受/停止条件、复杂度、真实失败证据及尚待 Slurm 验证的边界；文档路径与 diff 检查通过。
+- Newton-CG 最终代码形态再次通过定向 23/23；完整回归的系统 `%TEMP%` ACL 阻断按既有 lessons 改用工作区全新 `--basetemp` 后消除，最终 128/128 通过且未跳过测试，进入临时未验收提交阶段。
+- 第三个临时 `[UNACCEPTED]` Newton-CG 提交 `f62c540` 已推送；登记 Guqq 同输入/资源/严格标准、独立 `newton_cg_validation` 路径的 Slurm 验证，真实通过前保持不进入 main。
+- Job 234 Newton-CG 真实验证在 37:11 后失败：12 attempts/1,000 evaluations、row residual `1.69153e-3`、MaxRSS 1,847,260 KiB、无 artifact/audit。保持临时分支未验收，转入 CG 方程/缩放/方向诊断与针对性测试。
+- 用户确认 Job 234 当前精度足够；开始把真实 full-vocabulary OT 验收阈值正式改为 `2e-3`，同时保留 toy/dense oracle 的原高精度要求。取消 reduced row-dual 代码修复，先完成需求文档同步；旧 Job 234 无有效 artifact，仍需按新配置重跑。
+- 完成真实 full-vocabulary `2e-3` 与 toy/dense `1e-9` 精度分层的需求文档同步；两份计划、方法说明、artifact 审计边界和 Job 234 重跑要求一致，路径/链接/格式检查通过。
+- 开始落实 `2e-3` 需求到结构化 construction 配置、主 transport recipe 与 full-support Slurm 默认值；库/CLI、普通 preview 和 toy/dense 高精度默认保持不变。
+- 完成 `2e-3` 配置与 artifact 验收链：结构化 construction provenance、主 recipe/schema、Slurm 默认/override、边际 tolerance 上限与严格列随机性；最终完整回归 131/131 和全部静态检查通过，准备临时 Slurm 验证提交。
+- 临时 `[UNACCEPTED]` 提交 `5207cc9` 已推送；登记 Guqq 同输入/资源和独立 `tolerance_2e3_validation` 路径，准备验证新阈值下的原子 artifact、独立 audit 与 complete checkpoint。
+- Job 235 在 partial 落盘后因 audit dense 展开被 signal 9，MaxRSS 255,870,840 KiB，无最终 artifact/audit。进入 O(nnz + vocab) sparse audit 修复，保持 64G 资源与原子产物边界。
+- 完成 O(nnz + vocab) sparse audit：CSC 直接统计边际/熵，NumPy pair-key 对齐 cost，禁止正式路径 dense 展开；定向 18/18、完整 133/133 和静态检查通过，准备临时 Slurm 重跑。
+- sparse audit 临时 `[UNACCEPTED]` 提交 `76ee480` 已推送；登记全新 `sparse_audit_validation` Slurm 路径，准备验收完整 artifact/audit 与显著低于 64G 的 MaxRSS。
+- Job 236 完成真实 2.62M-edge/full-vocabulary 构建和独立稀疏审计：20:23.32、Exit 0、MaxRSS 2,113,980 KiB、0 swap；row/column residual `1.9975102855e-3`/`8.5268617950e-14`，最大列和误差 `1.1883827256e-12`，audit `valid=true`，checkpoint `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。进入最终本地回归和 main 验收整理。
+- 最终本地验收完成：完整 pytest 133/133；净变更 10 个 Python 文件 Black unchanged，compileall、3 个 Slurm 脚本 Bash syntax、计划路径和 diff 检查通过。准备保存临时验证证据并把最终净变更 squash 为 main 验收提交。

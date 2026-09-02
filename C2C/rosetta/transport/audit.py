@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from pathlib import Path
 from typing import Any, Dict
 
 import numpy as np
 
-from .artifact import TransportArtifact
-from .sinkhorn import candidate_edge_costs
-from .candidate_graph import CandidateEdge, EdgeSource
+from .artifact import ArtifactError, TransportArtifact
+from .candidate_graph import EdgeSource
 
 
 def transport_to_dense(artifact: TransportArtifact) -> np.ndarray:
@@ -24,67 +22,101 @@ def transport_to_dense(artifact: TransportArtifact) -> np.ndarray:
 
 def audit_transport_artifact(artifact: TransportArtifact) -> Dict[str, Any]:
     artifact.validate()
-    transport = transport_to_dense(artifact)
-    coupling = transport * artifact.source_marginal[None, :]
-    row_residual = float(
-        np.abs(coupling.sum(axis=1) - artifact.target_marginal).sum()
-    )
+    target_size, source_size = artifact.shape
+    column_sums = np.zeros(source_size, dtype=np.float64)
+    transported = np.zeros(target_size, dtype=np.float64)
+    column_entropy = np.zeros(source_size, dtype=np.float64)
+
+    candidate_cost_keys = np.asarray([], dtype=np.int64)
+    candidate_cost_values = np.asarray([], dtype=np.float64)
+    if len(artifact.candidate_rows):
+        labels, label_counts = np.unique(artifact.candidate_sources, return_counts=True)
+        try:
+            for label in labels:
+                EdgeSource(str(label))
+        except ValueError as exc:
+            raise ArtifactError(
+                "candidate graph contains an unknown source label"
+            ) from exc
+        source_counts = {
+            str(label): int(count) for label, count in zip(labels, label_counts)
+        }
+        candidate_columns = artifact.candidate_columns.astype(np.int64, copy=False)
+        candidate_rows = artifact.candidate_rows.astype(np.int64, copy=False)
+        evidence = artifact.candidate_evidence.astype(np.float64, copy=False)
+        evidence_totals = np.bincount(
+            candidate_columns, weights=evidence, minlength=source_size
+        )
+        evidence_counts = np.bincount(candidate_columns, minlength=source_size)
+        costs = -np.log(
+            (evidence + 1e-12)
+            / (
+                evidence_totals[candidate_columns]
+                + 1e-12 * evidence_counts[candidate_columns]
+            )
+        )
+        candidate_keys = candidate_columns * target_size + candidate_rows
+        order = np.argsort(candidate_keys)
+        candidate_cost_keys = candidate_keys[order]
+        candidate_cost_values = costs[order]
+        if np.any(np.diff(candidate_cost_keys) == 0):
+            raise ArtifactError("candidate graph contains duplicate row/column edges")
+    else:
+        source_counts = {}
+
+    transport_cost = 0.0 if len(candidate_cost_keys) else None
+    entropy_term = 0.0
+    for column in range(source_size):
+        start, end = artifact.indptr[column : column + 2]
+        rows = artifact.indices[start:end]
+        values = artifact.data[start:end].astype(np.float64, copy=False)
+        column_sums[column] = values.sum()
+        coupling_values = values * artifact.source_marginal[column]
+        np.add.at(transported, rows, coupling_values)
+        positive = values > 0
+        if np.any(positive):
+            positive_values = values[positive]
+            column_entropy[column] = -float(
+                np.dot(positive_values, np.log(positive_values))
+            )
+            positive_coupling = coupling_values[coupling_values > 0]
+            if len(positive_coupling):
+                entropy_term += float(
+                    np.dot(positive_coupling, np.log(positive_coupling) - 1.0)
+                )
+        if transport_cost is not None:
+            keys = column * target_size + rows
+            positions = np.searchsorted(candidate_cost_keys, keys)
+            if np.any(positions == len(candidate_cost_keys)) or not np.array_equal(
+                candidate_cost_keys[positions], keys
+            ):
+                raise ArtifactError("transport edge is missing from candidate graph")
+            transport_cost += float(
+                np.dot(coupling_values, candidate_cost_values[positions])
+            )
+
+    row_residual = float(np.abs(transported - artifact.target_marginal).sum())
     column_residual = float(
-        np.abs(coupling.sum(axis=0) - artifact.source_marginal).sum()
+        np.abs(column_sums * artifact.source_marginal - artifact.source_marginal).sum()
     )
-    positive = transport > 0
-    column_entropy = -np.sum(
-        np.where(positive, transport * np.log(np.where(positive, transport, 1.0)), 0.0),
-        axis=0,
-    )
-    source_counts = Counter(str(value) for value in artifact.candidate_sources.tolist())
     dangerous_special = []
+    special_indices = np.flatnonzero(
+        artifact.candidate_sources == EdgeSource.SPECIAL.value
+    )
     candidate_special_pairs = {
         (
-            int(artifact.target_token_ids[row]),
-            int(artifact.source_token_ids[column]),
+            int(artifact.target_token_ids[artifact.candidate_rows[index]]),
+            int(artifact.source_token_ids[artifact.candidate_columns[index]]),
         )
-        for row, column, source in zip(
-            artifact.candidate_rows,
-            artifact.candidate_columns,
-            artifact.candidate_sources,
-        )
-        if str(source) == EdgeSource.SPECIAL.value
+        for index in special_indices
     }
     for mapping in artifact.metadata.get("special_mappings", []):
         pair = (int(mapping["target_id"]), int(mapping["source_id"]))
         if pair not in candidate_special_pairs:
             dangerous_special.append(mapping)
 
-    transport_cost = None
     regularized_objective = None
-    if len(artifact.candidate_rows):
-        edges = tuple(
-            CandidateEdge(
-                int(column),
-                int(row),
-                EdgeSource(str(source)),
-                float(evidence),
-            )
-            for row, column, evidence, source in zip(
-                artifact.candidate_rows,
-                artifact.candidate_columns,
-                artifact.candidate_evidence,
-                artifact.candidate_sources,
-            )
-        )
-        costs = candidate_edge_costs(edges)
-        cost_by_pair = {
-            (edge.target_id, edge.source_id): cost for edge, cost in zip(edges, costs)
-        }
-        transport_cost = 0.0
-        for column in range(artifact.shape[1]):
-            start, end = artifact.indptr[column : column + 2]
-            for row, value in zip(artifact.indices[start:end], coupling[artifact.indices[start:end], column]):
-                transport_cost += float(value) * float(cost_by_pair[(int(row), column)])
-        entropy_term = float(
-            np.sum(np.where(coupling > 0, coupling * (np.log(np.where(coupling > 0, coupling, 1.0)) - 1), 0.0))
-        )
+    if transport_cost is not None:
         epsilon = float(artifact.metadata["build_config"]["epsilon"])
         regularized_objective = transport_cost + epsilon * entropy_term
 
@@ -98,12 +130,10 @@ def audit_transport_artifact(artifact: TransportArtifact) -> Dict[str, Any]:
         "candidate_source_counts": dict(sorted(source_counts.items())),
         "nonnegative": bool(np.all(artifact.data >= 0)),
         "minimum_value": float(artifact.data.min(initial=0.0)),
-        "max_column_sum_error": float(np.max(np.abs(transport.sum(axis=0) - 1.0))),
+        "max_column_sum_error": float(np.max(np.abs(column_sums - 1.0))),
         "row_marginal_l1": row_residual,
         "column_marginal_l1": column_residual,
-        "transported_marginal_l1": float(
-            np.abs(transport @ artifact.source_marginal - artifact.target_marginal).sum()
-        ),
+        "transported_marginal_l1": row_residual,
         "column_entropy_quantiles": {
             "q0": float(np.quantile(column_entropy, 0.0)),
             "q50": float(np.quantile(column_entropy, 0.5)),
@@ -141,7 +171,9 @@ def audit_markdown(report: Dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def save_audit(report: Dict[str, Any], json_path: str | Path, markdown_path: str | Path) -> None:
+def save_audit(
+    report: Dict[str, Any], json_path: str | Path, markdown_path: str | Path
+) -> None:
     json_path, markdown_path = Path(json_path), Path(markdown_path)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.parent.mkdir(parents=True, exist_ok=True)

@@ -142,3 +142,69 @@
 - 连接用途：按用户确认的 Git pull 恢复窗口，同步阶段 4 approximation/ORF 验收提交 `06e9c7c`，并恢复只读验收 scaled-dual Job 230 的终态、日志、checkpoint、artifact 与 audit。
 - 权限判断：新连接首条远端操作必须为 `cd vocab_align && git pull`；之后仅执行 `git rev-parse`、`squeue/sacct` 与结果文件只读检查。不同步成功不继续查询；不在登录节点运行计算，不修改服务器源码或已有实验结果。
 - 计划顺序：pull 成功后确认提交，再检查 Job 230 state/exit、GNU time、严格 residual、checkpoint 与 artifact/audit。网络异常时运行 `bash net.sh` 后重试；Job 230 验收完成前不提交正式 500k 后续作业。
+- 实际结果：首次 pull 等待 90 秒无输出后中断；`bash net.sh` 成功，retry pull 同步到 `af3aadf`。Job 230 已从活动队列清除且 accounting disabled；stderr 证明作业运行 40:50.55、Exit 1、MaxRSS 1,847,076 KiB、0 swap。scaled L-BFGS 仅执行 27 次 evaluation，随后标准 scaling 至总预算 10,000，最终 row/column residual 为 `4.6615468745e-4`/`6.0559911057e-14`，未达到 `1e-9`。checkpoint 仍为 `building/restart-from-recorded-inputs`，正式 artifact/audit 均不存在；已退出服务器，不推进正式 500k 作业。
+
+## 2026-09-02 08:29 +08:00
+
+- 连接用途：验证临时分支提交 `cfa1a87`（明确 `[UNACCEPTED]`）的 stable incremental dual 与有界重启；在与 Job 230 相同输入、64G/8h、epsilon 0.5、`1e-9`/10,000 下通过 Slurm 重跑 full-support preview。
+- 权限判断：建立会话后第一条远端操作仍为仓库内 `git pull`；随后仅用 `git pull origin validation/job230-dual-increment` 获取临时提交、复核版本/输入/队列并 `sbatch`。2.3M-edge 构建和 Sinkhorn 全部在 compute allocation，登录节点不运行计算、不编辑源码。
+- 计划顺序：同步到 `cfa1a87` 后使用带新 job 后缀的 artifact/audit 路径，避免覆盖 Job 230 的 building checkpoint/partial；提交后持久监控 termination provenance、严格 residual、MaxRSS 和原子产物。未通过前不合并 main、不提交正式 500k 作业。
+- 实际结果：首条普通 pull 成功获取远程临时分支，随后 `git pull origin validation/job230-dual-increment` fast-forward 到 `7ca1003`；输入哈希与 Job 230 一致，提交 Job 232。作业 39:06.15 后 Exit 1，MaxRSS 1,847,136 KiB、0 swap；21 次 acceleration 共严格消耗 1,000 evaluations，前 20 次 termination 均为 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH`，最终 row/column residual `1.6915612104e-3`/`2.6332792027e-14`。独立 checkpoint 为 `building/fresh`，artifact/audit 不存在；已退出，临时提交保持未验收。
+
+## 2026-09-02 09:16 +08:00
+
+- 连接用途：验证临时分支第二个 `[UNACCEPTED]` 提交 `463c3b9`，确认 `ftol=0` 是否消除 Job 232 的 `FACTR*EPSMCH` early termination，并在同一真实图达到严格 `1e-9`。
+- 权限判断：第一条远端操作为仓库内普通 `git pull`，随后仅 `git pull origin validation/job230-dual-increment`、版本/输入/队列轻量复核和 `sbatch`；所有 2.3M-edge 计算仍只在 64G/8h Slurm allocation 内。
+- 计划顺序：使用新的 `dual_ftol_validation` artifact/audit 路径，不覆盖 Job 230/232 现场；验收 termination 不再由 FACTR、累计 evaluation 不越界、两侧 residual、MaxRSS、checkpoint 与原子产物。失败仍不合并 main，并因同一任务连续第三次失败阈值复核 `docs/agents/lessons.md`。
+- 实际结果：首条 pull 约 90 秒后以 GnuTLS `-110` 失败；`bash net.sh` 成功，但 retry pull 约 135 秒后 GitHub 443 timeout。未同步临时提交、未执行版本/输入/队列查询，也未提交新 Slurm 作业；已退出。
+
+## 2026-09-02 09:22 +08:00
+
+- 连接用途：在用户确认 pull 可用的窗口做一次独立同步重试，目标仍为临时 `ftol=0` 提交 `463c3b9`/审计 `2e78433` 与 `dual_ftol_validation` Slurm 作业；若仍失败则停止本轮远端重试并保留 pending。
+- 权限判断与顺序：新会话第一条操作仍为 `cd vocab_align && git pull`；成功前不做任何其他远端操作。成功后才 pull 临时分支、复核并 `sbatch`，所有计算只在 Slurm。
+- 实际结果：首条 pull 成功获取临时分支更新，随后 fast-forward 到 `7482ef5`；输入哈希一致、无同名作业，提交独立 `dual_ftol_validation` Job 233。作业持续 RUNNING 至至少 14:49，随后 SSH 被远端 reset；Slurm 未被取消，终态待新审计连接恢复检查。
+
+## 2026-09-02 09:43 +08:00
+
+- 连接用途：恢复持久监控 `ftol=0` 临时验证 Job 233；等待终态后读取 termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
+- 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；随后只运行 `squeue` 和结果只读检查，不提交新作业、不运行登录节点计算、不修改服务器源码/产物。
+- 实际结果：首次连接在 shell 前关闭；同用途 retry 建立会话后首条 pull 成功，并同步临时分支至 `4dbb598`。Job 233 持续 RUNNING 至至少 25:40；随后对话中断，恢复轮询时 SSH 已被远端 reset。Slurm 未被取消，终态仍待检查。
+
+## 2026-09-02 10:02 +08:00
+
+- 连接用途：再次恢复 Job 233 终态只读验收，读取 Slurm state/日志、termination provenance、严格 residual、GNU time、checkpoint 与独立 artifact/audit。
+- 权限判断与顺序：新连接第一条操作为 `cd vocab_align && git pull`；之后只运行 `squeue` 及结果文件只读命令，不提交作业、不直接运行计算、不修改服务器源码或实验产物。
+- 实际结果：首条 pull 与临时分支同步成功至 `bb84223`。Job 233 已终止并与 Job 232 得到相同严格失败：39:06.84、Exit 1、MaxRSS 1,847,040 KiB、0 swap；21 attempts/1,000 evaluations，前 20 次即使 `ftol=0` 仍报告 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH`，最终 row/column residual `1.6915612104e-3`/`2.6332792027e-14`。checkpoint `building/fresh`，artifact/audit 不存在；已退出。
+
+## 2026-09-02 10:36 +08:00
+
+- 连接用途：验证第三个临时 `[UNACCEPTED]` 提交 `f62c540` 的 residual-driven scaled Newton-CG，在与 Jobs 230/232/233 相同的 2.3M-edge 输入、64G/8h、epsilon 0.5、`1e-9`/10,000 配置下经 Slurm 重跑 full-support preview。
+- 权限判断与顺序：新会话第一条远端操作必须是 `cd vocab_align && git pull`；之后才拉取 `validation/job230-dual-increment`、复核 HEAD/输入/队列并 `sbatch`。真实图构建和求解全部在 compute allocation；登录节点只做轻量管理，不编辑受 Git 管理源码。
+- 验收边界：使用独立 `newton_cg_validation` checkpoint/artifact/audit 路径，不覆盖前三次失败现场；检查严格两侧 residual、Newton/CG provenance、1,000 acceleration budget、GNU time/MaxRSS 和原子产物。若网络异常先运行 `bash net.sh` 再重试 pull；真实图通过前不进入 main。
+- 实际结果：首条 pull 成功并同步到 `9c2ad04`，输入哈希保持 `05ca0628…207a3a`/`260f9804…e91652`，SciPy 1.15.3；提交 Job 234。作业 37:11.54 后 Exit 1，MaxRSS 1,847,260 KiB、0 swap；12 次 Newton 尝试共耗尽 1,000 evaluations，虽有少量极小步被接受，最终 row/column residual 仍为 `1.6915304665e-3`/`6.2669379185e-14`。checkpoint 为 `building/fresh`，artifact/audit 不存在；stderr/checkpoint SHA-256 分别为 `6f3807b4…785d65`/`a3a9acb8…5bdc7f`。已退出，临时提交保持未验收。
+
+## 2026-09-02 12:12 +08:00
+
+- 连接用途：验证临时 `[UNACCEPTED]` 提交 `5207cc9` 对新 full-vocabulary `2e-3` 需求的完整落盘链；以与 Job 234 相同输入、64G/8h、epsilon 0.5、max_iter 10,000 经 Slurm 重跑。
+- 权限判断与顺序：新会话第一条远端操作必须是 `cd vocab_align && git pull`；之后才同步 `validation/job230-dual-increment`、复核 HEAD/输入/队列并 `sbatch`。所有 2.3M-edge 构建/求解在 compute allocation，登录节点只做轻量管理且不编辑源码。
+- 验收边界：使用独立 `tolerance_2e3_validation` checkpoint/artifact/audit 路径，不覆盖 Job 234；要求 Exit 0、两侧最大 L1 residual `<=2e-3`、metadata `build_config.tolerance=0.002`、列随机性保持 dtype 精度、artifact save/load 与独立 JSON/Markdown audit 完整、checkpoint complete、MaxRSS/哈希可追溯。网络异常先 `bash net.sh`；通过前不进入 main。
+- 实际结果：首条 pull 与临时分支同步成功至 `9ac437e`，输入哈希和 SciPy 1.15.3 一致，提交 Job 235。作业约 22:36 后在 partial artifact 已写出时被 signal 9 终止；GNU time 记录 MaxRSS `255,870,840 KiB`、0 swap，暴露 `audit_transport_artifact` 全矩阵 dense 展开。留下 34 MiB partial（SHA-256 `833a320a…e5e3e0`）和 `building/fresh` checkpoint（`a3a9acb8…5bdc7f`），无最终 artifact/audit；stderr SHA-256 `3e67cc70…438bf6`。已退出，该运行未验收。
+
+## 2026-09-02 13:34 +08:00
+
+- 连接用途：验证临时 `[UNACCEPTED]` sparse audit 提交 `76ee480`；复用 Job 235 相同输入、64G/8h、epsilon 0.5、tolerance `2e-3`、max_iter 10,000，经 Slurm 完成 full-vocabulary artifact 的保存/加载/独立审计。
+- 权限判断与顺序：新会话第一条远端操作为 `cd vocab_align && git pull`；之后才同步临时分支、复核 HEAD/输入/队列并 `sbatch`。构建和 audit 都在 compute allocation；登录节点只做轻量管理/只读终态检查，不加载 partial、不编辑源码。
+- 验收边界：使用全新 `sparse_audit_validation` artifact/audit/checkpoint 路径，不覆盖 Job 235 partial；要求 Exit 0、residual `<=2e-3`、metadata tolerance、完整 JSON/Markdown audit、checkpoint complete、目标统计有限、MaxRSS 显著低于 64G 且哈希可追溯。通过前不进入 main。
+
+## 2026-09-02 16:21 +08:00
+
+- 连接用途：此前用于监控 Job 236 的持久 SSH 会话被远端 reset；建立新连接恢复只读终态验收，查询 Slurm state/exit、GNU time/MaxRSS、独立 artifact/audit/checkpoint 和哈希。
+- 权限判断与顺序：新连接的第一条远端操作仍为 `cd vocab_align && git pull`；成功后仅执行 `squeue`/`sacct`、日志和结果文件只读检查，不提交新计算、不在登录节点加载全量产物或修改服务器源码/实验结果。
+- 验收边界：继续使用 Job 236 的 `sparse_audit_validation` 独立路径，核验 Exit 0、两侧 marginal residual、严格列归一化、metadata tolerance、有限目标统计、checkpoint complete、MaxRSS 与可追溯哈希；若失败则保留现场并回到本地修复。
+
+## 2026-09-03 01:20 +08:00
+
+- 连接用途：昨日恢复会话在多次 GitHub TLS/443 失败后被远端 reset；今天重新连接 Guqq，恢复 Job 236 的终态只读验收并收集 artifact/audit/checkpoint、调度资源和哈希证据。
+- 权限判断与顺序：新连接第一条远端操作必须为 `cd vocab_align && git pull`；成功后才执行 `squeue`/`sacct`、日志及结果文件只读检查。网络异常时按规范运行 `bash net.sh` 后重试，不在登录节点执行构建、审计或全量产物加载，也不修改服务器文件。
+- 验收边界：核验 Job 236 Exit 0、`2e-3` 两侧 marginal 要求、严格列归一化、metadata、有限目标统计、checkpoint complete、MaxRSS 和哈希；通过后回到本地补全测试/状态/进度记录并整理验收提交。
+- 实际结果：首条 `git pull` 成功；Slurm accounting 已禁用，但 stderr 的 GNU time 给出 20:23.32、Exit 0、MaxRSS `2,113,980 KiB`、0 swap。最终 artifact 为 33,486,321 bytes，shape `131069×151669`、nnz `2,620,553`；audit `valid=true`，row/column/transported residual `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，最大列和误差 `1.1883827256e-12`，目标统计有限且无危险 special mapping。metadata tolerance 为 `0.002`，checkpoint `complete/fresh`，JSON/Markdown 齐全、同名 partial 不存在。artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 分别为 `b1ada569…18aca2`、`88c9f4ff…c23501`、`c8467f09…99d7d1`、`56ef61f7…fb739`、`3f9c2ee3…ec2784`；已退出服务器，远程验收通过。

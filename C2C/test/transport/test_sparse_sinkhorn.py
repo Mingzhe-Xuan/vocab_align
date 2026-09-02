@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from types import SimpleNamespace
 
 from rosetta.transport.candidate_graph import (
     CandidateEdge,
@@ -12,6 +11,7 @@ from rosetta.transport.candidate_graph import (
 from rosetta.transport.sinkhorn import (
     SinkhornError,
     _dual_value_gradient,
+    _scaled_dual_hessian_product,
     candidate_edge_costs,
     dense_sinkhorn,
     sparse_conditional_from_coupling,
@@ -43,6 +43,42 @@ def test_sparse_dual_gradient_matches_finite_difference():
         numerical[index] = (upper - lower) / (2 * step)
     assert np.isfinite(value)
     np.testing.assert_allclose(gradient, numerical, atol=1e-9)
+
+
+def test_scaled_dual_hessian_product_matches_gradient_finite_difference():
+    rows = np.repeat(np.arange(2), 3)
+    columns = np.tile(np.arange(3), 2)
+    log_kernel = np.log(np.array([0.7, 0.2, 0.1, 0.1, 0.3, 0.6]))
+    source = np.array([0.2, 0.3, 0.5])
+    target = np.array([0.4, 0.6])
+    variables = np.array([0.2, -0.1, 0.1, -0.2])
+    direction = np.array([0.3, -0.4, 0.2, -0.1])
+    _, _, mass = _dual_value_gradient(
+        variables, rows, columns, log_kernel, source, target
+    )
+    actual = _scaled_dual_hessian_product(
+        direction, rows, columns, mass, source, target
+    )
+    scale = np.sqrt(np.concatenate((target, source[:-1])))
+    step = 1e-6
+    _, upper, _ = _dual_value_gradient(
+        variables + step * direction / scale,
+        rows,
+        columns,
+        log_kernel,
+        source,
+        target,
+    )
+    _, lower, _ = _dual_value_gradient(
+        variables - step * direction / scale,
+        rows,
+        columns,
+        log_kernel,
+        source,
+        target,
+    )
+    numerical = (upper / scale - lower / scale) / (2 * step)
+    np.testing.assert_allclose(actual, numerical, atol=1e-9)
 
 
 def test_dual_acceleration_converges_on_pathological_sparse_scaling():
@@ -81,24 +117,34 @@ def test_dual_acceleration_converges_on_pathological_sparse_scaling():
         acceleration_max_evaluations=800,
     )
     assert report.converged
-    assert report.method == "sinkhorn-scaled-lbfgs-sinkhorn"
+    assert report.method == "sinkhorn-scaled-newton-cg-sinkhorn"
     assert 0 < report.acceleration_evaluations < 400
+    assert report.acceleration_attempts >= 1
+    assert all("FACTR" not in item for item in report.acceleration_terminations)
     assert report.iterations <= report.max_iter
     np.testing.assert_allclose(coupling.to_dense().sum(axis=0), source, atol=1e-9)
     np.testing.assert_allclose(coupling.to_dense().sum(axis=1), target, atol=1e-9)
 
 
-def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
-    captured = {}
+def test_dual_acceleration_forwards_bounded_newton_cg_operators(monkeypatch):
+    captured = []
 
-    def fake_minimize(objective, initial, *, method, jac, options):
-        value, gradient = objective(initial)
-        assert np.isfinite(value)
-        assert np.all(np.isfinite(gradient))
-        captured.update(method=method, jac=jac, options=options)
-        return SimpleNamespace(x=initial, nfev=1)
+    def fake_cg(operator, rhs, *, rtol, atol, maxiter, M, callback):
+        direction = M @ rhs
+        product = operator @ direction
+        assert product.shape == rhs.shape
+        callback(direction)
+        captured.append(
+            {
+                "shape": operator.shape,
+                "rtol": rtol,
+                "atol": atol,
+                "maxiter": maxiter,
+            }
+        )
+        return direction, 1
 
-    monkeypatch.setattr("scipy.optimize.minimize", fake_minimize)
+    monkeypatch.setattr("scipy.sparse.linalg.cg", fake_cg)
     graph = CandidateGraph(
         2,
         2,
@@ -120,54 +166,62 @@ def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
         max_iter=100,
         acceleration_after=1,
         acceleration_max_evaluations=2,
-        acceleration_history_size=2,
+        acceleration_cg_iterations=2,
     )
-    assert captured["method"] == "L-BFGS-B"
-    assert captured["jac"] is True
-    assert captured["options"]["maxcor"] == 2
-    assert captured["options"]["maxfun"] == 2
-    with pytest.raises(SinkhornError, match="history size"):
+    assert captured[0] == {
+        "shape": (3, 3),
+        "rtol": 1e-6,
+        "atol": 0.0,
+        "maxiter": 1,
+    }
+    with pytest.raises(SinkhornError, match="CG iterations"):
         sparse_log_sinkhorn(
             graph,
             source,
             target,
             epsilon=0.5,
-            acceleration_history_size=0,
+            acceleration_cg_iterations=0,
         )
 
 
-def test_dual_acceleration_scaled_gradient_matches_finite_difference(monkeypatch):
-    checked = False
+def test_dual_acceleration_restarts_after_unimproved_cg_direction(monkeypatch):
+    calls = 0
 
-    def fake_minimize(objective, initial, *, method, jac, options):
-        nonlocal checked
-        value, gradient = objective(initial)
-        numerical = np.empty_like(gradient)
-        step = 1e-6
-        for index in range(len(initial)):
-            offset = np.zeros_like(initial)
-            offset[index] = step
-            upper, _ = objective(initial + offset)
-            lower, _ = objective(initial - offset)
-            numerical[index] = (upper - lower) / (2 * step)
-        assert np.isfinite(value)
-        np.testing.assert_allclose(gradient, numerical, atol=1e-8)
-        checked = True
-        return SimpleNamespace(x=initial, nfev=1)
+    def zero_direction(operator, rhs, *, rtol, atol, maxiter, M, callback):
+        nonlocal calls
+        calls += 1
+        direction = np.zeros_like(rhs)
+        operator @ direction
+        callback(direction)
+        return direction, maxiter
 
-    monkeypatch.setattr("scipy.optimize.minimize", fake_minimize)
-    graph = _complete_graph(2, 3)
-    sparse_log_sinkhorn(
-        graph,
-        np.array([1e-8, 0.2, 0.8 - 1e-8]),
-        np.array([0.3, 0.7]),
-        epsilon=0.5,
-        tolerance=1e-9,
-        max_iter=100,
-        acceleration_after=1,
-        acceleration_max_evaluations=2,
+    monkeypatch.setattr("scipy.sparse.linalg.cg", zero_direction)
+    size = 80
+    graph = CandidateGraph(
+        size,
+        size,
+        tuple(
+            [CandidateEdge(i, i, EdgeSource.EXACT_BYTE, 1.0) for i in range(size)]
+            + [CandidateEdge(i, 0, EdgeSource.ANN, 1e-6) for i in range(1, size)]
+            + [CandidateEdge(0, j, EdgeSource.ANN, 1e-6) for j in range(1, size)]
+        ),
     )
-    assert checked
+    source = np.geomspace(1.0, 1e-14, size)
+    source /= source.sum()
+    target = source[::-1].copy()
+    graph, _ = augment_candidate_graph_for_marginals(graph, source, target)
+    with pytest.raises(SinkhornError, match="newton-steps=0"):
+        sparse_log_sinkhorn(
+            graph,
+            source,
+            target,
+            epsilon=0.5,
+            tolerance=1e-9,
+            max_iter=100,
+            acceleration_after=10,
+            acceleration_max_evaluations=20,
+        )
+    assert calls >= 2
 
 
 def test_marginal_augmentation_repairs_connected_capacity_infeasibility():

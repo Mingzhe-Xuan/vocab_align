@@ -4,6 +4,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+from rosetta.transport.audit import audit_transport_artifact
 from rosetta.transport.artifact import (
     ArtifactError,
     artifact_from_dense,
@@ -88,6 +89,34 @@ def test_artifact_rejects_corrupt_candidate_arrays():
     )
     with pytest.raises(ArtifactError, match="candidate graph arrays"):
         corrupt.validate()
+
+
+def test_artifact_uses_bounded_build_tolerance_only_for_marginal_l1(tmp_path):
+    source = np.array([0.5, 0.5])
+    approximate_target = np.array([0.5005, 0.4995])
+    metadata = _metadata()
+    metadata["build_config"]["tolerance"] = 0.002
+    artifact = artifact_from_dense(np.eye(2), source, approximate_target, metadata)
+    artifact.validate()
+    path = tmp_path / "approximate.npz"
+    save_transport_artifact(artifact, path)
+    report = audit_transport_artifact(load_transport_artifact(path))
+    assert report["valid"] is True
+    assert report["transported_marginal_l1"] == pytest.approx(0.001)
+
+    strict_metadata = _metadata()
+    with pytest.raises(ArtifactError, match="transported source marginal"):
+        artifact_from_dense(np.eye(2), source, approximate_target, strict_metadata)
+
+    corrupt_column = replace(artifact, data=np.array([0.999, 1.0]))
+    with pytest.raises(ArtifactError, match="columns are not normalized"):
+        corrupt_column.validate()
+
+    unsafe_metadata = _metadata()
+    unsafe_metadata["build_config"]["tolerance"] = 0.0021
+    unsafe = replace(artifact, metadata=unsafe_metadata)
+    with pytest.raises(ArtifactError, match="pre-registered maximum"):
+        unsafe.validate()
 
 
 def test_legacy_schema_one_artifact_loads_with_identity_token_ids(tmp_path):

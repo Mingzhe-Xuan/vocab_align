@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 4 approximation/ORF 核心已通过 127 个本地测试并以 `06e9c7c` 推送。已登记新的 Guqq 连接用途，准备先 pull 再验收 Job 230 终态。
+正在实施 Training-free Soft-Token Transport。阶段 1 的真实 full-vocabulary 预览 artifact 已通过 `2e-3`、原子保存、独立稀疏审计和资源门禁，阶段 2 精确原型及阶段 4 approximation 核心已通过本地测试；正在整理 main 验收提交，随后进入正式 500k 语料物化、正式 T 构建和真实短序列 smoke。
 
 ## 当前计划
 
-1. 提交并推送已通过本地验收的 approximation/ORF 核心，保持 `docs/assets/alignment.py` 为未跟踪参考文件。
-2. 登记新的 Guqq 连接用途，连接后先 `git pull`，再只读验收 Job 230 终态与 artifact/audit；网络异常时运行 `bash net.sh` 后重试。
-3. Job 230 通过后提交正式 OpenHermes 500k 物化作业；若失败则依据不降低标准的原则进入对应修复单元。
+1. 将已验证临时分支的最终净变更整理为 main 验收提交并推送。
+2. 通过 Slurm 物化锁定 revision 的 OpenHermes 500k pinned prefix，并生成/审计正式 transport manifest。
+3. 构建正式 T artifact，完成真实模型短序列 STT smoke；随后实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集评测。
 
 ## 变更记录
 
@@ -79,5 +79,31 @@
 - 2026-09-02 08:00 +08:00：Job 230 恢复连接首条 pull 以 GnuTLS 失败，`net.sh` 后重试以 GitHub 443 timeout 失败；未越权查询。计划调整为本地阶段 4 approximation 核心，模块边界为 `approximations.py`（TH/分块/预计算/误差）与 `orf.py`（随机特征/`S,z`/在线映射）。
 - 2026-09-02 08:08 +08:00：阶段 4 approximation 核心完成本地验收；TH、edge-chunk、预计算 source values 与 ORF `S,z`/在线公式通过 oracle，完整回归 127/127。下一步形成验收提交并在新登记连接中恢复 Job 230 终态检查。
 - 2026-09-02 08:12 +08:00：approximation/ORF 验收提交 `06e9c7c` 已推送；已登记同步该提交与只读验收 Job 230 的 Guqq 连接。下一步提交审计记录，然后连接并首先执行 `git pull`。
+- 2026-09-02 08:19 +08:00：Guqq 经 `net.sh` 后成功 pull；Job 230 以 40:50/Exit 1 严格不收敛，MaxRSS 1.76 GiB 排除内存，27 次 scaled L-BFGS 后 row residual 仍为 `4.66e-4`，无 artifact/audit。进入稳定增量 dual + 有界重启修复单元，不降低 `1e-9` 标准。
+- 2026-09-02 08:27 +08:00：stable incremental dual、严格 evaluation cap、termination provenance 与短退重启完成；病态/集成 24/24、完整回归 129/129 通过。真实 preview 仍是必需验收，下一步仅创建临时分支未验收提交并经 Slurm 验证。
+- 2026-09-02 08:29 +08:00：临时分支 `validation/job230-dual-increment` 的未验收提交 `cfa1a87` 已推送；已登记 Guqq 同配置 Slurm 验证用途，使用独立 job 后缀产物避免覆盖旧 checkpoint。下一步提交审计记录后连接并首先 pull。
+- 2026-09-02 09:12 +08:00：Job 232 以 39:06/Exit 1 失败；21 次 acceleration 中前 20 次均被 `FACTR*EPSMCH` 终止，耗尽 1,000 evaluations 后 row residual `1.69e-3`，无 artifact/audit。计划实质调整为禁用 `ftol` 停止并保留梯度/预算/residual 三重边界。
+- 2026-09-02 09:15 +08:00：`ftol=0` 选项与回归断言完成；定向 24/24、完整 129/129、Black/compile/diff 均通过。下一步推送第二个临时未验收提交并登记独立 Slurm 复验。
+- 2026-09-02 09:16 +08:00：第二个临时未验收提交 `463c3b9` 已推送；登记 Guqq `dual_ftol_validation` 独立 Slurm 回归，下一步提交审计记录后连接并首先 pull。
+- 2026-09-02 09:22 +08:00：Guqq 首条 pull 以 GnuTLS 失败，`net.sh` 后 retry 以 443 timeout 失败，未提交新 job。登记一次独立同步重试；若仍失败则暂停远端并保持验证 pending。
+- 2026-09-02 09:43 +08:00：独立重试成功同步 `7482ef5` 并提交 Job 233；相同输入/配置作业运行至少 14:49 后监控 SSH 被 reset，Slurm 未中断。登记新连接恢复终态只读验收。
+- 2026-09-02 10:02 +08:00：恢复连接同步到 `4dbb598` 并确认 Job 233 持续 RUNNING 至至少 25:40；会话再次关闭但作业未被取消。登记新连接继续终态只读验收。
+- 2026-09-02 10:08 +08:00：Job 233 终态与 Job 232 相同，`ftol=0` 仍触发 FACTR 精度平台，39:06 后 row residual `1.69e-3` 且无产物。同一任务第三次真实失败后已查阅 lessons，并将方案调整为 residual-driven scaled Newton-CG。
+- 2026-09-02 10:21 +08:00：scaled Hessian-vector Newton-CG、对角预条件、严格 residual backtracking 与共享预算实现完成；定向 23/23、完整 128/128、Black/compile/diff 通过。下一步推送第三个临时未验收提交并经独立 Slurm 路径验证。
+- 2026-09-02 10:26 +08:00：开始前后 sparse OT 加速方法说明文档单元；对照 `463c3b9` 与当前工作树，计划明确增量 scaled L-BFGS-B 和 scaled Newton-CG 的共同目标、算法差异、成本及真实验证状态。
+- 2026-09-02 10:26 +08:00：完成 `assets/T_method.md`；源码/历史实现、方法参数、provenance、公式、路径和 diff 检查通过。文档明确新版真实 Slurm 收敛与耗时仍待验证，主实现计划不变。
+- 2026-09-02 10:33 +08:00：最终代码形态定向 23/23；完整回归首次仅受系统 `%TEMP%` ACL 阻断一个既有 Bash 用例，按 lessons 使用工作区忽略目录的全新 `--basetemp` 后 128/128 通过。下一步形成第三个 `[UNACCEPTED]` 临时提交并登记 Guqq Slurm 验证。
+- 2026-09-02 10:36 +08:00：第三个临时未验收提交 `f62c540` 已推送；已登记同输入/资源/严格标准、独立输出路径的 Newton-CG Slurm 验证连接。下一步先提交该审计记录，再连接 Guqq 且首项执行 `git pull`。
+- 2026-09-02 11:21 +08:00：Job 234 在 37:11 后耗尽 1,000 Newton-CG evaluations，row residual `1.69153e-3`，无 artifact/audit；首版真实验证失败且保持未验收。下一步本地诊断缩放/方向并补充能复现极小步停滞的测试，不降低严格标准。
+- 2026-09-02 11:26 +08:00：用户确认当前真实图精度足够，需求实质调整为 full-vocabulary 最大两侧 L1 residual `<=2e-3`；toy/dense oracle 仍保持原高精度。取消 reduced row-dual 代码修复计划，先同步两份计划、方法说明与验收记录；Job 234 旧配置未产出 artifact，后续仍需按新阈值重跑并审计。
+- 2026-09-02 11:28 +08:00：两份计划、`assets/T_method.md`、经验和验收记录已完成 `2e-3`/`1e-9` 精度分层同步；路径、相对链接、公式/阈值表述与 diff 检查通过。下一步提交文档需求变更，再进入配置和验收测试实现单元。
+- 2026-09-02 11:35 +08:00：需求文档提交 `865d17a` 已推送；进入 construction 配置/主 recipe/full-support Slurm 默认值实现单元。测试范围固定为结构化 round-trip/校验、`2e-3` 默认与 override 转发、完整回归和静态检查。
+- 2026-09-02 12:10 +08:00：construction 配置、主 recipe/schema、full-support `2e-3` 默认及 artifact 边际/列和分层审计完成；定向链路与完整 131/131、Bash/Black/compile/diff 全部通过。下一步形成临时未验收提交并经独立 Slurm 路径生成有效 artifact。
+- 2026-09-02 12:12 +08:00：临时未验收提交 `5207cc9` 已推送；已登记同输入/资源、`2e-3` 默认和独立 `tolerance_2e3_validation` 产物路径的 Guqq 验证。下一步提交审计记录，再连接并首先执行 `git pull`。
+- 2026-09-02 13:25 +08:00：Job 235 约 22:36 后 signal 9，MaxRSS 255,870,840 KiB；partial 已写出但无最终 artifact/audit，根因定位为独立 audit 的 full-vocabulary dense 展开。进入 sparse audit 实现单元，不提升资源、不使用 partial 冒充有效产物。
+- 2026-09-02 13:32 +08:00：audit 的列和、边际、entropy、cost 与正则目标已全部改为 CSC/NumPy pair-key 稀疏统计；手算/大 shape 定向与完整 133/133、Black/compile/diff 通过。下一步推送临时验证提交并重跑真实 artifact 链。
+- 2026-09-02 13:34 +08:00：sparse audit 临时提交 `76ee480` 已推送；已登记全新 `sparse_audit_validation` 路径的 Guqq 重跑。下一步提交审计记录，再连接且首项执行 `git pull`。
+- 2026-09-03 01:26 +08:00：Job 236 已通过真实 full-vocabulary 验收：20:23.32、Exit 0、MaxRSS 2,113,980 KiB、0 swap；row/column/transported residual 为 `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，严格列和误差 `1.1883827256e-12`，audit `valid=true`，checkpoint `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。下一步补全证据并在最终树上重跑本地验收，然后整理 main。
+- 2026-09-03 01:31 +08:00：最终代码树完整回归 133/133；本分支实际修改的 10 个 Python 文件通过 Black，compileall、3 个 Slurm 脚本的 Bash syntax、计划路径和 `git diff --check` 均通过。进入临时证据提交与 main squash 验收提交阶段，`docs/assets/alignment.py` 继续作为未跟踪用户参考排除。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

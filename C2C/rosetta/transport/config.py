@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -146,6 +147,49 @@ class TransportInferenceSpec:
 
 
 @dataclass(frozen=True)
+class TransportConstructionSpec:
+    """Numerical settings used to build a full-vocabulary transport artifact."""
+
+    epsilon: float = 0.5
+    tolerance: float = 1e-9
+    max_iter: int = 10_000
+    smoothing: float = 1e-8
+
+    def validate(self) -> None:
+        for field_name in ("epsilon", "tolerance", "smoothing"):
+            value = getattr(self, field_name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or float(value) <= 0
+            ):
+                raise ConfigError(
+                    f"construction {field_name} must be finite and positive"
+                )
+        if (
+            isinstance(self.max_iter, bool)
+            or not isinstance(self.max_iter, int)
+            or self.max_iter <= 0
+        ):
+            raise ConfigError("construction max_iter must be a positive integer")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "TransportConstructionSpec":
+        _only_fields(
+            payload,
+            {"epsilon", "tolerance", "max_iter", "smoothing"},
+            "construction",
+        )
+        try:
+            value = cls(**payload)
+        except TypeError as exc:
+            raise ConfigError(f"invalid construction configuration: {exc}") from exc
+        value.validate()
+        return value
+
+
+@dataclass(frozen=True)
 class TransportConfig:
     schema_version: int
     source: ModelSpec
@@ -154,6 +198,9 @@ class TransportConfig:
     seed: int
     output_path: str
     output_schema: str
+    construction: TransportConstructionSpec = field(
+        default_factory=TransportConstructionSpec
+    )
     transport: TransportInferenceSpec = field(default_factory=TransportInferenceSpec)
     generation: Dict[str, Any] = field(default_factory=dict)
 
@@ -163,6 +210,7 @@ class TransportConfig:
         self.source.validate()
         self.target.validate()
         self.data.validate()
+        self.construction.validate()
         self.transport.validate()
         if (
             isinstance(self.seed, bool)
@@ -200,6 +248,7 @@ class TransportConfig:
                 "seed",
                 "output_path",
                 "output_schema",
+                "construction",
                 "transport",
                 "generation",
             },
@@ -214,6 +263,9 @@ class TransportConfig:
                 seed=payload["seed"],
                 output_path=payload["output_path"],
                 output_schema=payload["output_schema"],
+                construction=TransportConstructionSpec.from_dict(
+                    payload.get("construction", {})
+                ),
                 transport=TransportInferenceSpec.from_dict(
                     payload.get("transport", {})
                 ),

@@ -2,7 +2,7 @@
 
 ## 病态稀疏支撑需要保持目标不变的对偶加速
 
-即使候选图存在对所有 active edges 严格为正的可行 coupling，交替 row/column scaling 在极端边际和低证据 feasibility 边上仍可能以很慢的速率收敛；真实图中 column residual 已到机器精度而 row residual 在 10,000 次后仍为 `5.58e-4`。不能用提高 `max_iter`、放宽 tolerance 或直接采用可行 coupling 代替熵正则最优解。可先用标准 log-domain Sinkhorn warm up，再固定一个 dual gauge，对同一 Gibbs kernel 的凸缩放对偶做解析梯度 L-BFGS，最后继续标准缩放并用原始两侧 L1 residual 验收。正 smoothing 会使 dual Hessian 的边际尺度对角跨越许多数量级；直接优化 log scaling 会忽略稀有 token，必须用 `z = sqrt(marginal) * x` 的可逆坐标缩放把局部对角预条件到约 1，同时保持原目标不变。加速器必须有独立预算和方法记录；非有限变量、不可行支撑和总预算耗尽仍显式失败。
+即使候选图存在对所有 active edges 严格为正的可行 coupling，交替 row/column scaling 在极端边际和低证据 feasibility 边上仍可能以很慢的速率收敛；真实图中 column residual 已到机器精度而 row residual 在 10,000 次后仍为 `5.58e-4`。在验收要求固定时，不能为使单次作业通过而临时提高 `max_iter`、放宽 tolerance 或直接采用可行 coupling 代替熵正则最优解；容差只能作为显式、版本化的产品需求调整。应先用标准 log-domain Sinkhorn warm up，再固定 dual gauge，在同一 Gibbs kernel 上做保持目标不变的二阶加速，最后继续标准缩放并用原始两侧 L1 residual 验收。正 smoothing 会使 dual Hessian 的边际尺度对角跨越许多数量级；必须用 `z = sqrt(marginal) * x` 的可逆坐标缩放把局部对角预条件到约 1。早期 L-BFGS 方案已被真实图的函数值精度平台否定，当前应使用 Hessian-vector Newton-CG 与 residual backtracking。加速器必须有独立预算和方法记录；非有限变量、不可行支撑和总预算耗尽仍显式失败。
 
 ## 二部候选图连通不等于边际容量可行
 
@@ -15,6 +15,8 @@
 ## Artifact 数值审计
 
 稀疏 artifact 的边际与列和容差必须至少覆盖其存储 dtype 的机器精度；用固定的 float64 级容差审计 float32 数据会误拒绝合法 artifact。实现采用 `max(配置容差, 10 * dtype epsilon)`，同时仍拒绝非有限值和真实的归一化偏差。
+
+full-vocabulary artifact 即使以 CSC 保存，audit 若先调用 `transport_to_dense`，一个约 `131k × 52k` 的 float64 矩阵就需数十 GiB；再创建 coupling、布尔 mask 和 `np.where` 中间数组会把峰值推到数百 GiB。Job 235 因此在 partial 落盘后达到 255,870,840 KiB MaxRSS 并被 signal 9。正式 audit 必须直接在 CSC `data/indices/indptr` 上累计列和、`Ta`、边际、每列 entropy 和目标值，空间限制为 O(nnz + source vocab + target vocab)；dense helper 只能用于 tiny oracle，不能出现在真实 artifact 审计路径。
 
 ## 项目脚本调用
 
@@ -55,3 +57,11 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 ## ORF transport 的温度、偏置与数值平移必须成对处理
 
 source logits 为 `h W^T + b` 时，通信温度作用于整个 logits：ORF query 必须使用 `h/tau`，而词表 key 保持 `W_i`，偏置权重使用 `exp(b_i/tau)`。为避免偏置指数溢出，可以从所有 active source bias 中减去同一个全局最大值；该公共因子会在分子和分母中抵消，但不能按 source chunk 使用不同平移。离线 key features 与在线 query features 也不能各自采用不一致的跨 token 平移；在线只允许对每个 query 减去共同最大 log-feature，因为该因子同样在 `u @ S.T / (u @ z)` 中抵消。实现和测试均应保持 row-vector 方向，避免把预聚合矩阵 `S` 的转置关系静默写反。
+
+## 对偶加速应优化当前点的增量而不是大绝对变量
+
+稀疏 Sinkhorn warm-up 后，gauge-fixed dual 变量可具有很大的相消绝对值；直接把绝对变量交给 L-BFGS 时，目标中的 `mass.sum()` 与边际线性项会在浮点精度内抵消，SciPy 可能只做几十次 evaluation 就以函数值停滞或 line-search 状态返回，而严格 residual 几乎未改善。应固定当前 Sinkhorn 点 `x0`，优化缩放增量 `delta`，用 `mass0 * expm1(A delta)` 计算相对目标，并保留同一解析梯度、kernel、边际与 gauge。优化器返回的候选还必须用原始两侧 L1 residual 复验，只在最大 residual 严格下降时接受；短退可在总 evaluation cap 内于后续 warm-up 点重启，所有 termination 原因都写入 convergence provenance。
+
+真实 2.3M-edge 图进一步表明，即使相对增量目标且 SciPy `ftol=0`，当目标下降在 float64 中恰好不可分辨时，L-BFGS-B 仍会以 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH` 返回；Job 232/233 的 20 次短退及完全相同 residual 证明这不是简单选项问题。严格边际求解不能再依赖函数值 line-search/termination。应直接对 dual gradient 使用 Hessian-vector：在 `sqrt(marginal)` 坐标中以对角预条件 CG 求 Newton 方向，再用原始两侧 L1 residual 做有限 backtracking 和接受判据。CG matvec 与候选评估必须共享显式预算，避免用隐藏的内部迭代绕过总计算上限。
+
+Job 234 暴露了 full-dual 截断 Newton-CG 的另一非显然约束：标准 row/column scaling 结束时 column marginal 已精确到机器误差，有限步 CG 的近似方向却不保证 column 方程为零；若用两侧最大 residual 回溯，方向即使改善 row 方程，也会因新引入的 column residual 只能接受约 `1/1024` 的微步。应解析消去 column dual，使用 reduced row-dual 的 Schur-complement Hessian；每个 row trial 后按 source marginal 精确重归一化各 column，再用 row/column 原始 residual 验收。这样候选始终留在 column-feasible 流形，截断 CG 的误差不会被误当成破坏另一侧约束的步长惩罚。reduced Hessian 仍有常数 gauge，必须固定高质量 anchor 或做正交投影，并保持 Hessian matvec/候选评估的显式预算。
