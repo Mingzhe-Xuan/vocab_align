@@ -99,5 +99,6 @@
 - 2026-09-02 11:28 +08:00：两份计划、`assets/T_method.md`、经验和验收记录已完成 `2e-3`/`1e-9` 精度分层同步；路径、相对链接、公式/阈值表述与 diff 检查通过。下一步提交文档需求变更，再进入配置和验收测试实现单元。
 - 2026-09-02 11:35 +08:00：需求文档提交 `865d17a` 已推送；进入 construction 配置/主 recipe/full-support Slurm 默认值实现单元。测试范围固定为结构化 round-trip/校验、`2e-3` 默认与 override 转发、完整回归和静态检查。
 - 2026-09-02 12:10 +08:00：construction 配置、主 recipe/schema、full-support `2e-3` 默认及 artifact 边际/列和分层审计完成；定向链路与完整 131/131、Bash/Black/compile/diff 全部通过。下一步形成临时未验收提交并经独立 Slurm 路径生成有效 artifact。
+- 2026-09-02 12:12 +08:00：临时未验收提交 `5207cc9` 已推送；已登记同输入/资源、`2e-3` 默认和独立 `tolerance_2e3_validation` 产物路径的 Guqq 验证。下一步提交审计记录，再连接并首先执行 `git pull`。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

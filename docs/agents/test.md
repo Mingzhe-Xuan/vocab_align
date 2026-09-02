@@ -105,6 +105,7 @@ Reduced row-dual Newton-CG 修复测试计划：
 - `TransportConstructionSpec` round-trip/缺省兼容/非法值、主 recipe `0.002`、Slurm 默认 `2e-3` 与 `4e-3` override、metadata 上限、边际近似通过且列和严格失败均有直接回归覆盖。
 - Bash syntax、重定向 bytecode cache 的 compileall、Black（6 files unchanged）和 `git diff --check` 通过；compileall 临时缓存已在验证工作区边界后删除。
 - 本地验收完成；真实 artifact 尚未生成，当前代码只能形成临时 `[UNACCEPTED]` 验证提交。
+- 上述实现已形成并推送临时 `[UNACCEPTED]` 提交 `5207cc9`；真实验证将使用独立 `tolerance_2e3_validation` 路径，验收实际 residual、metadata tolerance、严格列和、save/load/audit 与 complete checkpoint。
 
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
