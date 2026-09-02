@@ -236,7 +236,7 @@ $$
 - 真实 Qwen3→Mistral-Nemo full-vocabulary 构建使用 `tolerance = 2e-3`，即上述两侧 L1 residual 的最大值不超过 `0.002`。该阈值是工程/实验 artifact 的预注册近似精度，不替代小图数值 oracle。
 - convergence report 和 audit 必须同时保存阈值及实际 row/column residual。出现 NaN/Inf、不可行支撑或 residual 超过对应层级阈值时仍失败，不能保存有效 artifact。
 
-该真实图阈值于 2026-09-02 根据用户确认调整；Job 234 的 row/column residual 为 `1.6915304665e-3`/`6.2669379185e-14`，在新阈值内。Job 234 仍使用旧 `1e-9` 配置且没有产出 artifact，因此必须按新配置重跑并完成原子保存和独立审计，不能直接把旧 checkpoint 标记为有效。
+该真实图阈值于 2026-09-02 根据用户确认调整；Job 234 的 row/column residual 为 `1.6915304665e-3`/`6.2669379185e-14`，在新阈值内，但它仍使用旧 `1e-9` 配置且没有产出 artifact，因此不能把旧 checkpoint 标记为有效。按新配置重跑的 Job 236 已完成原子保存和独立稀疏审计：row/column residual 为 `1.9975102855e-3`/`8.5268617950e-14`，`max_column_sum_error=1.1883827256e-12`，checkpoint 为 `complete/fresh`，峰值 RSS 为 `2,113,980 KiB`、0 swap；该预览 artifact 因而满足本节工程验收阈值。
 
 优先在 top-$k$ 候选支撑图上直接运行稀疏 Sinkhorn，而不是先求稠密 $\Pi$ 再裁剪。若在 Sinkhorn 后再次 top-$k$ 并逐列归一化，会破坏目标边际 $b$；该结果必须标记为 `sparsified-approximate` 并重新报告边际误差。稠密全词表 Sinkhorn 仅用于小规模数值 oracle，不作为第一版大词表实现。
 

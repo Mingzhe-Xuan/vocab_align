@@ -121,6 +121,10 @@ Job 235 实际结果与 sparse audit 修复测试计划：
 - 完整回归 `133 passed, 2 warnings in 55.63s`；warnings 仅为既有 pandas 可选依赖版本提示。Black 两文件 unchanged、compileall 和 `git diff --check` 通过。
 - 真实 2.3M-edge artifact 尚未经新 audit 完成，当前仍只能形成临时 `[UNACCEPTED]` 验证提交。
 - sparse audit 实现已形成并推送临时 `[UNACCEPTED]` 提交 `76ee480`；远程将使用全新 `sparse_audit_validation` 路径验收完整 audit、目标统计和 MaxRSS，不复用 Job 235 partial。
+- Job 236 使用代码 `9036c70af78b09f3dad69d962731038b50e72350`、相同 preview/ANN 输入哈希、`epsilon=0.5`、`tolerance=0.002`、`max_iter=10000`、64G/8h Slurm 配置完成；GNU time 为 20:23.32、Exit 0、MaxRSS `2,113,980 KiB`、0 swap。
+- 最终 artifact shape `131069×151669`、nnz/candidate edges `2,620,553`；audit `valid=true`，row/column/transported marginal L1 为 `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，最大列和误差 `1.1883827256e-12`，transport cost `7.1692051605`、regularized objective `3.8293241068` 均有限，dangerous special mappings 为空。
+- artifact metadata 保存 `tolerance=0.002`、真实 convergence 和输入 provenance；checkpoint 为 `complete/fresh`。最终 `.npz`、JSON、Markdown 均存在且无同名 partial；SHA-256 分别为 `b1ada569…18aca2`、`c8467f09…99d7d1`、`56ef61f7…fb739`，checkpoint 为 `88c9f4ff…c23501`，stderr 为 `3f9c2ee3…ec2784`。远程集成验收通过。
+- 最终本地验收：`python -m pytest -o addopts="--strict-markers --strict-config" --basetemp=local/test-tmp/accept-20260903 -q` 为 `133 passed, 2 warnings in 126.61s`，warnings 仅为既有 pandas 可选 numexpr/bottleneck 版本提示；净变更的 10 个 Python 文件 Black 检查全部 unchanged，重定向 pycache 的 compileall、3 个相关 Slurm 脚本 `bash -n`、两份计划路径和 `git diff --check` 均通过。一次对整个 transport 目录的过宽 Black 探测只命中 9 个未被本分支修改的既有文件，未改写或纳入本次验收范围。
 
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 

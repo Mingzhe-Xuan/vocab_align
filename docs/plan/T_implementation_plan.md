@@ -175,7 +175,7 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 
 - 用 toy vocab 同时运行 dense 与 sparse 构建，保存可复算的 oracle 报告。
 - 用真实 tokenizer 和小语料构建预览 artifact，确认所有正质量行/列有可行支撑。真实 Qwen3→Mistral-Nemo full-vocabulary coupling 的两侧最大 L1 residual 验收阈值为 `2e-3`。
-- 正式语料运行必须记录 checkpoint/resume 状态、实际 row/column residual 和使用的 tolerance；不将半成品标为有效 artifact。旧 Job 234 虽达到新精度，但因在 `1e-9` 配置下失败且未生成 artifact，必须以 `2e-3` 重跑并审计后才可验收。
+- 正式语料运行必须记录 checkpoint/resume 状态、实际 row/column residual 和使用的 tolerance；不将半成品标为有效 artifact。旧 Job 234 虽达到新精度，但因在 `1e-9` 配置下失败且未生成 artifact，不能作为有效产物。按新配置重跑的 Job 236 已完成原子保存和独立稀疏审计：row/column residual 为 `1.9975102855e-3`/`8.5268617950e-14`，checkpoint 为 `complete/fresh`，峰值 RSS 为 `2,113,980 KiB`。
 
 ## 5. 阶段 2：STT 精确推理原型
 
