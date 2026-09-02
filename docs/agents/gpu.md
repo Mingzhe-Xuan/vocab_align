@@ -393,3 +393,4 @@
 - 验收边界：要求 Job Exit 0、5 条逐题 success 或显式失败记录、summary 只统计 success、canonical/prompt metadata、分段 latency/长度/显存、transport quality、正式 artifact/runtime provenance、无 `.partial`，并记录 GNU time/MaxRSS/日志与产物 SHA。真实通过前分支保持 `[UNACCEPTED]`。
 - 首次连接结果：首项 `git pull --ff-only` 在 GitHub HTTPS 传输中以 `GnuTLS recv error (-110)` 失败，后续环境/队列检查因 `&&` 未执行，服务器源码未变更。下一次连接仍先尝试 pull；若失败则按规范在同一连接运行 `bash net.sh` 后重试 pull，成功前不执行其他任务。
 - 第二次连接结果：首次 pull 超时后 `bash net.sh` 成功恢复网络，第二次 pull 将服务器从 `6e08989` 快进到 `8abf1cd`。随后版本检查的一行 Python 因远端 shell 引号转义错误而未执行，且 `&&` 阻止后续门禁；这不是环境或代码失败。下一次连接首项继续 pull，再改用 `pip show` 做无引号版本检查。
+- 环境门禁结果：服务器已快进到 `b3457a1`；torch 2.7.1+cu128 与 transformers 4.52.4 正确，正式 artifact、空 records/partial 和空队列通过，MMLU-Redux/`abstract_algebra` cache 路径存在。但 `.venv-smoke-cu128` 缺少 evaluator 必需的 datasets，故未提交作业。下一次连接先 pull，再按 `env.md` 仅向隔离环境安装/核验 datasets 4.0.0。
