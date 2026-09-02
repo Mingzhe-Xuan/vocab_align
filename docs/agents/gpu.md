@@ -307,3 +307,9 @@
 
 - 连接用途：修正 HEAD 门禁为 `git rev-parse --short HEAD == d559a6f`，其余同步、输入/输出/队列门禁和真实 smoke 提交完全沿用 04:24 条目。
 - 权限判断与验收边界：第一项仍为 ff-only pull；只有所有轻量门禁通过才执行一次 `sbatch`，不在登录节点推理。
+- 实际结果：pull 成功且短 SHA/正式 artifact/空输出及 partial/空队列门禁全部通过；以 `CODE_VERSION=036df809c7816747cd5478a6a8b3b6376bf93337` 提交真实 smoke 为 Job 241。提交成功后退出，模型加载和推理完全由 Slurm 执行。
+
+## 2026-09-03 04:28 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 241 的 `squeue` 状态与增量 stdout/stderr；若已终态则收集 `sacct`、GNU time、报告/partial 状态和失败栈或成功摘要。
+- 权限判断与验收边界：首项为 ff-only pull；仅只读观察，不取消、不重提交、不修改产物。RUNNING/PENDING 则退出并后续登记续查；终态按 04:24 验收边界处理。
