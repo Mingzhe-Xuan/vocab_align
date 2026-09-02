@@ -288,3 +288,9 @@
 
 - 连接用途：在无遗留 SSH 客户端后进行一次干净恢复；首项 pull 后只读查询 `mistral-cache` 队列、日志和 `.incomplete`，确认是否已提交/完成。
 - 权限判断与验收边界：本连接不补交作业，只取证后退出；取得明确结果再决定续传或进入 smoke，避免把 SSH 工具状态与 Slurm 状态混淆。
+- 实际结果：带 `ConnectTimeout=10` 和远端 `git pull` 60 秒上限的连接正常给出可轮询 session，但终态 stdout/stderr 仍为空；本地无遗留 SSH 进程。因为命令未输出显式阶段 marker，无法区分 pull timeout、空队列/日志和无 `.incomplete`，仍不据此判定下载完成。
+
+## 2026-09-03 04:23 +08:00
+
+- 连接用途：使用相同连接/pull 超时，但为 pull 返回码、队列、日志、snapshot 大小、分片数和 incomplete 数分别输出显式 marker，消除空输出歧义。
+- 权限判断与验收边界：仍为纯只读取证、不提交作业；首个实质远端命令是带 60 秒上限的 ff-only pull，随后无论 pull 结果均只读取状态并输出 marker。
