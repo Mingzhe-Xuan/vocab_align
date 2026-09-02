@@ -105,5 +105,6 @@
 - 2026-09-02 13:34 +08:00：sparse audit 临时提交 `76ee480` 已推送；已登记全新 `sparse_audit_validation` 路径的 Guqq 重跑。下一步提交审计记录，再连接且首项执行 `git pull`。
 - 2026-09-03 01:26 +08:00：Job 236 已通过真实 full-vocabulary 验收：20:23.32、Exit 0、MaxRSS 2,113,980 KiB、0 swap；row/column/transported residual 为 `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，严格列和误差 `1.1883827256e-12`，audit `valid=true`，checkpoint `complete/fresh`，最终 artifact/JSON/Markdown 齐全且无 partial。下一步补全证据并在最终树上重跑本地验收，然后整理 main。
 - 2026-09-03 01:31 +08:00：最终代码树完整回归 133/133；本分支实际修改的 10 个 Python 文件通过 Black，compileall、3 个 Slurm 脚本的 Bash syntax、计划路径和 `git diff --check` 均通过。进入临时证据提交与 main squash 验收提交阶段，`docs/assets/alignment.py` 继续作为未跟踪用户参考排除。
+- 2026-09-03 01:36 +08:00：验证净变更已 squash 为 main 验收提交 `f433000` 并推送；进入正式 OpenHermes 500k pinned-prefix 物化阶段。下一步按既有远程验收计划登记 Guqq 连接，先 pull main，再经 32G/4h Slurm 生成独立 corpus/manifest 并核验原子性、计数、provenance、资源与哈希。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

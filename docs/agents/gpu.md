@@ -208,3 +208,9 @@
 - 权限判断与顺序：新连接第一条远端操作必须为 `cd vocab_align && git pull`；成功后才执行 `squeue`/`sacct`、日志及结果文件只读检查。网络异常时按规范运行 `bash net.sh` 后重试，不在登录节点执行构建、审计或全量产物加载，也不修改服务器文件。
 - 验收边界：核验 Job 236 Exit 0、`2e-3` 两侧 marginal 要求、严格列归一化、metadata、有限目标统计、checkpoint complete、MaxRSS 和哈希；通过后回到本地补全测试/状态/进度记录并整理验收提交。
 - 实际结果：首条 `git pull` 成功；Slurm accounting 已禁用，但 stderr 的 GNU time 给出 20:23.32、Exit 0、MaxRSS `2,113,980 KiB`、0 swap。最终 artifact 为 33,486,321 bytes，shape `131069×151669`、nnz `2,620,553`；audit `valid=true`，row/column/transported residual `1.9975102855e-3`/`8.5268617950e-14`/`1.9975102855e-3`，最大列和误差 `1.1883827256e-12`，目标统计有限且无危险 special mapping。metadata tolerance 为 `0.002`，checkpoint `complete/fresh`，JSON/Markdown 齐全、同名 partial 不存在。artifact/checkpoint/audit JSON/audit Markdown/stderr SHA-256 分别为 `b1ada569…18aca2`、`88c9f4ff…c23501`、`c8467f09…99d7d1`、`56ef61f7…fb739`、`3f9c2ee3…ec2784`；已退出服务器，远程验收通过。
+
+## 2026-09-03 01:37 +08:00
+
+- 连接用途：同步 main 验收提交 `f433000`，复核 Python venv/datasets 4.0.0、正式输出路径和队列后，通过 Slurm 物化锁定 `teknium/OpenHermes-2.5@05c3557e57b6dd1d0e0cb8369ba53b43e15fd10b` 的前 500,000 个 source rows，并在终态收集 corpus/manifest、资源和哈希证据。
+- 权限判断与顺序：新连接第一条远端操作为仓库内 `git pull`；服务器本地 main 含先前临时验证历史，若与 squash 后的远端 main 分叉，仅使用 `git pull --no-rebase origin main` 完成 Git 管理的同步，不手工编辑/打补丁/覆盖源码。随后只做轻量环境/路径/队列检查和 `sbatch`；下载后的 500k 遍历、canonicalization、去重、划分及校验全部在 32G/4h allocation 内。
+- 验收边界：默认独立输出 `local/transport/corpora/openhermes-500k.jsonl` 与 `local/transport/manifests/openhermes-500k.json` 必须预先不存在；要求 Exit 0、selected rows 500,000、计数与 provenance 自洽、records hash 与 manifest 绑定、无 partial、GNU time/MaxRSS 和产物哈希可追溯。失败则保留日志/现场，不进入正式 T 构建。

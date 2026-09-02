@@ -180,6 +180,7 @@ Job 230 恢复检查：记录第三次 pull/输入哈希/提交及会话关闭�
 - `bash -n script/transport/slurm/materialize_openhermes_500k.sbatch`：通过。
 - Black（独立仓库内 cache、单 worker）检查 4 个新增/修改 Python 文件：全部无需修改。
 - `git diff --check`：通过（仅 Git 的 LF→CRLF 工作树提示，无 whitespace error）。
+- 远程集成验收计划：在 Guqq 通过 32G/4h Slurm 运行锁定 revision 的正式入口；要求 Exit 0、source prefix 恰为 500,000 rows、manifest 的 selected/unique/duplicate/train/dev 计数自洽、dataset/revision/raw split/selection/filtering/seed provenance 完整、records SHA-256 与 manifest 绑定一致、JSONL/manifest 均可解析且不存在 partial，并记录 GNU time/MaxRSS 与文件哈希。未满足任一项不得进入正式 T 构建。
 
 ## 2026-09-02：memory-bounded dual telemetry 单元
 
