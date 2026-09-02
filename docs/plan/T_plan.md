@@ -360,6 +360,8 @@ T2T 使用现有 `TwoStageInference`，固定 A 生成背景、B 生成答案。
 
 **验收：** 无梯度/optimizer state；输出可生成；禁用 transport 时可复现 Receiver-only；中间 shape/mask/position/cache 均被测试。
 
+**完成证据：** Job 245 在锁定 Qwen3-8B/Mistral-Nemo revisions 和正式 OpenHermes-500k T 上同时完成 Receiver-only 与 2-token 精确 STT，schema v2 报告包含 `[1,7,5120]` virtual prompt、有限且近 1 的 support mass、零 top-m 丢弃、分段 metrics、RTX 5090 `sm_120` 与 torch 2.7.1+cu128 provenance；作业 Exit 0、无 partial。该 smoke 仅验收功能，不作为 latency 结论。
+
 ### 阶段 3：统一评测
 
 在 evaluator 增加 `model_name: training_free_transport` 分支，复用原 prompt、答案解析、分卡和结果 schema，增加分段 latency。先跑固定子集，再跑完整 MMLU-Redux。

@@ -216,6 +216,8 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 - 真实模型短序列 smoke test 能生成并保存逐步 diagnostics。
 - CPU/offload 运行只标记功能正确性，不进入正式 latency 表。
 
+真实 Qwen3-8B→Mistral-Nemo Job 245 已完成本阶段功能验收：在 RTX 5090/Blackwell 上使用隔离 `blackwell-cu128` profile（torch 2.7.1+cu128），同一 prompt 的 Receiver-only 与精确 STT 均确定性生成 2 tokens；STT virtual prompt 为 `[1, 7, 5120]`，retained/active support mass 在 float32 舍入内为 1，top-m 丢弃质量为 0。报告 schema v2 原子保存且无 partial，记录模型/tokenizer/artifact/runtime/compiled arch、分段 metrics 和两路输出；Job 245 为 0:16.67、Exit 0、MaxRSS 16,560,968 KiB。该耗时只作功能诊断，不进入正式 latency 表。
+
 ## 6. 阶段 3：统一评测
 
 ### 6.1 文件与功能

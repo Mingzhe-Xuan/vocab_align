@@ -744,3 +744,15 @@ chunked receiver embedding 本地实际结果：
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/chunked-embedding test/transport/test_soft_transport.py test/transport/test_wrapper.py test/transport/test_smoke_stt.py -q`：30 passed（4.04s）。
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/full-chunked-embedding -q`：150 passed（73.58s），仅有既存 pandas 可选依赖 2 条 warning。
 - BF16 receiver/chunk size 2/non-divisible 5-row vocab 与 float32 oracle 在明确容差内一致，输出为 BF16；chunk size 0 拒绝，既有非连续 target ID oracle 继续通过。Black unchanged、内存 compile 2/2、`git diff --check` 通过。
+
+真实 Job 245 最终结果：
+
+- Job 245：0:16.67、Exit 0、MaxRSS 16,560,968 KiB、0 swap；JSON 8,581 bytes，SHA-256 `a14da4b15a368eefbd905d61ad4be71af143fdf2ab6df74071fa487c6b867c26`，stderr SHA-256 `6ecddddcca89383eeaf4c211c6b3fcbf412c4713c4dc301d2cc55401ff86eccc`，无 partial。
+- schema v2；Receiver-only 输入 8/输出 2 tokens，STT source 7/virtual 7/output 2 tokens，virtual shape `[1,7,5120]`。两路均有 token IDs/解码文本。
+- runtime 为 `blackwell-cu128`、torch 2.7.1+cu128、compiled arches 含 `sm_120`、RTX 5090 capability `[12,0]`；正式 artifact shape/nnz/provenance、锁定 revisions 和 code version `024beacd...` 完整。
+- retained/active support mass 在 `0.9999999404..1.0000005960`，top-m dropped mass 全零；分段 metrics 有限，peak memory 31,074,283,520 bytes。真实功能 smoke 验收通过，其耗时不进入 latency 表。
+
+最终本地验收：
+
+- `python -m pytest -o addopts= --basetemp=local/test-tmp/final-stage2 -q`：150 passed（72.90s），仅有既存 pandas 可选依赖 2 条 warning。
+- 最终 6 个变动 Python 文件经 Black `format_str` 检查全部 unchanged、内存 compile 6/6；`smoke_real_models.sbatch` Bash syntax、两份计划的 Job 245/脚本/Blackwell profile 路径和 `git diff --check` 均通过。

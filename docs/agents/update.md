@@ -128,3 +128,5 @@
 - 推送 chunked embedding 未验收提交 `024beac` 及 Guqq C2C 等价提交 `6e08989`；登记完全相同输入/环境/资源的真实显存复验。
 - chunked embedding 修复已同步 Guqq 并提交 Job 245；开始只读验收 OOM 位置、双路径报告、runtime arch、资源和原子性。
 - Job 245 初步 Exit 0：16.67s、MaxRSS 15.79GiB、0 swap、无异常栈并写出 JSON；进入独立报告/provenance/hash/partial 只读验收，尚不合并 main。
+- Job 245 最终验收通过：schema v2 双路径各 2 tokens、Blackwell cu128/sm_120 provenance、正式 T metadata、shape、support mass、分段 metrics、JSON/stderr SHA 和无 partial 全部完整；进入阶段 2 main 验收整理并准备阶段 3 evaluator。
+- Job 245 后最终本地验收 150/150；6 个变动 Python 文件 Black/compile、Slurm Bash、计划证据路径和 diff 检查均通过，开始整理阶段 2 main 验收提交。

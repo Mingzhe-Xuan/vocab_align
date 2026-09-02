@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact 与正式 Slurm 入口均已通过本地和远端验收；当前进入真实模型短序列 STT smoke 的依赖、资源和运行入口审查。
+正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact、正式 Slurm 入口与真实模型 Receiver-only/STT 短序列 smoke 均已通过本地和远端验收；当前整理阶段 2 验收提交并进入阶段 3 统一 evaluator。
 
 ## 当前计划
 
-1. 修复 Job 241 暴露的硬件门禁：在加载权重前验证 PyTorch compiled arch，并增加独立 `blackwell-cu128` 精确 runtime profile，同时保留项目默认 torch 2.6.0 profile。
-2. 在 Guqq 用 `python3 -m venv` 创建隔离的 `.venv-smoke-cu128`，安装精确 torch 2.7.1/cu128 及 smoke 依赖，不覆盖既有项目 venv。
-3. 本地回归后更新未验收/兼容分支，在同一 RTX 5090 上重跑真实 smoke 并验收 diagnostics、资源和 provenance；通过前不合并 main。
+1. 补齐 Job 245 与 runtime/padded-vocab/chunked-memory 证据，最终复跑本地回归并把阶段 2 净变更整理为 main 验收提交。
+2. 进入阶段 3 统一 evaluator 实现单元：先记录接口结构与测试计划，复用现有题目格式化/答案解析/保存逻辑，不改变旧 C2C 路径。
+3. 完成 R/S/T2T/C2C 的统一 schema、分卡/断点续跑和 tiny evaluator smoke，再通过 Slurm 做最小真实集成。
 3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
 
 ## 变更记录
@@ -135,5 +135,7 @@
 - 2026-09-03 05:21 +08:00：chunked embedding 修复已推送为 main-based 未验收提交 `024beac` 与 C2C 等价兼容提交 `6e08989`；登记相同资源的真实复验，继续保持未验收。
 - 2026-09-03 05:23 +08:00：chunked embedding 真实复验已提交为 Job 245；进入只读终态验收。
 - 2026-09-03 05:26 +08:00：Job 245 初步成功：0:16.67/Exit 0/MaxRSS 16,560,968 KiB/0 swap、无异常栈，chunked 路径跨过旧 OOM并写出 JSON。下一步只读验收报告全字段、SHA 与无 partial 后再整理 main。
+- 2026-09-03 05:29 +08:00：Job 245 报告最终验收通过：schema v2、Receiver-only/STT 各 2 tokens、runtime/profile/sm_120、正式 artifact provenance、shape、有限 support mass/metrics、JSON/stderr SHA 与无 partial 全部完整。进入阶段 2 main 验收整理，之后推进阶段 3 evaluator。
+- 2026-09-03 05:32 +08:00：Job 245 后最终代码树完整回归 150/150；6 个变动 Python 文件 Black unchanged/内存 compile、Slurm Bash、两份计划证据路径与 diff 检查全部通过。进入未验收证据提交与 main squash 验收提交。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
