@@ -126,3 +126,4 @@
 - Job 244 跨过 vocab 修复后因完整 receiver embedding 表复制并升 float32 额外申请 2.50GiB 而 OOM；同一真实 smoke 第三次失败后已查阅/补充 lessons，进入 receiver-dtype target-chunk matmul 修复，不增加资源或放宽标准。
 - 完成 receiver embedding 8,192-row chunked matmul：连续 ID 用 view、非连续 ID 仅 gather 当前 chunk、receiver dtype 计算后小输出累加；定向 30/30、完整 150/150 与静态检查通过，准备相同资源真实复验。
 - 推送 chunked embedding 未验收提交 `024beac` 及 Guqq C2C 等价提交 `6e08989`；登记完全相同输入/环境/资源的真实显存复验。
+- chunked embedding 修复已同步 Guqq 并提交 Job 245；开始只读验收 OOM 位置、双路径报告、runtime arch、资源和原子性。

@@ -372,3 +372,9 @@
 - 连接用途：同步 chunked embedding 兼容提交 `6e08989`，确认空 JSON/partial/队列，以相同 Blackwell venv/profile、artifact、prompt 和资源重跑，code version=`024beacd250fd5e6a57e92aca1b055000b4992f2`。
 - 权限判断与顺序：首项 ff-only pull；仅 Slurm 执行模型负载。除 O(vocab×hidden) 改为 O(chunk×hidden) 的本地验收修复外，所有输入/环境/资源不变。
 - 验收边界：沿用 05:08 标准，并比较 Job 244 OOM 位置是否通过、报告 peak memory/GNU time/MaxRSS；不因连续失败降低双路径/schema/原子性要求。
+- 实际结果：pull 快进至 `6e08989`，HEAD/空输出及 partial/空队列通过；chunked embedding 真实复验已提交为 Job 245。
+
+## 2026-09-03 05:23 +08:00
+
+- 连接用途：同步兼容分支后只读监控 Job 245 队列/日志；终态收集 schema v2 报告和资源/哈希证据。
+- 权限判断与验收边界：仅只读；标准沿用 05:21 条目。
