@@ -699,3 +699,9 @@ revision 修复本地结果：
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/full-smoke-20260903 -q`：146 passed（73.44s），仅有既存 pandas 对可选 numexpr/bottleneck 版本的 2 条 warning。
 - Black 直接 CLI 在 Windows 现有目录 ACL 下遗留 worker 并无法替换新测试文件；只终止本轮启动的 worker 后，用同版本 Black `format_str` 内存比较 3 个变动 Python 文件，结果全部 unchanged。未终止昨日已有的两个 Python 进程。
 - 3 个变动 Python 文件的内存 `compile(..., "exec")`、新 Slurm 脚本 `bash -n`、recipe 结构化解析/锁定字段、README 路径/命令和 `git diff --check` 均通过；compileall 仅因既有 `test/transport/__pycache__` ACL 无法写 `.pyc`，不是源码语法失败。
+
+真实 Job 241 结果：
+
+- 环境、artifact、cache、输出和 Slurm 提交门禁通过；作业加载两侧模型后在 Receiver-only 首个 CUDA generation kernel 失败，错误为 `no kernel image is available for execution on the device`。
+- GNU time：0:26.39、Exit 1、MaxRSS 5,845,204 KiB、0 swap；无合格 JSON/验收结果。该失败不降低测试标准，代码继续位于 `[UNACCEPTED]` 分支。
+- 初步归因是 torch 2.6.0/CUDA 12.4 wheel 不包含节点旧 GPU 架构；待 Slurm `nvidia-smi` capability 诊断确认。随后仅允许走计划已有的 CPU/offload 功能 smoke，结果不得进入正式 latency 表。

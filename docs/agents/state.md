@@ -120,5 +120,6 @@
 - 2026-09-03 04:10 +08:00：Mistral 五个 indexed shard 已下载完成，但额外 consolidated 文件传输中 SSH 被远端关闭，完整性尾检未执行。调整为轻量无 GPU Slurm 续传以脱离 SSH 生命周期；cache 无 incomplete 且 job Exit 0 前不提交 smoke。
 - 2026-09-03 04:24 +08:00：显式恢复检查确认 Mistral cache 46G、锁定 snapshot 五个 indexed shards 齐全且无 `.incomplete`；先前下载 sbatch 实际未提交，但登录节点下载已完整。下一步按已登记资源提交真实 1-GPU smoke。
 - 2026-09-03 04:28 +08:00：所有输入/环境/空输出门禁通过，真实 Receiver-only/STT smoke 已提交为 Job 241，运行代码 `d559a6f`、报告 code version `036df809…`。下一步只读监控终态并按 schema/资源/provenance 验收。
+- 2026-09-03 04:31 +08:00：Job 241 在 0:26.39/Exit 1/MaxRSS 5,845,204 KiB 下失败，Receiver-only 首 kernel 报 torch CUDA wheel 无该 GPU kernel image；无报告产物，保持未验收。先通过 Slurm 查询 GPU compute capability，再实现计划明确允许的 CPU/offload 功能 fallback 或兼容方案。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

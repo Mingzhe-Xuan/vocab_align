@@ -313,3 +313,10 @@
 
 - 连接用途：同步兼容分支后只读监控 Job 241 的 `squeue` 状态与增量 stdout/stderr；若已终态则收集 `sacct`、GNU time、报告/partial 状态和失败栈或成功摘要。
 - 权限判断与验收边界：首项为 ff-only pull；仅只读观察，不取消、不重提交、不修改产物。RUNNING/PENDING 则退出并后续登记续查；终态按 04:24 验收边界处理。
+- 实际结果：首项 pull 成功；Job 241 已离队并失败。stderr 显示两侧权重加载后，Receiver-only 首个生成 kernel 报 `CUDA error: no kernel image is available for execution on the device`；GNU time 为 0:26.39、Exit 1、MaxRSS 5,845,204 KiB、0 swap。失败发生在报告构建前，无合格 JSON；根因指向 torch 2.6.0 CUDA 12.4 wheel 与节点 GPU compute capability 不兼容，而非内存或模型/cache 缺失。
+
+## 2026-09-03 04:31 +08:00
+
+- 连接用途：同步兼容分支后提交一个 1 CPU/1G/5min 的 Slurm GPU 诊断，仅运行 `nvidia-smi --query-gpu=name,memory.total,compute_cap,driver_version`，确认 Job 241 的硬件兼容根因。
+- 权限判断与顺序：首项为 ff-only pull；GPU 查询通过 Slurm allocation，不在登录节点初始化设备。该诊断无模型加载/推理，不覆盖 Job 241 日志或结果。
+- 验收边界：记录 GPU 型号、显存、compute capability 和驱动；若确认锁定 torch wheel 不支持该架构，则依据计划允许的 CPU/offload 功能路径新增独立 Slurm fallback，仍不把其耗时纳入 latency 表。

@@ -113,3 +113,4 @@
 - Mistral-Nemo 的五个 indexed weight shards 已完成，但 consolidated 副本传输时 SSH 关闭；改用 1 CPU/2G/2h 无 GPU Slurm 作业续传并做 cache 完整性门禁，真实 smoke 继续等待。
 - 恢复检查确认未产生重复下载 job，Mistral cache 已 46G、五个锁定分片齐全且无 incomplete；下载门禁通过，登记真实 1-GPU/192G/4h Receiver-only/STT smoke 提交。
 - 真实模型 smoke 已通过全部提交门禁进入 Slurm Job 241；兼容代码为 `d559a6f`，机器可读报告绑定未验收主分支代码 `036df809…`，开始只读终态监控。
+- Job 241 在模型加载后因 torch 2.6.0 CUDA wheel 缺少节点 GPU 架构 kernel image 失败；26.39s、Exit 1、MaxRSS 5.58GiB、无有效报告。登记轻量 Slurm GPU capability 诊断，随后按计划的 CPU/offload 功能验收边界修复。
