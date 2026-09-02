@@ -242,3 +242,10 @@
 - 连接用途：重试真实模型 smoke 的轻量资源预检；修正 `sinfo` 为不含 shell 管道符的 `--Format` 写法，并读取 venv 包元数据、正式 artifact 大小和两侧模型缓存目录。
 - 权限判断与顺序：新连接第一条远端操作仍为 `git pull --ff-only origin validation/guqq-formal-transport-500k`；其余仅为 `sinfo`、`pip show`、`stat`、`ls` 等轻量只读检查，不执行 CUDA 初始化、模型加载或推理。
 - 验收边界：取得足以冻结 Slurm 资源和依赖安装计划的证据后退出；不存在的包或缓存只记录，不在本连接安装/下载。
+- 实际结果：首项 pull 成功；`sinfo` 确认 `compute` 为默认且可用、共 1 node、每节点 `gpu:1`，同时报告该版本不接受 `Timelimit` 字段。venv 路径误写成仓库根 `.venv`，实际为 `C2C/.venv`，因此后续 `&&` 短路；未修改任何远端状态。
+
+## 2026-09-03 03:27 +08:00
+
+- 连接用途：以已确认的 `C2C/.venv` 路径完成依赖/artifact/cache 只读预检，并用 `scontrol show node` 获取 GPU 型号/节点内存等 Slurm 资源细节。
+- 权限判断与顺序：第一条远端操作继续为兼容分支 ff-only pull；之后仅运行 `scontrol`、`pip show`、`stat` 和缓存目录 `ls`，不存在项允许返回非零但不中断其他检查。
+- 验收边界：本次只收集事实，不安装包、不下载或加载模型；根据结果在本地完成 smoke 入口后，另行登记环境安装及 Slurm 验证连接。
