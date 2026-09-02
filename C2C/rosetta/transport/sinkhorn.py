@@ -370,7 +370,10 @@ def _accelerate_sparse_dual(
                 "maxiter": max_evaluations,
                 "maxfun": max_evaluations,
                 "maxcor": history_size,
-                "ftol": 1e-15,
+                # The original strict residual is the convergence criterion.
+                # Function-value reductions can fall below machine-relative
+                # precision while rare-token gradients remain material.
+                "ftol": 0.0,
                 "gtol": 1e-13,
                 "maxls": 40,
             },

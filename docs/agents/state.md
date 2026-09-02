@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。early termination 修复已作为临时分支 `[UNACCEPTED]` 提交 `cfa1a87` 推送，并登记相同配置的 Guqq Slurm 回归；该提交尚未进入 main。
+正在实施 Training-free Soft-Token Transport。Job 232 根因修复 `ftol=0` 已通过 129 个本地测试，准备在同一临时分支形成下一 `[UNACCEPTED]` 提交并再次 Slurm 验证；main 不受影响。
 
 ## 当前计划
 
-1. 从 main 创建临时验证分支并提交 `[UNACCEPTED]` commit，推送后登记 Guqq 连接用途；`docs/assets/alignment.py` 继续排除。
-2. Guqq 首先 pull 临时提交，再通过 Slurm 用同一输入、64G/8h、epsilon 0.5、`1e-9`/10,000 重跑；验收 termination provenance、严格 residual、artifact/audit。
-3. 仅当真实回归通过时，才把修复整理为 main 验收提交；失败则保留临时分支并按证据继续修复。
+1. 将 L-BFGS-B `ftol` 设为 0，阻止 `FACTR*EPSMCH` 在严格 residual 尚大时宣告收敛；保持 `gtol`、history 和精确 objective evaluation cap。
+2. 增加 option/provenance 单测并重跑 129 项本地回归；形成下一临时未验收提交。
+3. 再以独立输出路径通过相同 Slurm 配置验证；只有真实严格收敛后才整理到 main。
 
 ## 变更记录
 
@@ -82,5 +82,7 @@
 - 2026-09-02 08:19 +08:00：Guqq 经 `net.sh` 后成功 pull；Job 230 以 40:50/Exit 1 严格不收敛，MaxRSS 1.76 GiB 排除内存，27 次 scaled L-BFGS 后 row residual 仍为 `4.66e-4`，无 artifact/audit。进入稳定增量 dual + 有界重启修复单元，不降低 `1e-9` 标准。
 - 2026-09-02 08:27 +08:00：stable incremental dual、严格 evaluation cap、termination provenance 与短退重启完成；病态/集成 24/24、完整回归 129/129 通过。真实 preview 仍是必需验收，下一步仅创建临时分支未验收提交并经 Slurm 验证。
 - 2026-09-02 08:29 +08:00：临时分支 `validation/job230-dual-increment` 的未验收提交 `cfa1a87` 已推送；已登记 Guqq 同配置 Slurm 验证用途，使用独立 job 后缀产物避免覆盖旧 checkpoint。下一步提交审计记录后连接并首先 pull。
+- 2026-09-02 09:12 +08:00：Job 232 以 39:06/Exit 1 失败；21 次 acceleration 中前 20 次均被 `FACTR*EPSMCH` 终止，耗尽 1,000 evaluations 后 row residual `1.69e-3`，无 artifact/audit。计划实质调整为禁用 `ftol` 停止并保留梯度/预算/residual 三重边界。
+- 2026-09-02 09:15 +08:00：`ftol=0` 选项与回归断言完成；定向 24/24、完整 129/129、Black/compile/diff 均通过。下一步推送第二个临时未验收提交并登记独立 Slurm 复验。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

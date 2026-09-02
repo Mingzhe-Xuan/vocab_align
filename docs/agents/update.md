@@ -77,3 +77,5 @@
 - Guqq 经 `net.sh` 后同步成功；Job 230 运行 40:50 后严格不收敛，scaled L-BFGS 仅 27 evaluations，row residual `4.66e-4`，MaxRSS 1,847,076 KiB、0 swap，且无 artifact/audit。开始稳定增量 dual 与有界重启修复。
 - 完成 stable incremental dual、有界 objective evaluation、termination provenance 与短退重启的本地实现；定向 24/24、完整回归 129/129。真实 preview 尚未通过，只准备临时分支 `[UNACCEPTED]` 验证提交。
 - 临时验证提交 `cfa1a87` 已推送至 `validation/job230-dual-increment`；登记 Guqq 同配置 Slurm 回归，独立输出路径确保不覆盖 Job 230 失败现场。
+- Job 232 真实回归失败：21 次 acceleration 前 20 次均由 `FACTR*EPSMCH` 函数值条件短退，1,000 evaluations 后 row residual `1.69e-3`。保持临时分支未验收，调整为 `ftol=0` 后重试。
+- `ftol=0` 修复通过定向 24/24 与完整回归 129/129，Black/compile/diff 通过；准备推送下一临时未验收提交做真实回归。

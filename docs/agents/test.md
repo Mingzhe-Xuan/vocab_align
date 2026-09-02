@@ -39,6 +39,10 @@
 - 真实 2.3M-edge preview 尚未执行；本单元仍为未验收状态，只能创建临时验证分支提交，不得合并/形成 main 验收提交。
 - 临时提交登记检查：branch `validation/job230-dual-increment`、commit `cfa1a87`、首条 pull、同配置 Slurm 边界与独立 job 后缀产物路径一致；相关文档 `git diff --check` 在连接前复核。
 
+Job 232 实际结果：`39:06.15`、Exit 1、MaxRSS `1,847,136 KiB`、0 swap；21 attempts/1,000 evaluations，前 20 个 termination 均为 SciPy `RELATIVE REDUCTION OF F <= FACTR*EPSMCH`，最终 row/column residual `1.6915612104e-3`/`2.6332792027e-14`。checkpoint `building/fresh`，artifact/audit 不存在。本单元未验收；新增回归必须断言 `ftol=0`，防止严格 residual 前由函数值相对下降条件退出。
+
+`ftol=0` 本地结果：sparse/facade/artifact/audit `24 passed in 5.80s`；完整回归 `129 passed, 2 warnings in 58.25s`，warnings 仍仅为 pandas 可选依赖版本提示；Black 两文件无需修改，`compileall` 与 `git diff --check` 通过。真实 Slurm 回归前仍保持 `[UNACCEPTED]`。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。

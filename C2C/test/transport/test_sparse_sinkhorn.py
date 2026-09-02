@@ -167,6 +167,7 @@ def test_dual_acceleration_forwards_bounded_lbfgs_workspace(monkeypatch):
     assert captured[0]["jac"] is True
     assert captured[0]["options"]["maxcor"] == 2
     assert captured[0]["options"]["maxfun"] == 2
+    assert captured[0]["options"]["ftol"] == 0
     assert all(item["options"]["maxfun"] <= 2 for item in captured)
     with pytest.raises(SinkhornError, match="history size"):
         sparse_log_sinkhorn(
