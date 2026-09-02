@@ -32,3 +32,10 @@
 - 实际安装：`.venv/bin/python -m pip install datasets==4.0.0` 成功；所有包均来自 wheel/cache 下载，无源码编译。安装将既有 fsspec 2026.7.0 按 datasets 约束降为 2025.3.0。
 - 验证结果：Python 3.10.12、datasets 4.0.0、pyarrow 25.0.1、huggingface-hub 0.36.2、fsspec 2025.3.0、requests 2.34.2、tqdm 4.70.0、NumPy 2.2.6、SciPy 1.15.3、pandas 2.3.3；`PYTHONPATH=. .venv/bin/python -m script.dataset.materialize_transport_corpus --help` 通过。
 - 新增传递依赖：aiohappyeyeballs 2.7.1、aiohttp 3.14.3、aiosignal 1.4.0、async-timeout 5.0.1、attrs 26.1.0、dill 0.3.8、frozenlist 1.8.0、multidict 6.7.1、multiprocess 0.70.16、propcache 0.5.2、python-dateutil 2.9.0.post0、pytz 2026.3.post1、six 1.17.0、tzdata 2026.3、xxhash 4.0.1、yarl 1.24.5。
+
+## Guqq 真实模型 smoke 依赖计划（2026-09-03）
+
+- 复用环境：`/home/xmz/vocab_align/C2C/.venv`，继续使用 `python3 -m venv` 创建的既有环境，不重建、不覆盖其他任务环境。
+- 计划门禁：先查询 GPU 类型/显存和 Hugging Face 缓存；再检查 `torch`、`accelerate`、`transformers`、`safetensors` 的可导入版本。真实模型要求项目锁定的 `torch==2.6.0`、`accelerate==1.9.0`、`transformers==4.52.4`。
+- 若缺包，仅在登录节点执行 wheel 安装/下载并记录命令与最终版本；若出现源码编译或明显计算负载则停止。CUDA 可用性、模型加载和推理必须在 Slurm GPU allocation 内验证。
+- 真实模型文件可在登录节点下载到任务约定的 Hugging Face cache，但不会在登录节点加载模型；实际缓存状态和安装结果待远端预检后追加。

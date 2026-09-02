@@ -106,3 +106,4 @@
 - main-based `[UNACCEPTED]` 提交 `5787a71` 已推送；准备从 Guqq 当前提交派生内容等价的兼容验证分支，以纯快进 pull 避免 squash 历史冲突，再提交正式 500k T Slurm 作业。
 - Job 240 完成正式 manifest-bound T：51:57.26、Exit 0、MaxRSS 8,036,128 KiB；495k samples/997,233 messages provenance 完整，artifact/audit/checkpoint 原子齐全，row residual `1.9655e-3`、列和机器精度、无危险 special mapping 且无 partial。进入 main 验收整理与真实模型 smoke 阶段。
 - Job 240 后最终本地验收为完整 137/137；正式入口测试 Black unchanged，compileall、Bash、计划路径和 diff 均通过，准备 squash 为 main 验收提交。
+- 进入真实模型短序列 smoke 单元：现有 CLI 只有 STT 输出且主 recipe 生成 128 tokens；测试范围调整为同 prompt Receiver-only/STT、默认 2-token、加载权重前 GPU/依赖/artifact 门禁、原子报告和无 partition Slurm 入口，真实结果仅作为功能 smoke。

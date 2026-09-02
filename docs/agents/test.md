@@ -681,3 +681,13 @@ revision 修复本地结果：
 - `rg` 检查方法参数和 provenance 标识通过：旧版 `acceleration_history_size` / `sinkhorn-scaled-lbfgs-sinkhorn`，新版 `acceleration_cg_iterations` / `sinkhorn-scaled-newton-cg-sinkhorn`。
 - 文档无外部链接；仓库路径 `assets/T_method.md` 存在，Markdown 标题、公式和表格人工检查通过。
 - `git diff --check`：通过；仅报告工作树既有 LF/CRLF 转换 warning，无 whitespace error。
+
+## 2026-09-03：真实模型短序列 smoke 实现单元
+
+测试计划：
+
+- 用 tiny stub 同一 prompt 运行 Receiver-only 与 STT，验证两路分别使用 target/source tokenizer，生成参数完全一致，报告包含两路 token IDs/文本、STT shape/transport quality/分段 metrics、锁定配置、artifact provenance 和输入指纹。
+- smoke 专用运行必须把 `max_new_tokens` 限制为默认 2，并拒绝未知生成字段、空 prompt、缺失 artifact、tokenizer 指纹不匹配、无 CUDA、GPU 数量或显存不足、缺少精确依赖等情况；错误必须在加载 8B 权重前明确暴露。
+- Slurm 入口不固定 partition，显式申请已核实的 GPU/CPU/内存/时限，运行前检查解释器、正式 artifact、CUDA、依赖和模型缓存，使用原子 JSON 输出与 GNU time telemetry，禁止覆盖既有正式结果。
+- CLI help 和 tiny 单元测试不得访问网络或加载远程模型；完整 pytest、Black、compileall、Bash syntax、Markdown 路径/命令和 `git diff --check` 均须通过。
+- 真实验收仅通过 Slurm：固定 Qwen3-8B/Mistral-Nemo revisions、正式 Job 240 artifact 和短 prompt，要求 Receiver-only/STT 均成功生成、报告可解析、provenance/shape/有限质量统计完整、无 `.partial`，并记录 Job ID、ExitCode、Elapsed、MaxRSS、GPU 和产物 SHA-256。该结果只证明功能正确性，不进入正式 latency 表。

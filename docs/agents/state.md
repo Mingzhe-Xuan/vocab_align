@@ -6,8 +6,9 @@
 
 ## 当前计划
 
-1. 复核真实模型 smoke CLI 的依赖、device map、正式 artifact、最短输入和 diagnostics 输出协议，明确 GPU/显存门禁。
-2. 实现并测试无 partition 的 smoke Slurm 入口，在 Guqq 运行最短序列 Receiver-only 与 STT diagnostics。
+1. 完成真实模型 smoke 的资源预检：确认 Guqq GPU 申请语法、可用显存、模型缓存和 Python venv 中 `torch==2.6.0`/`accelerate==1.9.0` 门禁。
+2. 扩展 smoke CLI，使同一短 prompt 原子保存 Receiver-only 与 STT 输出；新增无 partition 的 Slurm 入口，默认仅生成 2 个 token。
+3. 本地测试通过后形成临时未验收提交，在 Guqq 通过 Slurm 运行真实模型 smoke 并验收 diagnostics、资源和 provenance。
 3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
 
 ## 变更记录
@@ -112,5 +113,6 @@
 - 2026-09-03 02:06 +08:00：main-based 临时提交 `5787a71` 已推送；因 Guqq 旧历史不能快进 squash main，计划从服务器当前 `5a0368f` 建立 C2C 内容等价的兼容验证分支，仅供首条 ff-only pull 与 Slurm 运行。下一步提交该分支并复核 C2C tree 一致性后连接。
 - 2026-09-03 03:10 +08:00：兼容分支 `bb4bab6` 与 main-based `5787a71` 的 C2C tree 一致；Job 240 在 51:57.26/Exit 0/MaxRSS 8,036,128 KiB 下完成正式 T。495k/997,233 条数据 provenance、`1.9655e-3` row residual、严格列和、目标、special、complete checkpoint、无 partial 和哈希均通过。下一步补全记录、复跑最终本地验收并整理 main。
 - 2026-09-03 03:12 +08:00：Job 240 后最终代码树完整回归 137/137；新测试 Black unchanged、compileall、正式脚本 Bash syntax、两份计划路径和 diff 检查均通过。进入 main-based 临时分支证据提交与 squash 验收提交阶段，之后直接推进真实模型短序列 smoke。
+- 2026-09-03 03:22 +08:00：进入真实模型短序列 smoke 实现单元；确认现有 CLI 仅输出 STT 且正式 recipe 为 128 tokens。计划补齐同 prompt Receiver-only 对照、2-token 最短运行、GPU/依赖/正式 artifact 预检、原子报告和无 partition Slurm 入口；先查询 Guqq 资源与缓存，再冻结脚本资源值。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
