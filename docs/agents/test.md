@@ -43,6 +43,8 @@ Job 232 实际结果：`39:06.15`、Exit 1、MaxRSS `1,847,136 KiB`、0 swap；2
 
 `ftol=0` 本地结果：sparse/facade/artifact/audit `24 passed in 5.80s`；完整回归 `129 passed, 2 warnings in 58.25s`，warnings 仍仅为 pandas 可选依赖版本提示；Black 两文件无需修改，`compileall` 与 `git diff --check` 通过。真实 Slurm 回归前仍保持 `[UNACCEPTED]`。
 
+第二次临时验证登记检查：commit `463c3b9`、首条普通 pull、临时分支 pull、同输入/资源/数值参数、独立 `dual_ftol_validation` 路径及第三次失败 lessons 阈值均明确；连接前执行相关文档 `git diff --check`。
+
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 
 计划与实际结果：检查 `docs/agents/gpu.md` 锁定 `f5ba846`、相同输入/64G/8h/`1e-9` 对照、首项 `git pull` 与 Slurm-only 计算边界；关键字段检索和相关文档 `git diff --check` 在提交前执行并通过。

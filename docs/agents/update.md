@@ -79,3 +79,4 @@
 - 临时验证提交 `cfa1a87` 已推送至 `validation/job230-dual-increment`；登记 Guqq 同配置 Slurm 回归，独立输出路径确保不覆盖 Job 230 失败现场。
 - Job 232 真实回归失败：21 次 acceleration 前 20 次均由 `FACTR*EPSMCH` 函数值条件短退，1,000 evaluations 后 row residual `1.69e-3`。保持临时分支未验收，调整为 `ftol=0` 后重试。
 - `ftol=0` 修复通过定向 24/24 与完整回归 129/129，Black/compile/diff 通过；准备推送下一临时未验收提交做真实回归。
+- 第二个临时未验收提交 `463c3b9` 已推送；登记独立 `dual_ftol_validation` Slurm 回归，保持相同输入/资源/严格标准。
