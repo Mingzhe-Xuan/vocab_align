@@ -26,6 +26,8 @@ full-vocabulary artifact 即使以 CSC 保存，audit 若先调用 `transport_to
 
 Guqq 登录节点可能能解析 GitHub，却在 `git pull` 时出现 GnuTLS `recv error (-110)` 或长时间无响应。发生网络连接问题时，先在服务器运行 `bash net.sh`，再重试 HTTPS `git pull`；不要切换到 GitHub SSH transport，因为该服务器没有对应的 GitHub public key。若仍无法同步，则暂停需要新源码的服务器任务并保留已生成数据。不得用 `scp` 覆盖服务器受 Git 管理源码，因为服务器源码只能通过 `git pull` 同步。
 
+从 Windows PowerShell 调用 `ssh Guqq "... python -c ..."` 时，PowerShell、SSH 和远端 Bash 的多层引号会在执行前重写参数；即使本地字符串看似成对，远端也可能收到无引号 Python 源码，导致连接建立后连首项 pull 都因整段 Bash parse 失败而未执行。远端轻量诊断优先使用已提交并测试的 `python -m` 入口或无嵌套引号的 `pip show`、`test`、`stat` 等命令；不得继续堆叠转义猜测。确需复合 Python 诊断时，应先在本地实现为受 Git 管理的明确 CLI，经 pull 后调用。
+
 ## OT active support 与 artifact 坐标
 
 零质量 token 必须在 `Diag(a)^-1` 前移出 OT active support，但 artifact 仍需保留原 tokenizer 方向。实现将正质量 source/target 压缩为连续矩阵坐标，同时保存唯一的 `source_token_ids`/`target_token_ids` 映射；候选边也使用压缩坐标结构化保存。不得假设压缩坐标等于原 token ID，也不得对零质量列做条件化除法。
