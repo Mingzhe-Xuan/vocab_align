@@ -52,3 +52,8 @@
 - smoke 使用命名 profile `blackwell-cu128`，报告必须同时记录 profile、实际 `torch==2.7.1+cu128`、compiled arches、RTX 5090 compute capability；默认 `project-cu124` profile 仍精确锁定 torch 2.6.0。
 - 实际创建/安装成功：`python3 -m venv C2C/.venv-smoke-cu128`；`pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128` 得到 `torch==2.7.1+cu128`，随后精确安装 accelerate 1.9.0、transformers 4.52.4、NumPy 2.2.6、PyYAML 6.0.3、SciPy 1.15.3、safetensors 0.8.0。全部为预构建 wheel，无源码编译。
 - 主要 CUDA 传递版本：cuBLAS 12.8.3.14、cuDNN 9.7.1.26、NCCL 2.26.2、Triton 3.3.1；共享 `/home/xmz/vocab_align/C2C/.venv` 未修改。实际 CUDA/compiled arch/kernel 继续由 Slurm smoke 门禁和推理验证。
+## Guqq 阶段 3 evaluator 依赖补充（2026-09-03）
+
+- 复用任务隔离环境：`/home/xmz/vocab_align/C2C/.venv-smoke-cu128`，该环境由 `python3 -m venv` 创建并已锁定 torch 2.7.1+cu128、transformers 4.52.4、accelerate 1.9.0；不修改共享 `.venv`。
+- 预检结果：`pip show datasets` 明确未安装；统一 evaluator 顶层依赖 `datasets.load_dataset`，因此环境不完整时不得提交 Slurm。MMLU-Redux cache 目录及 `abstract_algebra` 路径已存在。
+- 计划命令：`.venv-smoke-cu128/bin/python -m pip install datasets==4.0.0`。仅接受预构建 wheel；若出现源码编译或明显计算负载则停止。安装后复核 datasets、pyarrow、pandas、fsspec、huggingface-hub 与既有 torch/transformers/accelerate 版本，并运行 evaluator `--help`，模型/CUDA 不在登录节点加载。
