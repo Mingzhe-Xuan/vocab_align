@@ -161,6 +161,7 @@ def transport_embeddings(
     top_m: int | None = None,
     allow_partial_support: bool = False,
     source_vocab_size: int | None = None,
+    embedding_chunk_size: int = 8192,
 ) -> tuple[torch.Tensor, torch.Tensor, SoftTransportStats]:
     _require_torch()
     target_probabilities, stats = transport_probabilities(
@@ -177,13 +178,31 @@ def transport_embeddings(
         raise SoftTransportError("artifact target token ID exceeds receiver vocabulary")
     if receiver_embedding_weight.device != logits.device:
         raise SoftTransportError("receiver embedding and logits must share a device")
-    target_ids = torch.as_tensor(
-        artifact.target_token_ids,
-        dtype=torch.long,
-        device=receiver_embedding_weight.device,
+    if (
+        isinstance(embedding_chunk_size, bool)
+        or not isinstance(embedding_chunk_size, int)
+        or embedding_chunk_size <= 0
+    ):
+        raise SoftTransportError("embedding_chunk_size must be a positive integer")
+    accumulator = torch.zeros(
+        (*target_probabilities.shape[:-1], receiver_embedding_weight.shape[1]),
+        dtype=logits.dtype,
+        device=logits.device,
     )
-    active_embeddings = receiver_embedding_weight.index_select(0, target_ids).to(
-        dtype=logits.dtype
-    )
-    embeddings = target_probabilities @ active_embeddings
+    for start in range(0, artifact.shape[0], embedding_chunk_size):
+        end = min(start + embedding_chunk_size, artifact.shape[0])
+        ids_np = artifact.target_token_ids[start:end]
+        first_id = int(ids_np[0])
+        if np.array_equal(ids_np, np.arange(first_id, first_id + len(ids_np))):
+            weight_chunk = receiver_embedding_weight[first_id : first_id + len(ids_np)]
+        else:
+            target_ids = torch.as_tensor(
+                ids_np, dtype=torch.long, device=receiver_embedding_weight.device
+            )
+            weight_chunk = receiver_embedding_weight.index_select(0, target_ids)
+        probability_chunk = target_probabilities[..., start:end].to(
+            dtype=receiver_embedding_weight.dtype
+        )
+        accumulator.add_((probability_chunk @ weight_chunk).to(dtype=logits.dtype))
+    embeddings = accumulator.to(dtype=receiver_embedding_weight.dtype)
     return embeddings, target_probabilities, stats
