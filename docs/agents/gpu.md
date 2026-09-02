@@ -256,3 +256,9 @@
 - 连接用途：同步 `validation/guqq-real-model-stt-smoke` 兼容提交 `d559a6f`，确认其 C2C tree 与 main-based `[UNACCEPTED]` 提交 `036df80` 一致；检查磁盘/cache 后，在既有 Python venv 中安装 wheel-only `torch==2.6.0 accelerate==1.9.0` 并复核版本。
 - 权限判断与顺序：第一条远端操作为 `git pull --ff-only origin validation/guqq-real-model-stt-smoke`；随后仅做 tree/disk/cache 检查和许可的环境依赖安装，不在登录节点初始化 CUDA、加载模型或推理。网络问题先运行 `bash net.sh` 再重试；若 pip 尝试源码编译或空间不足则停止。
 - 验收边界：要求 C2C tree 等价、依赖精确、torch CUDA build 元数据可读、两侧 cache 大小和 snapshot 状态清晰；本连接不提交 smoke 作业，完成后退出并记录事实。
+- 实际结果：第一项 ff-only pull 因 GitHub `GnuTLS recv error (-110)` 失败，后续命令全部由 `&&` 短路，未检查磁盘、未安装包、未改变环境。会话已结束。
+
+## 2026-09-03 03:50 +08:00
+
+- 连接用途：重试上一条环境安装；先 ff-only pull，若失败则执行 `bash net.sh` 后再次 pull，成功后才检查磁盘/cache 并安装精确 torch/accelerate wheel。
+- 权限判断与验收边界：顺序、轻量环境操作和停止条件沿用 03:46 条目；本连接仍不加载模型、不初始化 CUDA、不提交推理作业。
