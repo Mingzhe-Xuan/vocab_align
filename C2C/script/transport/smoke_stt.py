@@ -369,7 +369,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _load_runtime(config: TransportConfig, artifact_path: Path):
+def _load_runtime(
+    config: TransportConfig,
+    artifact_path: Path,
+    *,
+    source_device_map: Any | None = None,
+    target_device_map: Any | None = None,
+):
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     dtype = {
@@ -396,13 +402,17 @@ def _load_runtime(config: TransportConfig, artifact_path: Path):
         config.source.name,
         revision=config.source.revision,
         torch_dtype=dtype[config.source.dtype],
-        device_map=config.source.device_map,
+        device_map=(
+            config.source.device_map if source_device_map is None else source_device_map
+        ),
     )
     target_model = AutoModelForCausalLM.from_pretrained(
         config.target.name,
         revision=config.target.revision,
         torch_dtype=dtype[config.target.dtype],
-        device_map=config.target.device_map,
+        device_map=(
+            config.target.device_map if target_device_map is None else target_device_map
+        ),
     )
     wrapper = TrainingFreeTransportModel(
         source_model,

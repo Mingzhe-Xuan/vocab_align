@@ -40,6 +40,8 @@ source 位置 `t` 的 logits 预测下一 token，因此等长 virtual prompt �
 
 CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的阶段边界若不显式 `synchronize`，计时会被错误归入后续阶段；CPU 路径不应伪造显存峰值。transport 的 retained/dropped mass 张量覆盖 batch 的物理 shape，但 smoke 汇总只能选择 attention mask 中的有效位置，否则 padding logits 会污染近似质量统计。
 
+两个模型依次以 `device_map:auto` 加载时，第二个模型会按第一个模型已经占用的剩余显存重新切分；短 prompt smoke 能通过，不代表较长 benchmark prompt 仍有足够 activation/KV 余量。对于 source 只运行一次 prefill、receiver 承担 prefill 与自回归 decode 的 STT，应允许 recipe 显式把 source 放 CPU、优先给 receiver GPU；override 必须写入逐题 provenance，CPU forward 仍只能在 Slurm 作业中运行。不能用减少样本数掩盖单样本 OOM，也不能把 failed records 计为错误答案。
+
 ## 稀疏 OT 必须同时覆盖两侧 support
 
 逐 source 的 special/exact/span/ANN 优先级只能保证每个正质量 source 有出边，不能保证每个正质量 target 有入边；尤其 source 存在未被语料实际使用的 exact target token 时，会遮蔽语料中真实出现的细粒度 target span。构图完成后必须对缺失 target 做反向 exact-byte 与 observed-span rescue，再执行两侧 support 和连通分量质量检查；没有安全证据时应失败，不能任意连边伪造可行性。

@@ -4,12 +4,14 @@ model:
   transport_config: recipe/transport_recipe/qwen3_8b_to_mistral_nemo_instruct_2407.yaml
   artifact: local/transport/artifacts/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
   runtime_profile: blackwell-cu128
+  source_device_map: cpu
+  target_device_map: auto
   require_cuda: true
   require_locked_runtime: true
   min_gpu_memory_gib: 30.0
   generation_config:
     do_sample: false
-    max_new_tokens: 64
+    max_new_tokens: 16
     temperature: 1.0
 output:
   output_dir: local/transport/evaluation/mmlu-redux
