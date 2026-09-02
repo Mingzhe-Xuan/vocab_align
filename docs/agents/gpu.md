@@ -181,3 +181,4 @@
 - 连接用途：验证第三个临时 `[UNACCEPTED]` 提交 `f62c540` 的 residual-driven scaled Newton-CG，在与 Jobs 230/232/233 相同的 2.3M-edge 输入、64G/8h、epsilon 0.5、`1e-9`/10,000 配置下经 Slurm 重跑 full-support preview。
 - 权限判断与顺序：新会话第一条远端操作必须是 `cd vocab_align && git pull`；之后才拉取 `validation/job230-dual-increment`、复核 HEAD/输入/队列并 `sbatch`。真实图构建和求解全部在 compute allocation；登录节点只做轻量管理，不编辑受 Git 管理源码。
 - 验收边界：使用独立 `newton_cg_validation` checkpoint/artifact/audit 路径，不覆盖前三次失败现场；检查严格两侧 residual、Newton/CG provenance、1,000 acceleration budget、GNU time/MaxRSS 和原子产物。若网络异常先运行 `bash net.sh` 再重试 pull；真实图通过前不进入 main。
+- 实际结果：首条 pull 成功并同步到 `9c2ad04`，输入哈希保持 `05ca0628…207a3a`/`260f9804…e91652`，SciPy 1.15.3；提交 Job 234。作业 37:11.54 后 Exit 1，MaxRSS 1,847,260 KiB、0 swap；12 次 Newton 尝试共耗尽 1,000 evaluations，虽有少量极小步被接受，最终 row/column residual 仍为 `1.6915304665e-3`/`6.2669379185e-14`。checkpoint 为 `building/fresh`，artifact/audit 不存在；stderr/checkpoint SHA-256 分别为 `6f3807b4…785d65`/`a3a9acb8…5bdc7f`。已退出，临时提交保持未验收。

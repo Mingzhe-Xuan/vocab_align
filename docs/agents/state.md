@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。residual-driven scaled Newton-CG 已通过 128 个本地测试与静态检查，准备在临时分支形成第三个 `[UNACCEPTED]` 验证提交；真实图未通过前不进入 main。
+正在实施 Training-free Soft-Token Transport。真实全词表 OT 验收阈值已正式调整为 `2e-3`，两份计划与方法说明已同步并通过文档检查；toy/dense 数值 oracle 仍保持原高精度标准。
 
 ## 当前计划
 
-1. 用 scaled dual Hessian-vector `D^-1 H D^-1` 和对角预条件的 `scipy.sparse.linalg.cg` 求 Newton 方向；不再调用依赖函数值停止的 L-BFGS-B。
-2. 以原两侧 L1 residual 对 Newton step 做有界 backtracking，只接受最大 residual 严格下降；CG matvec 与候选复验共同计入 1,000 acceleration budget，内存保持 O(edges + nodes)。
-3. 增加 Hessian 有限差分、CG 选项/预算、病态图与失败语义测试，完成全回归后形成第三个临时验证提交；真实通过前不进 main。
+1. 提交并推送本次文档需求变更，排除未跟踪参考文件 `docs/assets/alignment.py`。
+2. 下一实现单元按新需求更新正式 recipe/Slurm 验收测试，将真实 full-vocabulary tolerance 设为 `2e-3`，而不修改 toy/dense 默认精度。
+3. 通过本地测试后在临时分支重跑 Job 234 同输入，生成并独立审计有效 artifact；不继续当前 reduced Newton-CG 修复。
 
 ## 变更记录
 
@@ -94,5 +94,8 @@
 - 2026-09-02 10:26 +08:00：完成 `assets/T_method.md`；源码/历史实现、方法参数、provenance、公式、路径和 diff 检查通过。文档明确新版真实 Slurm 收敛与耗时仍待验证，主实现计划不变。
 - 2026-09-02 10:33 +08:00：最终代码形态定向 23/23；完整回归首次仅受系统 `%TEMP%` ACL 阻断一个既有 Bash 用例，按 lessons 使用工作区忽略目录的全新 `--basetemp` 后 128/128 通过。下一步形成第三个 `[UNACCEPTED]` 临时提交并登记 Guqq Slurm 验证。
 - 2026-09-02 10:36 +08:00：第三个临时未验收提交 `f62c540` 已推送；已登记同输入/资源/严格标准、独立输出路径的 Newton-CG Slurm 验证连接。下一步先提交该审计记录，再连接 Guqq 且首项执行 `git pull`。
+- 2026-09-02 11:21 +08:00：Job 234 在 37:11 后耗尽 1,000 Newton-CG evaluations，row residual `1.69153e-3`，无 artifact/audit；首版真实验证失败且保持未验收。下一步本地诊断缩放/方向并补充能复现极小步停滞的测试，不降低严格标准。
+- 2026-09-02 11:26 +08:00：用户确认当前真实图精度足够，需求实质调整为 full-vocabulary 最大两侧 L1 residual `<=2e-3`；toy/dense oracle 仍保持原高精度。取消 reduced row-dual 代码修复计划，先同步两份计划、方法说明与验收记录；Job 234 旧配置未产出 artifact，后续仍需按新阈值重跑并审计。
+- 2026-09-02 11:28 +08:00：两份计划、`assets/T_method.md`、经验和验收记录已完成 `2e-3`/`1e-9` 精度分层同步；路径、相对链接、公式/阈值表述与 diff 检查通过。下一步提交文档需求变更，再进入配置和验收测试实现单元。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

@@ -230,6 +230,14 @@ $$
 \right)\le\texttt{tolerance}.
 $$
 
+精度采用分层要求：
+
+- toy vocab、dense oracle、有限差分和小图算法回归继续使用 `1e-9` 或测试中原有的更严格阈值；这些测试用于发现方向、转置和数值实现错误。
+- 真实 Qwen3→Mistral-Nemo full-vocabulary 构建使用 `tolerance = 2e-3`，即上述两侧 L1 residual 的最大值不超过 `0.002`。该阈值是工程/实验 artifact 的预注册近似精度，不替代小图数值 oracle。
+- convergence report 和 audit 必须同时保存阈值及实际 row/column residual。出现 NaN/Inf、不可行支撑或 residual 超过对应层级阈值时仍失败，不能保存有效 artifact。
+
+该真实图阈值于 2026-09-02 根据用户确认调整；Job 234 的 row/column residual 为 `1.6915304665e-3`/`6.2669379185e-14`，在新阈值内。Job 234 仍使用旧 `1e-9` 配置且没有产出 artifact，因此必须按新配置重跑并完成原子保存和独立审计，不能直接把旧 checkpoint 标记为有效。
+
 优先在 top-$k$ 候选支撑图上直接运行稀疏 Sinkhorn，而不是先求稠密 $\Pi$ 再裁剪。若在 Sinkhorn 后再次 top-$k$ 并逐列归一化，会破坏目标边际 $b$；该结果必须标记为 `sparsified-approximate` 并重新报告边际误差。稠密全词表 Sinkhorn 仅用于小规模数值 oracle，不作为第一版大词表实现。
 
 ### 4.5 Artifact 与审计
@@ -256,6 +264,8 @@ $$
 $$
 \left\|Ta-b\right\|_1\le\delta_{\mathrm{marginal}}.
 $$
+
+对真实 full-vocabulary artifact，`delta_marginal` 取 `2e-3`，并与构建时 `tolerance` 一同写入 metadata；toy/dense oracle 的对应审计继续采用 `1e-9` 或测试原有更严阈值。`delta_num` 和列随机性 `delta_col` 仍按存储 dtype 的数值精度设置，不因边际近似阈值调整而放宽非负性或逐列归一化检查。
 
 ## 5. STT 推理协议
 
@@ -340,7 +350,7 @@ T2T 使用现有 `TwoStageInference`，固定 A 生成背景、B 生成答案。
 
 导出 token bytes/offset/special metadata；实现流式 span 计数、规则映射、ANN fallback、边际估计、代价矩阵和稀疏候选图；先以小规模普通 Sinkhorn 建立数值 oracle，再实现大词表 log-domain/稀疏 Sinkhorn、条件矩阵转换、稀疏保存和审计报告；在 dev 验证不变量。
 
-**验收：** Sinkhorn 收敛；$\Pi$ 的两侧边际残差和 $T$ 的非负性、列和、$\lVert Ta-b\rVert_1$ 均在容忍度内；special token 无危险误配；artifact 可独立加载与复算。
+**验收：** Sinkhorn 按精度分层收敛：真实 full-vocabulary 构建的两侧最大 L1 residual 与 $\lVert Ta-b\rVert_1$ 不超过 `2e-3`，toy/dense oracle 保持 `1e-9` 或原测试阈值；$T$ 的非负性和列和审计通过；special token 无危险误配；artifact 可独立加载与复算。报告必须保存实际 residual 和采用的阈值。
 
 ### 阶段 2：STT 精确原型
 

@@ -88,3 +88,6 @@
 - 完成 `assets/T_method.md`：对照历史增量 scaled L-BFGS-B 与当前 residual-driven scaled Newton-CG，记录共同 OT 目标、公式、接受/停止条件、复杂度、真实失败证据及尚待 Slurm 验证的边界；文档路径与 diff 检查通过。
 - Newton-CG 最终代码形态再次通过定向 23/23；完整回归的系统 `%TEMP%` ACL 阻断按既有 lessons 改用工作区全新 `--basetemp` 后消除，最终 128/128 通过且未跳过测试，进入临时未验收提交阶段。
 - 第三个临时 `[UNACCEPTED]` Newton-CG 提交 `f62c540` 已推送；登记 Guqq 同输入/资源/严格标准、独立 `newton_cg_validation` 路径的 Slurm 验证，真实通过前保持不进入 main。
+- Job 234 Newton-CG 真实验证在 37:11 后失败：12 attempts/1,000 evaluations、row residual `1.69153e-3`、MaxRSS 1,847,260 KiB、无 artifact/audit。保持临时分支未验收，转入 CG 方程/缩放/方向诊断与针对性测试。
+- 用户确认 Job 234 当前精度足够；开始把真实 full-vocabulary OT 验收阈值正式改为 `2e-3`，同时保留 toy/dense oracle 的原高精度要求。取消 reduced row-dual 代码修复，先完成需求文档同步；旧 Job 234 无有效 artifact，仍需按新配置重跑。
+- 完成真实 full-vocabulary `2e-3` 与 toy/dense `1e-9` 精度分层的需求文档同步；两份计划、方法说明、artifact 审计边界和 Job 234 重跑要求一致，路径/链接/格式检查通过。

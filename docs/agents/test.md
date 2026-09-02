@@ -68,6 +68,27 @@ Newton-CG 本地实际结果：
 - method/provenance 已改为 `sinkhorn-scaled-newton-cg-sinkhorn`，无 L-BFGS/FACTR 路径；真实 Slurm 未通过前仍为临时未验收实现。
 - 最终代码形态再次复核：定向 `23 passed in 8.13s`，重定向 bytecode cache 后 compileall 通过；首次完整回归因既有 `%TEMP%/pytest-of-asus` ACL 导致一个 Slurm 包装测试失败（其余 127 通过）。按 `lessons.md` 改用忽略目录 `local/test-tmp/newton-full-2` 的全新 `--basetemp` 后，完整回归 `128 passed, 2 warnings in 75.88s`，未跳过任何测试。
 - 上述代码与文档已形成并推送临时分支提交 `f62c540`（明确 `[UNACCEPTED]`）；远程真实图验收仍待 Slurm 执行。
+- Job 234 真实图验收失败：37:11.54、Exit 1、MaxRSS 1,847,260 KiB、0 swap；12 attempts/1,000 evaluations 后 row/column residual `1.6915304665e-3`/`6.2669379185e-14`，method 为 `sinkhorn-scaled-newton-cg-sinkhorn`。checkpoint `building/fresh`，artifact/audit 不存在；该提交不得作为验收提交或进入正式分支。
+
+Reduced row-dual Newton-CG 修复测试计划：
+
+- 对消去 column dual 后的 Schur-complement Hessian-vector 做中心有限差分；验证 gauge anchor 选择最大 target marginal，变量 shape 只含 `n_rows - 1`，缩放/对角预条件均有限且为正。
+- 每个 trial step 先改变 row dual，再按 source marginal 精确重归一化每一 column；断言候选 column residual 保持机器精度，而 row L1 residual 严格下降后才接受。
+- 构造 truncated CG 会明显破坏 full-dual column residual、但 reduced feasible step 可接受非微小步的病态图回归；保留总 acceleration evaluation cap、无改善重启和显式失败语义。
+- 运行 sparse/facade/artifact/audit 定向测试、完整 pytest、Black、compileall 与 `git diff --check`；真实 2.3M-edge 图仍只经新的临时 `[UNACCEPTED]` 提交和 Slurm 验收。
+
+真实全词表 OT 精度需求调整文档单元：
+
+- 将真实 2.3M-edge/full-vocabulary 构建的两侧最大 L1 边际残差验收阈值明确改为 `2e-3`，覆盖 Job 234 的 `1.6915304665e-3`；不得把该结果描述为在原 `1e-9` 要求下通过。
+- toy/dense oracle、Hessian 有限差分和小图算法回归继续保留 `1e-9` 或各测试原有更严阈值，避免产品级近似容差降低数值单元测试标准。
+- 同步 `docs/plan/T_plan.md`、`docs/plan/T_implementation_plan.md` 与 `assets/T_method.md`；检查相对链接、公式、命令、阈值分层和 Markdown 格式，并运行 `git diff --check`。本单元仅改文档，不运行代码单元测试。
+- 上述 reduced row-dual 修复计划因用户明确接受当前真实图精度而取消，不实施代码改动；其诊断保留为历史经验，后续只有在精度需求重新收紧时再启用。
+
+实际结果：
+
+- `docs/plan/T_plan.md` 已定义真实 full-vocabulary `2e-3` 与 toy/dense `1e-9`（或原更严阈值）的精度分层，并明确 `delta_marginal=2e-3`、实际 residual/tolerance provenance 和旧 Job 234 不可直接转为有效 artifact。
+- `docs/plan/T_implementation_plan.md` 与 `assets/T_method.md` 已同步测试边界、非单元验收、Job 234 结果和重跑要求；相对链接 `./T_plan.md` 目标存在，三份目标文档路径检查通过。
+- `git diff --check` 通过，仅有既有 LF/CRLF 转换 warning；本单元只改文档，未运行代码测试。
 
 ## 2026-09-02：scaled-dual Slurm 重跑登记检查
 

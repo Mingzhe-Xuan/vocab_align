@@ -41,7 +41,7 @@ r_{\text{col}}=\lVert\Pi^{\mathsf T}\mathbf 1-a\rVert_1,
 r=\max(r_{\text{row}},r_{\text{col}}).
 \]
 
-只有 \(r\leq\text{tolerance}\) 才算收敛。当前严格标准仍是 `1e-9`，没有因为算法更换而放宽。
+只有 \(r\leq\text{tolerance}\) 才算收敛。精度现在按场景分层：toy/dense oracle、有限差分和小图算法回归继续使用 `1e-9` 或原有更严格阈值；真实 2.3M-edge full-vocabulary 构建使用 `2e-3`。这是一项明确的需求调整，不应把 Job 234 描述为在旧 `1e-9` 标准下通过。
 
 两种方案也都先执行标准 log-domain Sinkhorn：交替更新行缩放 \(\alpha\) 和列缩放 \(\beta\)。这样可以快速消除大部分误差，并给后续加速器提供数值较合理的热启动点。
 
@@ -205,6 +205,6 @@ CG 的每次 Hessian-vector product 与每个回溯候选检查都计入同一�
 
 ## 7. 当前验证状态
 
-当前 Newton-CG 实现已通过本地 Hessian 有限差分、CG 参数/预算、病态稀疏图、facade/artifact/audit 回归以及完整本地测试；但截至本文编写时，真实 2.3M-edge 图的 Slurm 验证尚未完成。
+当前 Newton-CG 实现已通过本地 Hessian 有限差分、CG 参数/预算、病态稀疏图、facade/artifact/audit 回归以及完整本地测试。真实 Job 234 在 37:11.54 后报告 row/column residual `1.6915304665e-3`/`6.2669379185e-14`、MaxRSS 1,847,260 KiB、0 swap；该数值满足后来确认的 `2e-3` full-vocabulary 要求。
 
-因此目前可以确认的是：新方法消除了对 L-BFGS-B 函数值停止条件的依赖，并保持严格残差和总预算不变；是否在真实图上成功收敛、以及最终耗时比旧方法长还是短，必须以新的 Slurm 作业结果为准。
+Job 234 的运行配置仍是旧 `1e-9`，因此进程以 Exit 1 结束，checkpoint 保持 `building/fresh`，没有 artifact/audit。当前结论是“数值精度满足新需求，但产物尚未验收”；必须以 `2e-3` 配置重新执行，使构建器正常原子保存并通过独立审计。小图 `1e-9` 数值测试、非有限值检查、可行支撑检查和 provenance 预算要求均不变。
