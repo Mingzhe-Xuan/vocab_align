@@ -57,3 +57,5 @@
 - 复用任务隔离环境：`/home/xmz/vocab_align/C2C/.venv-smoke-cu128`，该环境由 `python3 -m venv` 创建并已锁定 torch 2.7.1+cu128、transformers 4.52.4、accelerate 1.9.0；不修改共享 `.venv`。
 - 预检结果：`pip show datasets` 明确未安装；统一 evaluator 顶层依赖 `datasets.load_dataset`，因此环境不完整时不得提交 Slurm。MMLU-Redux cache 目录及 `abstract_algebra` 路径已存在。
 - 计划命令：`.venv-smoke-cu128/bin/python -m pip install datasets==4.0.0`。仅接受预构建 wheel；若出现源码编译或明显计算负载则停止。安装后复核 datasets、pyarrow、pandas、fsspec、huggingface-hub 与既有 torch/transformers/accelerate 版本，并运行 evaluator `--help`，模型/CUDA 不在登录节点加载。
+- 实际安装成功：datasets 4.0.0、pyarrow 25.0.1、pandas 2.3.3、fsspec 2025.3.0；huggingface-hub 0.36.2、torch 2.7.1+cu128、transformers 4.52.4、accelerate 1.9.0 保持满足。全部依赖命中预构建 wheel/cache，无源码编译；fsspec 按 datasets 约束从 2026.7.0 降至 2025.3.0。
+- `PYTHONPATH=. .venv-smoke-cu128/bin/python -m script.evaluation.unified_evaluator --help` 成功，仅打印既有 qwen-vl-utils 可选提示；未加载模型或初始化 CUDA。隔离环境现具备阶段 3 Slurm evaluator 入口依赖。
