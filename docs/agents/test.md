@@ -838,3 +838,21 @@ wrapper 近似模式测试计划：
 - 本地从固定 revision 下载 MATH-500 `test.jsonl`（446,564 bytes，SHA-256 `35dc41080a3680858b27fa7e0533d2d547825316fc5dafe5d316f4ccc5a06132`）和 LongBench Qasper Parquet（1,863,050 bytes，SHA-256 `7c6bf3a2a402b557d001808ba345a23921a211c39bf2d36d925d1d70e21b3f03`）；均位于忽略的 `local/transport/datasets/`，不进入 Git。
 - runner 对本地 `data_file` 在加载前校验存在性、64 位 SHA 和 `json/parquet` format；远程数据路径可绑定完整 40 位 revision。MATH/Qasper recipes 同时保存原 repo revision 与本地文件 SHA，GSM8K 保存现有 cache 的完整 revision。
 - loader/recipe/evaluation 定向回归 25/25 通过；Black 写测试文件仍受 Windows ACL 限制，使用 `black --diff` 确认仅一处引号机械差异并由补丁修正，随后需再次执行 check。
+- fallback 最终完整回归 `python -m pytest -o addopts= --basetemp local/pytest-benchmark-data-full -q`：193 passed，189.95s；仍只有既存 pandas 可选依赖 2 条 warning。
+- Guqq Job 248（GSM8K exact smoke）：3 records、3 success、0 failed、3 scored、accuracy 0.0；平均总耗时 55.4335s，平均 source/transport/prefill/decode 为 52.9645/0.8113/0.0852/1.5725s，平均峰值显存 27,725,928,106.7 bytes；records/summary 均完成且无 `.partial`。
+- Guqq Job 249（MATH-500 exact smoke）：3 records、3 success、0 failed、3 scored、accuracy 0.0；平均总耗时 62.9749s，平均 source/transport/prefill/decode 为 60.4815/0.8192/0.0867/1.5874s，平均峰值显存 28,172,192,085.3 bytes；records/summary 均完成且无 `.partial`。
+
+### LongBench 已渲染 prompt 单元
+
+测试计划：
+
+- LongBench sample 必须显式标记 formatter 输出已经由 source tokenizer 渲染；adapter 对该标记直接编码 `sample.prompt`，不得再次调用 `apply_chat_template`。
+- MMLU/GSM8K/MATH 等普通 sample 继续由 adapter 对 canonical messages 单次应用 source chat template，保持既有 exact 行为和 Job 247–249 协议不变。
+- 标记只接受严格布尔值；非法元数据显式失败。diagnostics 记录实际使用的是预渲染还是 adapter 渲染路径，便于远端审计。
+- 运行 transport runner/adapter 定向测试、完整 pytest、Black、compileall、Slurm Bash syntax 和 diff 检查；通过后推送新的 `[UNACCEPTED]` 兼容提交，仅以独立输出路径重跑 Qasper exact。
+
+实际结果：
+
+- transport evaluation/runner 定向回归 25/25 通过；覆盖预渲染 prompt 不再调用 chat template、普通路径仍单次渲染、非布尔标记失败，以及 LongBench sample 标记与外部 scorer 字段。
+- 完整 `python -m pytest -o addopts= --basetemp local/pytest-longbench-rendered-full -q`：195 passed，152.42s；仍只有既存 pandas 可选依赖 2 条 warning。
+- 通用 benchmark Slurm Bash syntax 与四个变更 Python 文件的内存 AST 编译通过。当前 Black 版本不支持 `--cache-dir`，首次 `black --diff` 仅报告测试文件两处换行格式并已按输出修正；随后重新检查。

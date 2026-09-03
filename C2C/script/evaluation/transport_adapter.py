@@ -45,12 +45,20 @@ class TrainingFreeTransportEvaluationAdapter:
         self.provenance = dict(provenance or {})
 
     def generate_one(self, sample: EvaluationSample) -> GenerationResult:
-        source_text = self.source_tokenizer.apply_chat_template(
-            list(sample.canonical_messages),
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False,
+        source_prompt_rendered = sample.prompt_metadata.get(
+            "source_prompt_rendered", False
         )
+        if not isinstance(source_prompt_rendered, bool):
+            raise ValueError("source_prompt_rendered must be a boolean")
+        if source_prompt_rendered:
+            source_text = sample.prompt
+        else:
+            source_text = self.source_tokenizer.apply_chat_template(
+                list(sample.canonical_messages),
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
         encoded = self.source_tokenizer(source_text, return_tensors="pt")
         source_ids = torch.as_tensor(encoded["input_ids"], dtype=torch.long)
         if source_ids.ndim == 1:
@@ -92,6 +100,7 @@ class TrainingFreeTransportEvaluationAdapter:
                 else float(stats.active_support_mass.float().mean().item())
             ),
             "source_top_m": None if stats is None else stats.top_m,
+            "source_prompt_rendered": source_prompt_rendered,
             "source_rendered_prompt": source_text,
             "provenance": self.provenance,
         }

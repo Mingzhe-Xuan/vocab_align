@@ -112,6 +112,7 @@ def _subject_samples(
             "answer_method": evaluator.eval_config["answer_method"],
         }
         if scoring_mode == "external":
+            metadata["source_prompt_rendered"] = True
             metadata["longbench"] = {
                 "answers": example.get("answers", []),
                 "all_classes": example.get("all_classes", []),

@@ -306,7 +306,38 @@ def test_training_free_adapter_emits_transport_metrics_and_diagnostics():
     assert result.metrics["transport_seconds"] == pytest.approx(0.2)
     assert result.diagnostics["virtual_prompt_shape"] == [1, 2, 4]
     assert result.diagnostics["active_support_mass_mean"] == 1.0
+    assert result.diagnostics["source_prompt_rendered"] is False
     assert result.diagnostics["provenance"] == {"code_version": "fixture"}
+
+
+def test_training_free_adapter_encodes_pre_rendered_source_prompt_once():
+    class PreRenderedTokenizer(_Tokenizer):
+        def apply_chat_template(self, messages, **kwargs):
+            raise AssertionError(
+                "pre-rendered source prompt must not be rendered again"
+            )
+
+    sample = replace(
+        _sample(prompt="rendered source prompt"),
+        prompt_metadata={"source_prompt_rendered": True},
+    )
+    result = TrainingFreeTransportEvaluationAdapter(
+        _Wrapper(),
+        PreRenderedTokenizer(),
+        _Tokenizer(),
+        {"max_new_tokens": 1},
+    ).generate_one(sample)
+    assert result.diagnostics["source_prompt_rendered"] is True
+    assert result.diagnostics["source_rendered_prompt"] == "rendered source prompt"
+
+
+def test_training_free_adapter_rejects_non_boolean_rendered_prompt_marker():
+    sample = replace(_sample(), prompt_metadata={"source_prompt_rendered": "true"})
+    adapter = TrainingFreeTransportEvaluationAdapter(
+        _Wrapper(), _Tokenizer(), _Tokenizer(), {"max_new_tokens": 1}
+    )
+    with pytest.raises(ValueError, match="must be a boolean"):
+        adapter.generate_one(sample)
 
 
 def test_training_free_adapter_marks_orf_transport_stats_unavailable():

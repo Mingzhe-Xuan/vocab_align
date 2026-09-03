@@ -150,5 +150,9 @@
 - 2026-09-03 09:40 +08:00：用户调整优先级：近似与消融实验暂缓，不作为当前验收条件；已完成的本地实现保留并停止扩展。当前阶段改为精确 STT 的跨 benchmark 验证，先补齐 MMLU-Redux、GSM8K、MATH-500、LongBench 的确定性小样本加载/记录协议，再通过 Slurm 逐项测试并如实报告任务分数、失败、耗时和显存；可选 benchmark 与完整规模运行在这轮 smoke 后决定。
 - 2026-09-03 09:55 +08:00：跨 benchmark 本地实现与验收完成：四类 loader、LongBench 外部评分语义、三个新增 exact smoke recipe 和通用 Slurm 入口已就绪；定向 24/24、完整 192/192、Black/compile/Bash/diff 通过。下一步形成 main-based `[UNACCEPTED]` 验证提交并推送；Guqq pull 后确认数据缓存，缺失资源按 `net.sh` 后下载，再分别提交 GSM8K、MATH-500、LongBench Qasper 作业，MMLU-Redux 使用已验收 Job 247 作为同协议证据。
 - 2026-09-03 10:31 +08:00：Guqq 的 Hugging Face DNS 在 `net.sh` 后仍连续失败，按许可改用本地固定 revision 下载 + scp；MATH-500 JSONL 446,564 bytes/SHA `35dc4108...`，Qasper Parquet 1,863,050 bytes/SHA `7c6bf3a2...`。runner 新增显式 `data_file`/format/SHA 门禁，recipes 绑定完整 dataset commit 和文件 SHA；定向 25/25 通过。下一步推送兼容提交、服务器 pull 后 scp 两文件，再提交三个 exact Slurm 作业。
+- 2026-09-03 10:37 +08:00：兼容代码与 scp 数据门禁通过，精确 STT 跨 benchmark 作业已进入 Slurm：GSM8K Job 248、MATH-500 Job 249、LongBench Qasper Job 250。进入只读监控与逐项结果验收；不运行近似/消融。
+- 2026-09-03 10:42 +08:00：Jobs 248/249 已完成 exact smoke：GSM8K 与 MATH-500 均为 3/3 success、0 failed、无 partial，准确率分别为 0/3 和 0/3；平均总耗时 55.43s/62.97s，平均峰值显存 27.73GB/28.17GB。Job 250 正在运行，最终结论仍等待 Qasper 产物与三作业逐题 provenance/SHA 验收。
+- 2026-09-03 10:48 +08:00：验收前代码复核发现 LongBench formatter 已输出 source-tokenizer chat prompt，而 adapter 会再次套 chat template；Job 250 因而只保留为诊断，不能成为最终 Qasper 证据。进入“已渲染 prompt 单次编码”修复单元，保持 Job 250 自然运行；本地测试通过后仅重跑 Qasper exact，Jobs 248/249 不受该路径影响。
+- 2026-09-03 10:52 +08:00：LongBench 单次渲染修复完成：sample 显式标记预渲染 prompt，adapter 直接编码并在 diagnostics 留痕；普通 benchmark 路径不变，非法标记失败。定向 25/25、完整 195/195、AST/Bash 通过，Black 两处机械格式已修正。下一步完成最终静态检查并推送兼容未验收提交，然后以独立目录仅重跑 Qasper exact。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
