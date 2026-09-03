@@ -14,11 +14,18 @@ except ModuleNotFoundError:  # Tokenizer/audit-only environments do not need tor
     torch = None  # type: ignore[assignment]
 
 from .artifact import TransportArtifact
+from .approximations import (
+    ApproximationError,
+    hard_transport_embeddings,
+    precomputed_transport_embeddings,
+)
 from .metrics import TransportMetrics
+from .orf import OrfError, OrfTransportState, apply_orf_transport
 from .soft_transport import SoftTransportStats, transport_embeddings
 
 
 _ModuleBase = torch.nn.Module if torch is not None else object
+_TRANSPORT_QUERY_CHUNK_SIZE = 32
 
 
 class TransportModelError(ValueError):
@@ -30,7 +37,7 @@ class VirtualPrompt:
     embeddings: torch.Tensor
     attention_mask: torch.Tensor
     position_ids: torch.Tensor
-    stats: SoftTransportStats
+    stats: SoftTransportStats | None
 
 
 @dataclass(frozen=True)
@@ -43,7 +50,7 @@ class TransportPrefill:
 class TransportGenerationOutput:
     sequences: torch.Tensor
     virtual_prompt_shape: Tuple[int, ...]
-    stats: SoftTransportStats
+    stats: SoftTransportStats | None
     metrics: TransportMetrics
 
 
@@ -142,6 +149,9 @@ class TrainingFreeTransportModel(_ModuleBase):
         source_top_m: int | None = None,
         receiver_start_token_id: int | None = None,
         source_vocab_size: int | None = None,
+        approximation_mode: str | None = None,
+        precomputed_source_values: torch.Tensor | None = None,
+        orf_state: OrfTransportState | None = None,
     ) -> None:
         _require_torch()
         super().__init__()
@@ -164,6 +174,30 @@ class TrainingFreeTransportModel(_ModuleBase):
             raise TransportModelError(
                 "source_vocab_size must be null or a positive integer"
             )
+        if approximation_mode is None:
+            approximation_mode = "top_m" if source_top_m is not None else "exact"
+        if approximation_mode not in {"exact", "hard", "top_m", "precomputed", "orf"}:
+            raise TransportModelError("unsupported approximation mode")
+        if approximation_mode == "top_m" and source_top_m is None:
+            raise TransportModelError("top_m mode requires source_top_m")
+        if approximation_mode != "top_m" and source_top_m is not None:
+            raise TransportModelError(
+                "source_top_m is only valid for the top_m approximation mode"
+            )
+        if approximation_mode == "precomputed":
+            if precomputed_source_values is None:
+                raise TransportModelError(
+                    "precomputed mode requires precomputed_source_values"
+                )
+        elif precomputed_source_values is not None:
+            raise TransportModelError(
+                "precomputed_source_values is only valid in precomputed mode"
+            )
+        if approximation_mode == "orf":
+            if orf_state is None:
+                raise TransportModelError("orf mode requires orf_state")
+        elif orf_state is not None:
+            raise TransportModelError("orf_state is only valid in orf mode")
         if receiver_start_token_id is None:
             config = getattr(receiver_model, "config", None)
             receiver_start_token_id = getattr(config, "bos_token_id", None)
@@ -183,6 +217,52 @@ class TrainingFreeTransportModel(_ModuleBase):
             raise TransportModelError(
                 "receiver start token ID exceeds receiver vocabulary"
             )
+        receiver_weight = receiver_model.get_input_embeddings().weight
+        if precomputed_source_values is not None:
+            if (
+                precomputed_source_values.ndim != 2
+                or precomputed_source_values.shape
+                != (artifact.shape[1], receiver_weight.shape[1])
+            ):
+                raise TransportModelError(
+                    "precomputed_source_values shape must match source rows and receiver dimension"
+                )
+            if precomputed_source_values.device != receiver_weight.device:
+                raise TransportModelError(
+                    "precomputed_source_values must share the receiver embedding device"
+                )
+            if (
+                not precomputed_source_values.is_floating_point()
+                or not torch.isfinite(precomputed_source_values).all()
+            ):
+                raise TransportModelError(
+                    "precomputed_source_values must be finite floating values"
+                )
+        if orf_state is not None:
+            state_tensors = (
+                orf_state.omega,
+                orf_state.numerator,
+                orf_state.denominator,
+            )
+            if any(tensor.device != receiver_weight.device for tensor in state_tensors):
+                raise TransportModelError(
+                    "ORF state must share the receiver embedding device"
+                )
+            if orf_state.numerator.shape[0] != receiver_weight.shape[1]:
+                raise TransportModelError("ORF receiver dimension mismatch")
+            if orf_state.target_vocab_size != receiver_vocab:
+                raise TransportModelError("ORF target vocabulary mismatch")
+            expected_source_vocab = source_vocab_size or artifact.shape[1]
+            if orf_state.source_vocab_size != expected_source_vocab:
+                raise TransportModelError("ORF source vocabulary mismatch")
+            if orf_state.tau != float(tau):
+                raise TransportModelError("ORF state tau mismatch")
+            if orf_state.source_fingerprint != str(
+                artifact.metadata["source_fingerprint"]
+            ) or orf_state.target_fingerprint != str(
+                artifact.metadata["target_fingerprint"]
+            ):
+                raise TransportModelError("ORF state fingerprint mismatch")
         self.source_model = source_model
         self.receiver_model = receiver_model
         self.artifact = artifact
@@ -191,6 +271,9 @@ class TrainingFreeTransportModel(_ModuleBase):
         self.source_top_m = source_top_m
         self.source_vocab_size = source_vocab_size
         self.receiver_start_token_id = receiver_start_token_id
+        self.approximation_mode = approximation_mode
+        self.precomputed_source_values = precomputed_source_values
+        self.orf_state = orf_state
 
     def build_virtual_prompt(
         self,
@@ -214,7 +297,14 @@ class TrainingFreeTransportModel(_ModuleBase):
         _synchronize(source_input_ids.device)
         source_start = perf_counter()
         with torch.no_grad():
-            source_output = self.source_model(
+            source_callable = self.source_model
+            if self.approximation_mode == "orf":
+                source_callable = getattr(self.source_model, "model", None)
+                if source_callable is None:
+                    raise TransportModelError(
+                        "orf mode requires a source backbone exposed as source_model.model"
+                    )
+            source_output = source_callable(
                 input_ids=source_input_ids,
                 attention_mask=source_attention_mask,
                 position_ids=position_ids,
@@ -223,29 +313,99 @@ class TrainingFreeTransportModel(_ModuleBase):
             )
         _synchronize(source_input_ids.device)
         source_seconds = perf_counter() - source_start
-        logits = getattr(source_output, "logits", None)
-        if logits is None or logits.shape[:2] != source_input_ids.shape:
-            raise TransportModelError(
-                "source output logits must match batch and sequence"
-            )
-        if not logits.is_floating_point() or not torch.isfinite(logits).all():
-            raise TransportModelError("source logits must be finite floating values")
 
         receiver_embeddings = self.receiver_model.get_input_embeddings()
         receiver_weight = receiver_embeddings.weight
         _synchronize(receiver_weight.device)
         transport_start = perf_counter()
-        transport_logits = logits.to(device=receiver_weight.device, dtype=torch.float32)
         source_attention_mask = source_attention_mask.to(receiver_weight.device)
         position_ids = position_ids.to(receiver_weight.device)
-        transported, _, stats = transport_embeddings(
-            transport_logits,
-            self.artifact,
-            receiver_weight,
-            tau=self.tau,
-            top_m=self.source_top_m,
-            source_vocab_size=self.source_vocab_size,
-        )
+        stats = None
+        try:
+            if self.approximation_mode == "orf":
+                hidden = getattr(source_output, "last_hidden_state", None)
+                if hidden is None or hidden.shape[:2] != source_input_ids.shape:
+                    raise TransportModelError(
+                        "source backbone hidden state must match batch and sequence"
+                    )
+                if not hidden.is_floating_point() or not torch.isfinite(hidden).all():
+                    raise TransportModelError(
+                        "source backbone hidden state must contain finite floating values"
+                    )
+                transported = apply_orf_transport(
+                    hidden.to(device=receiver_weight.device, dtype=torch.float32),
+                    self.orf_state,
+                    source_fingerprint=str(
+                        self.artifact.metadata["source_fingerprint"]
+                    ),
+                    target_fingerprint=str(
+                        self.artifact.metadata["target_fingerprint"]
+                    ),
+                )
+            else:
+                logits = getattr(source_output, "logits", None)
+                if logits is None or logits.shape[:2] != source_input_ids.shape:
+                    raise TransportModelError(
+                        "source output logits must match batch and sequence"
+                    )
+                if not logits.is_floating_point() or not torch.isfinite(logits).all():
+                    raise TransportModelError(
+                        "source logits must be finite floating values"
+                    )
+                if self.approximation_mode in {"exact", "top_m"}:
+                    transported_chunks = []
+                    stats_chunks = []
+                    for start in range(0, logits.shape[1], _TRANSPORT_QUERY_CHUNK_SIZE):
+                        stop = min(start + _TRANSPORT_QUERY_CHUNK_SIZE, logits.shape[1])
+                        chunk, _, chunk_stats = transport_embeddings(
+                            logits[:, start:stop].to(
+                                device=receiver_weight.device, dtype=torch.float32
+                            ),
+                            self.artifact,
+                            receiver_weight,
+                            tau=self.tau,
+                            top_m=self.source_top_m,
+                            source_vocab_size=self.source_vocab_size,
+                        )
+                        transported_chunks.append(chunk)
+                        stats_chunks.append(chunk_stats)
+                    transported = torch.cat(transported_chunks, dim=1)
+                    stats = SoftTransportStats(
+                        retained_mass=torch.cat(
+                            [item.retained_mass for item in stats_chunks], dim=1
+                        ),
+                        dropped_top_m_mass=torch.cat(
+                            [item.dropped_top_m_mass for item in stats_chunks], dim=1
+                        ),
+                        active_support_mass=torch.cat(
+                            [item.active_support_mass for item in stats_chunks], dim=1
+                        ),
+                        top_m=stats_chunks[0].top_m,
+                    )
+                elif self.approximation_mode == "hard":
+                    transport_logits = logits.to(
+                        device=receiver_weight.device, dtype=torch.float32
+                    )
+                    transported, _, stats = hard_transport_embeddings(
+                        transport_logits,
+                        self.artifact,
+                        receiver_weight,
+                        tau=self.tau,
+                        source_vocab_size=self.source_vocab_size,
+                    )
+                else:
+                    transport_logits = logits.to(
+                        device=receiver_weight.device, dtype=torch.float32
+                    )
+                    transported, stats = precomputed_transport_embeddings(
+                        transport_logits,
+                        self.artifact,
+                        self.precomputed_source_values,
+                        tau=self.tau,
+                        source_vocab_size=self.source_vocab_size,
+                    )
+        except (ApproximationError, OrfError) as error:
+            raise TransportModelError(str(error)) from error
         transported = transported.to(dtype=receiver_weight.dtype)
         active = source_attention_mask.bool().unsqueeze(-1)
         if self.causal_shift:

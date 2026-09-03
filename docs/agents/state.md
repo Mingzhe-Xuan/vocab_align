@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 2 已以 main `66b9809` 验收；阶段 3 的版本化逐题记录、失败恢复、确定性合并/汇总、STT adapter、统一 evaluator 窄入口和固定 MMLU-Redux recipe 已通过本地 168/168 与 Guqq Job 247 真实 5 题断点验收。当前整理阶段 3 main 验收提交并进入阶段 4 近似消融。
+Training-free Soft-Token Transport 的 exact 跨 benchmark 固定小样本验收已完成。MMLU-Redux Job 247、GSM8K Job 248、MATH-500 Job 249 和 LongBench Qasper Job 253 均已执行；前三项 execution 全成功但任务分数为 0/5、0/3、0/3，Qasper 1/1 生成成功但外部 scorer 未运行且输出同样不可用。LongBench 单次渲染和 exact query-chunk 修复通过完整 196/196 及 Guqq 真机，最终净变更已在 main 暂存为单个 squash 验收提交。近似与消融实验按用户要求延期。
 
 ## 当前计划
 
-1. 将阶段 3 经 Job 247 验收的净变更整理为 main 提交，保留真实 failed→success resume 证据并排除 `docs/assets/alignment.py`。
-2. 进入阶段 4 实现单元：复核现有 hard/top-m/precompute/ORF 接口与计划需求，先在 `test.md` 固定消融配置、误差和一致性测试。
-3. 补齐统一 evaluator 的近似模式适配与固定 ablation recipe，通过本地 oracle 后再提交最小 Slurm 集成。
+1. 提交并推送 main 的单个 exact benchmark 验收提交，核验分支状态和远端一致性。
+2. 向用户报告四项 execution、分数/外部评分状态、耗时/显存、修复和“当前质量不可用”的结论。
+3. 后续只有在用户明确要求时才扩大样本或接入 LongBench 官方 scorer；近似/消融继续延期。
 
 ## 变更记录
 
@@ -145,5 +145,19 @@
 - 2026-09-03 06:05 +08:00：source CPU/receiver auto override、16-token recipe 和 allocator 配置完成，默认 smoke loader 行为不变；定向 25/25、完整 168/168 通过。下一步推送未验收修复，Guqq pull 后用原 records 验证 failed-only resume。
 - 2026-09-03 06:17 +08:00：Guqq 经有界 pull 同步 `d98a85e`，Job 246 failed records/无 partial/空队列门禁通过，断点复验提交为 Job 247。下一步只读验收 source CPU placement、5 条成功追加、summary 与资源。
 - 2026-09-03 06:21 +08:00：Job 247 最终验收通过：5 个 Job 246 failed 样本全部追加 success，latest summary 为 5 success/0 failed，逐题 code/runtime/config/artifact/device-map/support/metrics 完整，无 partial；输出均为 `[1062,2]`/`>`，parser 如实返回 null，5 题准确率 0 不作为功能门禁。阶段 3 完成，下一步整理 main 并进入阶段 4。
+- 2026-09-03 09:27 +08:00：阶段 3 已以 main `1453832` 验收推送；进入阶段 4 首个实现单元。现有 `approximations.py`/`orf.py` 已具备 TH、top-m、precompute/chunk 与 ORF 数学核心，缺口收敛为预注册消融展开、dev→test 冻结门禁、配对完整性统计和 evaluator 近似模式接入；先实现纯配置/统计层，再改 wrapper。
+- 2026-09-03 09:35 +08:00：预注册消融展开、冻结 test 门禁和显式缺失配对统计完成，定向 10/10；进入 wrapper 近似模式单元。接口固定 `exact/hard/top_m/precomputed/orf`，ORF 直接调用 source backbone hidden state绕过 LM head；各模式依赖、stats 可用性和 padded vocab 继续严格验证。
+- 2026-09-03 09:40 +08:00：用户调整优先级：近似与消融实验暂缓，不作为当前验收条件；已完成的本地实现保留并停止扩展。当前阶段改为精确 STT 的跨 benchmark 验证，先补齐 MMLU-Redux、GSM8K、MATH-500、LongBench 的确定性小样本加载/记录协议，再通过 Slurm 逐项测试并如实报告任务分数、失败、耗时和显存；可选 benchmark 与完整规模运行在这轮 smoke 后决定。
+- 2026-09-03 09:55 +08:00：跨 benchmark 本地实现与验收完成：四类 loader、LongBench 外部评分语义、三个新增 exact smoke recipe 和通用 Slurm 入口已就绪；定向 24/24、完整 192/192、Black/compile/Bash/diff 通过。下一步形成 main-based `[UNACCEPTED]` 验证提交并推送；Guqq pull 后确认数据缓存，缺失资源按 `net.sh` 后下载，再分别提交 GSM8K、MATH-500、LongBench Qasper 作业，MMLU-Redux 使用已验收 Job 247 作为同协议证据。
+- 2026-09-03 10:31 +08:00：Guqq 的 Hugging Face DNS 在 `net.sh` 后仍连续失败，按许可改用本地固定 revision 下载 + scp；MATH-500 JSONL 446,564 bytes/SHA `35dc4108...`，Qasper Parquet 1,863,050 bytes/SHA `7c6bf3a2...`。runner 新增显式 `data_file`/format/SHA 门禁，recipes 绑定完整 dataset commit 和文件 SHA；定向 25/25 通过。下一步推送兼容提交、服务器 pull 后 scp 两文件，再提交三个 exact Slurm 作业。
+- 2026-09-03 10:37 +08:00：兼容代码与 scp 数据门禁通过，精确 STT 跨 benchmark 作业已进入 Slurm：GSM8K Job 248、MATH-500 Job 249、LongBench Qasper Job 250。进入只读监控与逐项结果验收；不运行近似/消融。
+- 2026-09-03 10:42 +08:00：Jobs 248/249 已完成 exact smoke：GSM8K 与 MATH-500 均为 3/3 success、0 failed、无 partial，准确率分别为 0/3 和 0/3；平均总耗时 55.43s/62.97s，平均峰值显存 27.73GB/28.17GB。Job 250 正在运行，最终结论仍等待 Qasper 产物与三作业逐题 provenance/SHA 验收。
+- 2026-09-03 10:48 +08:00：验收前代码复核发现 LongBench formatter 已输出 source-tokenizer chat prompt，而 adapter 会再次套 chat template；Job 250 因而只保留为诊断，不能成为最终 Qasper 证据。进入“已渲染 prompt 单次编码”修复单元，保持 Job 250 自然运行；本地测试通过后仅重跑 Qasper exact，Jobs 248/249 不受该路径影响。
+- 2026-09-03 10:52 +08:00：LongBench 单次渲染修复完成：sample 显式标记预渲染 prompt，adapter 直接编码并在 diagnostics 留痕；普通 benchmark 路径不变，非法标记失败。定向 25/25、完整 195/195、AST/Bash 通过，Black 两处机械格式已修正。下一步完成最终静态检查并推送兼容未验收提交，然后以独立目录仅重跑 Qasper exact。
+- 2026-09-03 11:07 +08:00：Job 250 原始错误确认为 exact sparse transport 对 2048-token 序列一次展开 edge contributions，申请 21.10GiB 而 OOM；零 success summary 拒绝正确。进入 exact query-chunk 修复：参考 `docs/assets/alignment.py` 的 32-query chunk，把 sequence 分块而不改变完整词表/T 数学；修复测试通过后再跑 Qasper。
+- 2026-09-03 11:05 +08:00：exact query-chunk 修复完成：65-token toy 严格产生 `[32,32,1]`，定向 51/51、完整 196/196、AST/Bash 通过；估算 Job 250 的最大 edge contribution 块由 21.10GiB 降至约 0.33GiB，仍保留完整词表与 T。下一步最终 Black/diff、推送兼容提交，归档 Job 250 failed 目录后提交修复版 Qasper exact。
+- 2026-09-03 11:27 +08:00：Job 253 最终验收通过：Qasper 1/1 success、0 failed、无 bad/partial，单次渲染与完整 exact diagnostics/provenance 齐全；2060-token 输入总耗时 909.34s、transport 44.67s、CUDA peak 23.69GiB。输出 `>`，按 `external_required` 不伪造 accuracy。四 benchmark smoke 已齐，进入永久报告与 main 整理。
+- 2026-09-03 11:34 +08:00：已把兼容分支验证增量按序移植到 main-based 分支并保留双方审计历史；C2C 与 Guqq 已测树一致，完整回归 196/196（122.42s），Black/AST/Bash/diff 通过。下一步保存最终证据提交，再 squash 到 main 形成单个验收提交并推送。
+- 2026-09-03 11:37 +08:00：main 已将 `validation/exact-benchmark-smokes` 的全部已验收净变更 squash 暂存，未携带任何 `[UNACCEPTED]` 历史；`docs/assets/alignment.py` 仍未跟踪且排除。下一步形成单个正式提交、推送并核验远端。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

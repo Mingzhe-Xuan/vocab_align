@@ -1,0 +1,30 @@
+schema_version: 1
+model:
+  model_name: training_free_transport
+  transport_config: recipe/transport_recipe/qwen3_8b_to_mistral_nemo_instruct_2407.yaml
+  artifact: local/transport/artifacts/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
+  runtime_profile: blackwell-cu128
+  source_device_map: cpu
+  target_device_map: auto
+  require_cuda: true
+  require_locked_runtime: true
+  min_gpu_memory_gib: 30.0
+  generation_config:
+    do_sample: false
+    max_new_tokens: 64
+    temperature: 1.0
+output:
+  output_dir: local/transport/evaluation/gsm8k-smoke
+  records: local/transport/evaluation/gsm8k-smoke/stt.records.jsonl
+  bad_samples: local/transport/evaluation/gsm8k-smoke/stt.bad-samples.jsonl
+  summary: local/transport/evaluation/gsm8k-smoke/stt.summary.json
+eval:
+  dataset: gsm8k
+  dataset_revision: 740312add88f781978c0658806c59bc2815b9866
+  gpu_ids: [0]
+  answer_method: generate
+  use_cot: false
+  use_template: true
+  sample_interval: 1
+  limit: 3
+  subjects: [main]

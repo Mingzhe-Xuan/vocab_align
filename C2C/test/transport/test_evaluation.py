@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import SimpleNamespace
 
 import pytest
@@ -208,6 +208,29 @@ def test_summary_aggregates_metrics_failures_and_saves_atomically(tmp_path):
     assert not (tmp_path / "summary.json.partial").exists()
 
 
+def test_external_scoring_success_is_not_counted_as_incorrect(tmp_path):
+    sample = replace(
+        _sample(),
+        true_answer="<external-scorer>",
+        scoring_mode="external",
+    )
+    records = evaluate_samples(
+        [sample],
+        StubAdapter("training_free_transport", set()),
+        lambda _: "must-not-be-used",
+        tmp_path / "records.jsonl",
+        tmp_path / "bad.jsonl",
+    )
+    assert records[0]["is_correct"] is None
+    assert records[0]["scoring_status"] == "external_required"
+    summary = summarize_evaluation_records(records)
+    assert summary["successful_samples"] == 1
+    assert summary["scored_samples"] == 0
+    assert summary["unscored_samples"] == 1
+    assert summary["accuracy"] is None
+    assert summary["subjects"]["abstract_algebra"]["accuracy"] is None
+
+
 def test_sample_rejects_non_integer_question_index():
     sample = _sample()
     invalid = EvaluationSample(
@@ -283,7 +306,56 @@ def test_training_free_adapter_emits_transport_metrics_and_diagnostics():
     assert result.metrics["transport_seconds"] == pytest.approx(0.2)
     assert result.diagnostics["virtual_prompt_shape"] == [1, 2, 4]
     assert result.diagnostics["active_support_mass_mean"] == 1.0
+    assert result.diagnostics["source_prompt_rendered"] is False
     assert result.diagnostics["provenance"] == {"code_version": "fixture"}
+
+
+def test_training_free_adapter_encodes_pre_rendered_source_prompt_once():
+    class PreRenderedTokenizer(_Tokenizer):
+        def apply_chat_template(self, messages, **kwargs):
+            raise AssertionError(
+                "pre-rendered source prompt must not be rendered again"
+            )
+
+    sample = replace(
+        _sample(prompt="rendered source prompt"),
+        prompt_metadata={"source_prompt_rendered": True},
+    )
+    result = TrainingFreeTransportEvaluationAdapter(
+        _Wrapper(),
+        PreRenderedTokenizer(),
+        _Tokenizer(),
+        {"max_new_tokens": 1},
+    ).generate_one(sample)
+    assert result.diagnostics["source_prompt_rendered"] is True
+    assert result.diagnostics["source_rendered_prompt"] == "rendered source prompt"
+
+
+def test_training_free_adapter_rejects_non_boolean_rendered_prompt_marker():
+    sample = replace(_sample(), prompt_metadata={"source_prompt_rendered": "true"})
+    adapter = TrainingFreeTransportEvaluationAdapter(
+        _Wrapper(), _Tokenizer(), _Tokenizer(), {"max_new_tokens": 1}
+    )
+    with pytest.raises(ValueError, match="must be a boolean"):
+        adapter.generate_one(sample)
+
+
+def test_training_free_adapter_marks_orf_transport_stats_unavailable():
+    wrapper = _Wrapper()
+    wrapper.approximation_mode = "orf"
+    original_generate = wrapper.generate
+
+    def generate_without_stats(*args, **kwargs):
+        return replace(original_generate(*args, **kwargs), stats=None)
+
+    wrapper.generate = generate_without_stats
+    result = TrainingFreeTransportEvaluationAdapter(
+        wrapper, _Tokenizer(), _Tokenizer(), {"max_new_tokens": 1}
+    ).generate_one(_sample())
+    assert result.diagnostics["approximation_mode"] == "orf"
+    assert result.diagnostics["transport_stats_available"] is False
+    assert result.diagnostics["retained_mass_mean"] is None
+    assert result.diagnostics["active_support_mass_mean"] is None
 
 
 def test_training_free_config_creates_adapter(monkeypatch):
@@ -319,6 +391,11 @@ def test_training_free_config_creates_adapter(monkeypatch):
     monkeypatch.setattr(
         "script.evaluation.transport_adapter._load_runtime", fake_load_with_artifact
     )
+    monkeypatch.setattr(
+        "script.evaluation.transport_adapter._configure_approximation",
+        lambda candidate, config: loaded.setdefault("approximation", dict(config))
+        and candidate,
+    )
     adapter = create_training_free_transport_adapter(
         {
             "model_name": "training_free_transport",
@@ -330,6 +407,7 @@ def test_training_free_config_creates_adapter(monkeypatch):
             "generation_config": {"max_new_tokens": 1},
             "source_device_map": "cpu",
             "target_device_map": "auto",
+            "approximation": {"mode": "top_m", "source_top_m": 256},
         }
     )
     assert adapter.method == "training_free_transport"
@@ -340,6 +418,11 @@ def test_training_free_config_creates_adapter(monkeypatch):
     assert adapter.provenance["runtime"]["profile"] == "project-cu124"
     assert adapter.provenance["artifact_sha256"] == "artifact-sha"
     assert adapter.provenance["artifact_shape"] == [2, 3]
+    assert loaded["approximation"] == {"mode": "top_m", "source_top_m": 256}
+    assert adapter.provenance["approximation"] == {
+        "mode": "top_m",
+        "source_top_m": 256,
+    }
     assert loaded["device_maps"] == {
         "source_device_map": "cpu",
         "target_device_map": "auto",

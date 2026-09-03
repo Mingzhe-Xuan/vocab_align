@@ -118,3 +118,35 @@ def test_approximation_validation_is_explicit():
         )
     with pytest.raises(ApproximationError, match="finite"):
         approximation_error(torch.tensor([[float("nan")]]), torch.zeros(1, 1))
+
+
+def test_all_logit_approximations_ignore_verified_padded_lm_head_rows():
+    artifact = _artifact(np.eye(3))
+    logits = torch.tensor([[0.0, 2.0, 1.0, 100.0]])
+    receiver = torch.eye(3)
+    source_values = precompute_source_values(artifact, receiver)
+    exact, _, _ = transport_embeddings(
+        logits, artifact, receiver, tau=1.0, source_vocab_size=3
+    )
+    hard, chosen, _ = hard_transport_embeddings(
+        logits, artifact, receiver, tau=1.0, source_vocab_size=3
+    )
+    precomputed, _ = precomputed_transport_embeddings(
+        logits,
+        artifact,
+        source_values,
+        tau=1.0,
+        source_vocab_size=3,
+    )
+    chunked, _ = chunked_transport_embeddings(
+        logits,
+        artifact,
+        receiver,
+        tau=1.0,
+        edge_chunk_size=1,
+        source_vocab_size=3,
+    )
+    torch.testing.assert_close(precomputed, exact)
+    torch.testing.assert_close(chunked, exact)
+    torch.testing.assert_close(chosen, torch.tensor([1]))
+    torch.testing.assert_close(hard, receiver[1].unsqueeze(0))

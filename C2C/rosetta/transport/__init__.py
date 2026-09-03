@@ -1,5 +1,12 @@
 """Training-free vocabulary transport utilities."""
 
+from .ablation import (
+    AblationError,
+    AblationPlan,
+    AblationRun,
+    paired_evaluation_summary,
+)
+
 from .artifact import (
     ArtifactError,
     TransportArtifact,
@@ -132,6 +139,9 @@ from .wrapper import (
 )
 
 __all__ = [
+    "AblationError",
+    "AblationPlan",
+    "AblationRun",
     "AnnCandidateError",
     "ApproximationError",
     "ApproximationErrorReport",
@@ -212,6 +222,7 @@ __all__ = [
     "load_transport_artifact",
     "ordinary_bytes_index",
     "positive_orf_features",
+    "paired_evaluation_summary",
     "precompute_source_values",
     "precomputed_transport_embeddings",
     "save_transport",

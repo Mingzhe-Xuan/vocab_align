@@ -138,3 +138,17 @@
 - 完成 Job 246 OOM 修复：显式 source CPU/receiver auto、16-token greedy 与 allocator 配置，placement 写入 provenance；定向 25/25、完整 168/168 通过，准备原 records 断点重试。
 - Guqq 已同步 `d98a85e` 并以 Job 246 的 failed records 提交断点复验 Job 247；进入只读终态验收。
 - Job 247 完成 5/5 failed→success 断点重试并生成 latest-only summary；runtime/artifact/device-map/support/metrics/SHA/原子性完整，阶段 3 真实功能验收通过，开始整理 main 并进入阶段 4。
+- 阶段 3 已以 main `1453832` 验收；阶段 4 首先实现预注册消融 plan、dev→test 冻结门禁和显式缺失的 sample-ID 配对统计，再接入 wrapper 近似模式。
+- 消融 plan/冻结门禁/配对统计定向 10/10 通过；开始接入 exact/hard/top-m/precomputed/ORF wrapper 模式，ORF 将绕过 source LM head。
+- 按用户要求暂停近似/消融实验，将下一验收目标切换为精确 STT 跨 benchmark 测试与结果报告。首批固定覆盖 MMLU-Redux、GSM8K、MATH-500、LongBench；先修正各数据集加载和开放式任务记录口径，再提交 Slurm 小样本作业。
+- 完成 exact STT 跨 benchmark 本地支持：新增 GSM8K/MATH-500/Qasper 固定 smoke recipes、通用 Slurm 入口和 LongBench `external_required` 记录语义；定向 24/24、完整 192/192 及静态检查通过，准备临时远程验证提交。
+- Guqq Hugging Face DNS 连续失败后切换到许可的本地下载 + scp：两个固定 revision 数据文件已下载并校验 SHA；runner/recipes 新增本地文件格式、SHA 与 dataset revision 门禁，定向 25/25 通过。
+- Guqq 已同步 `fb6c687` 并校验 scp 数据 SHA；GSM8K/MATH-500/Qasper exact smoke 分别提交为 Slurm Job 248/249/250，开始只读验收。
+- Jobs 248/249 exact smoke 初步验收：GSM8K、MATH-500 各 3 条均成功生成且无 failed/partial，两个小样本准确率均为 0；平均总耗时分别 55.43s/62.97s，平均峰值显存分别 27.73GB/28.17GB。Qasper Job 250 继续运行，待三项逐题 provenance、SHA 和终态齐全后形成本轮验收提交与完整报告。
+- Qasper 验收前复核发现 LongBench formatter 与 STT adapter 会连续两次应用 source chat template；Job 250 降级为诊断证据但不取消。已登记单次渲染修复及回归范围，修复通过后使用独立输出目录仅重跑 Qasper exact，不扩大到近似或消融。
+- 完成 LongBench 已渲染 prompt 单次编码修复：metadata/diagnostics 显式标记，普通 exact benchmark 渲染路径保持不变，非法标记显式失败；定向 25/25、完整 195/195、AST/Bash 通过，准备静态复核后推送 Qasper-only 验证提交。
+- Job 250 失败根因定位为 exact transport 对 2048×2,733,518 query-edge contributions 一次性物化，额外申请 21.10GiB；进入 32-token query 分块的等价 exact 修复，不启用或评测任何近似方法。
+- exact query-chunk 修复完成：65-token 用例按 `[32,32,1]` 分块且语义/统计不变，定向 51/51、完整 196/196、AST/Bash 通过；准备最终静态检查和 Qasper-only 真机复验。
+- Job 253 完成 Qasper exact 真机验收：1/1 success、0 failed、无 bad/partial；2060-token 输入下 source/transport/total 864.25/44.67/909.34s，CUDA peak 23.69GiB，单次渲染与完整 exact provenance 齐全。生成仍为 `>`，外部 scorer 未运行；四 benchmark 结果齐备，进入永久报告与 main 验收整理。
+- main-based 最终移植树与 Guqq 已测 C2C 一致，且保留 main 的正式 artifact/smoke 计划证据；完整回归 196/196、Black/AST/Bash/diff 均通过，准备最终 squash 验收提交。
+- main 已完成最终净变更的 squash 暂存；待形成并推送单个验收提交后向用户交付四 benchmark 报告，近似/消融保持延期。

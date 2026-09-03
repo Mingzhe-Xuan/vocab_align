@@ -1,0 +1,36 @@
+schema_version: 1
+model:
+  model_name: training_free_transport
+  transport_config: recipe/transport_recipe/qwen3_8b_to_mistral_nemo_instruct_2407.yaml
+  artifact: local/transport/artifacts/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
+  runtime_profile: blackwell-cu128
+  source_device_map: cpu
+  target_device_map: auto
+  max_length: 2048
+  require_cuda: true
+  require_locked_runtime: true
+  min_gpu_memory_gib: 30.0
+  generation_config:
+    do_sample: false
+    max_new_tokens: 32
+    temperature: 1.0
+output:
+  output_dir: local/transport/evaluation/longbench-qasper-smoke
+  records: local/transport/evaluation/longbench-qasper-smoke/stt.records.jsonl
+  bad_samples: local/transport/evaluation/longbench-qasper-smoke/stt.bad-samples.jsonl
+  summary: local/transport/evaluation/longbench-qasper-smoke/stt.summary.json
+eval:
+  dataset: longbench
+  dataset_revision: 36dca87b51c492bf896705ab6953d3a6141dd012
+  data_format: parquet
+  data_file: local/transport/datasets/longbench-qasper/test.parquet
+  data_file_sha256: 7c6bf3a2a402b557d001808ba345a23921a211c39bf2d36d925d1d70e21b3f03
+  gpu_ids: [0]
+  answer_method: generate
+  use_cot: false
+  use_template: true
+  sample_interval: 1
+  limit: 1
+  subjects: [qasper]
+  longbench_prompt_format_path: recipe/eval_recipe/longbench_qasper_prompt.json
+  longbench_maxlen_format_path: recipe/eval_recipe/longbench_qasper_maxlen.json

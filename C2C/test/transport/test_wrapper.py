@@ -5,7 +5,10 @@ import numpy as np
 import pytest
 import torch
 
+import rosetta.transport.wrapper as wrapper_module
 from rosetta.transport.artifact import artifact_from_dense
+from rosetta.transport.approximations import precompute_source_values
+from rosetta.transport.orf import apply_orf_transport, build_orf_transport_state
 from rosetta.transport.wrapper import (
     TrainingFreeTransportModel,
     TransportGenerationOutput,
@@ -30,6 +33,28 @@ class TinySource(torch.nn.Module):
         predicted = (input_ids + 1) % 3
         logits = 8 * torch.nn.functional.one_hot(predicted, 3).float() + self.bias
         return SimpleNamespace(logits=logits)
+
+
+class TinyBackbone(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.calls = []
+
+    def forward(self, input_ids, attention_mask, position_ids, **kwargs):
+        self.calls.append(input_ids.clone())
+        hidden = torch.nn.functional.one_hot((input_ids + 1) % 3, 3).float()
+        return SimpleNamespace(last_hidden_state=hidden)
+
+
+class TinyOrfSource(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = TinyBackbone()
+        self.lm_head_calls = 0
+
+    def forward(self, *args, **kwargs):
+        self.lm_head_calls += 1
+        raise AssertionError("ORF must bypass the causal LM head")
 
 
 class TinyReceiver(torch.nn.Module):
@@ -163,6 +188,112 @@ def test_no_shift_uses_same_position_logits_and_single_token_is_supported():
     )
 
 
+def test_hard_top_m_and_precomputed_modes_follow_their_oracles():
+    input_ids = torch.tensor([[0, 1]])
+    receiver = TinyReceiver()
+    exact = TrainingFreeTransportModel(
+        TinySource(), receiver, _artifact(), tau=1.0, causal_shift=False
+    ).build_virtual_prompt(input_ids)
+
+    top_m = TrainingFreeTransportModel(
+        TinySource(),
+        receiver,
+        _artifact(),
+        tau=1.0,
+        causal_shift=False,
+        approximation_mode="top_m",
+        source_top_m=3,
+    ).build_virtual_prompt(input_ids)
+    torch.testing.assert_close(top_m.embeddings, exact.embeddings)
+    torch.testing.assert_close(top_m.stats.dropped_top_m_mass, torch.zeros((1, 2)))
+
+    hard = TrainingFreeTransportModel(
+        TinySource(),
+        receiver,
+        _artifact(),
+        tau=1.0,
+        causal_shift=False,
+        approximation_mode="hard",
+    ).build_virtual_prompt(input_ids)
+    torch.testing.assert_close(
+        hard.embeddings,
+        torch.stack((receiver.embedding.weight[2], receiver.embedding.weight[3]))[None],
+    )
+
+    source_values = precompute_source_values(_artifact(), receiver.embedding.weight)
+    precomputed = TrainingFreeTransportModel(
+        TinySource(),
+        receiver,
+        _artifact(),
+        tau=1.0,
+        causal_shift=False,
+        approximation_mode="precomputed",
+        precomputed_source_values=source_values,
+    ).build_virtual_prompt(input_ids)
+    torch.testing.assert_close(precomputed.embeddings, exact.embeddings)
+
+
+def test_exact_transport_chunks_long_source_queries_without_changing_results(
+    monkeypatch,
+):
+    seen_lengths = []
+    original = wrapper_module.transport_embeddings
+
+    def tracked_transport(logits, *args, **kwargs):
+        seen_lengths.append(logits.shape[1])
+        return original(logits, *args, **kwargs)
+
+    monkeypatch.setattr(wrapper_module, "transport_embeddings", tracked_transport)
+    input_ids = torch.tensor([[0, 1, 2] * 21 + [0, 1]])
+    model = TrainingFreeTransportModel(
+        TinySource(), TinyReceiver(), _artifact(), tau=1.0, causal_shift=False
+    )
+    virtual = model.build_virtual_prompt(input_ids)
+
+    assert seen_lengths == [32, 32, 1]
+    assert virtual.embeddings.shape == (1, 65, 2)
+    assert virtual.stats.retained_mass.shape == (1, 65)
+    torch.testing.assert_close(virtual.stats.retained_mass, torch.ones((1, 65)))
+
+
+def test_orf_mode_uses_backbone_only_and_reports_stats_unavailable():
+    source = TinyOrfSource()
+    receiver = TinyReceiver()
+    artifact = _artifact()
+    output_weight = torch.eye(3)
+    state = build_orf_transport_state(
+        output_weight,
+        None,
+        artifact,
+        receiver.embedding.weight,
+        feature_count=12,
+        tau=1.0,
+        seed=42,
+    )
+    input_ids = torch.tensor([[0, 2]])
+    model = TrainingFreeTransportModel(
+        source,
+        receiver,
+        artifact,
+        tau=1.0,
+        causal_shift=False,
+        approximation_mode="orf",
+        orf_state=state,
+    )
+    virtual = model.build_virtual_prompt(input_ids)
+    hidden = torch.nn.functional.one_hot((input_ids + 1) % 3, 3).float()
+    expected = apply_orf_transport(
+        hidden,
+        state,
+        source_fingerprint="source",
+        target_fingerprint="target",
+    )
+    torch.testing.assert_close(virtual.embeddings, expected)
+    assert virtual.stats is None
+    assert source.lm_head_calls == 0
+    assert len(source.model.calls) == 1
+
+
 def test_generate_uses_last_active_prefill_logits_then_receiver_cache_only():
     model, source, receiver = _model()
     sequences = model.generate(
@@ -262,6 +393,13 @@ def test_missing_start_token_and_cache_fail_explicitly():
         ({"tau": 0}, "tau"),
         ({"tau": 1.0, "source_top_m": 0}, "source_top_m"),
         ({"tau": 1.0, "receiver_start_token_id": 99}, "vocabulary"),
+        ({"tau": 1.0, "approximation_mode": "unknown"}, "mode"),
+        ({"tau": 1.0, "approximation_mode": "top_m"}, "source_top_m"),
+        (
+            {"tau": 1.0, "approximation_mode": "precomputed"},
+            "precomputed_source_values",
+        ),
+        ({"tau": 1.0, "approximation_mode": "orf"}, "orf_state"),
     ],
 )
 def test_invalid_transport_parameters_fail_at_construction(kwargs, message):
