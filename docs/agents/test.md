@@ -832,3 +832,9 @@ wrapper 近似模式测试计划：
 - wrapper/approximation/ORF 定向测试 29/29、阶段 4 控制面与 adapter 合并定向测试 53/53 通过；ORF 仅调用 backbone，exact 旧接口保持兼容。按当前需求不提交任何近似/消融远程实验。
 - 完整 `python -m pytest -o addopts= --basetemp local/pytest-benchmark-full -q`：192 passed，132.49s；仅有既存 pandas 对可选 numexpr/bottleneck 版本的 2 条 warning。
 - 变更 Python 文件 Black 检查、`compileall`、通用 benchmark Slurm Bash syntax 与 `git diff --check` 通过；Black 默认缓存 ACL 问题通过仓库内 `local/black-cache-stage4` 规避。
+
+数据文件 fallback 补充结果：
+
+- 本地从固定 revision 下载 MATH-500 `test.jsonl`（446,564 bytes，SHA-256 `35dc41080a3680858b27fa7e0533d2d547825316fc5dafe5d316f4ccc5a06132`）和 LongBench Qasper Parquet（1,863,050 bytes，SHA-256 `7c6bf3a2a402b557d001808ba345a23921a211c39bf2d36d925d1d70e21b3f03`）；均位于忽略的 `local/transport/datasets/`，不进入 Git。
+- runner 对本地 `data_file` 在加载前校验存在性、64 位 SHA 和 `json/parquet` format；远程数据路径可绑定完整 40 位 revision。MATH/Qasper recipes 同时保存原 repo revision 与本地文件 SHA，GSM8K 保存现有 cache 的完整 revision。
+- loader/recipe/evaluation 定向回归 25/25 通过；Black 写测试文件仍受 Windows ACL 限制，使用 `black --diff` 确认仅一处引号机械差异并由补丁修正，随后需再次执行 check。

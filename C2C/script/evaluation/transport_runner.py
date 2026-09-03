@@ -8,6 +8,7 @@ from typing import Any
 import torch
 from datasets import load_dataset
 
+from rosetta.transport.corpus import file_sha256
 from rosetta.transport.evaluation import (
     EvaluationSample,
     evaluate_samples,
@@ -31,12 +32,37 @@ def _paths(evaluator: Any) -> tuple[Path, Path, Path]:
 
 
 def _load_subject_dataset(evaluator: Any, subject: str) -> Any:
+    data_file = evaluator.eval_config.get("data_file")
+    if data_file is not None:
+        path = Path(str(data_file))
+        expected_sha = evaluator.eval_config.get("data_file_sha256")
+        if not path.is_file():
+            raise FileNotFoundError(f"benchmark data file does not exist: {path}")
+        if not isinstance(expected_sha, str) or len(expected_sha) != 64:
+            raise ValueError("local benchmark data requires data_file_sha256")
+        actual_sha = file_sha256(path)
+        if actual_sha != expected_sha.lower():
+            raise ValueError(
+                f"benchmark data SHA-256 mismatch: expected {expected_sha}, got {actual_sha}"
+            )
+        data_format = evaluator.eval_config.get("data_format")
+        if data_format not in {"json", "parquet"}:
+            raise ValueError("local benchmark data_format must be json or parquet")
+        split = evaluator.dataset_config["test_split"]
+        return load_dataset(data_format, data_files={split: str(path)})
+
     name = evaluator.dataset_config["dataset_name"]
+    load_kwargs = {}
+    revision = evaluator.eval_config.get("dataset_revision")
+    if revision is not None:
+        if not isinstance(revision, str) or len(revision) != 40:
+            raise ValueError("dataset_revision must be a full 40-character commit")
+        load_kwargs["revision"] = revision
     if evaluator.dataset_name in {"math-500", "openbookqa", "mmlu-pro"}:
-        return load_dataset(name)
+        return load_dataset(name, **load_kwargs)
     if evaluator.dataset_name == "gsm8k":
-        return load_dataset(name, "main")
-    return load_dataset(name, subject)
+        return load_dataset(name, "main", **load_kwargs)
+    return load_dataset(name, subject, **load_kwargs)
 
 
 def _subject_samples(
@@ -78,6 +104,9 @@ def _subject_samples(
             )
         metadata = {
             "dataset": evaluator.dataset_name,
+            "dataset_revision": evaluator.eval_config.get("dataset_revision"),
+            "data_file": evaluator.eval_config.get("data_file"),
+            "data_file_sha256": evaluator.eval_config.get("data_file_sha256"),
             "use_cot": evaluator.eval_config["use_cot"],
             "use_template": evaluator.eval_config["use_template"],
             "answer_method": evaluator.eval_config["answer_method"],

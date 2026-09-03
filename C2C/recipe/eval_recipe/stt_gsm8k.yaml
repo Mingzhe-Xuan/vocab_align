@@ -20,6 +20,7 @@ output:
   summary: local/transport/evaluation/gsm8k-smoke/stt.summary.json
 eval:
   dataset: gsm8k
+  dataset_revision: 740312add88f781978c0658806c59bc2815b9866
   gpu_ids: [0]
   answer_method: generate
   use_cot: false

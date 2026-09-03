@@ -142,3 +142,4 @@
 - 消融 plan/冻结门禁/配对统计定向 10/10 通过；开始接入 exact/hard/top-m/precomputed/ORF wrapper 模式，ORF 将绕过 source LM head。
 - 按用户要求暂停近似/消融实验，将下一验收目标切换为精确 STT 跨 benchmark 测试与结果报告。首批固定覆盖 MMLU-Redux、GSM8K、MATH-500、LongBench；先修正各数据集加载和开放式任务记录口径，再提交 Slurm 小样本作业。
 - 完成 exact STT 跨 benchmark 本地支持：新增 GSM8K/MATH-500/Qasper 固定 smoke recipes、通用 Slurm 入口和 LongBench `external_required` 记录语义；定向 24/24、完整 192/192 及静态检查通过，准备临时远程验证提交。
+- Guqq Hugging Face DNS 连续失败后切换到许可的本地下载 + scp：两个固定 revision 数据文件已下载并校验 SHA；runner/recipes 新增本地文件格式、SHA 与 dataset revision 门禁，定向 25/25 通过。
