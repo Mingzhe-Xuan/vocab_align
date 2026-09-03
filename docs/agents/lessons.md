@@ -26,6 +26,8 @@ full-vocabulary artifact 即使以 CSC 保存，audit 若先调用 `transport_to
 
 Guqq 登录节点可能能解析 GitHub，却在 `git pull` 时出现 GnuTLS `recv error (-110)` 或长时间无响应。发生网络连接问题时，先在服务器运行 `bash net.sh`，再重试 HTTPS `git pull`；不要切换到 GitHub SSH transport，因为该服务器没有对应的 GitHub public key。若仍无法同步，则暂停需要新源码的服务器任务并保留已生成数据。不得用 `scp` 覆盖服务器受 Git 管理源码，因为服务器源码只能通过 `git pull` 同步。
 
+从 Windows PowerShell 调用 `ssh Guqq "... python -c ..."` 时，PowerShell、SSH 和远端 Bash 的多层引号会在执行前重写参数；即使本地字符串看似成对，远端也可能收到无引号 Python 源码，导致连接建立后连首项 pull 都因整段 Bash parse 失败而未执行。远端轻量诊断优先使用已提交并测试的 `python -m` 入口或无嵌套引号的 `pip show`、`test`、`stat` 等命令；不得继续堆叠转义猜测。确需复合 Python 诊断时，应先在本地实现为受 Git 管理的明确 CLI，经 pull 后调用。
+
 ## OT active support 与 artifact 坐标
 
 零质量 token 必须在 `Diag(a)^-1` 前移出 OT active support，但 artifact 仍需保留原 tokenizer 方向。实现将正质量 source/target 压缩为连续矩阵坐标，同时保存唯一的 `source_token_ids`/`target_token_ids` 映射；候选边也使用压缩坐标结构化保存。不得假设压缩坐标等于原 token ID，也不得对零质量列做条件化除法。
@@ -47,6 +49,7 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 ## LM head vocab 可能包含 tokenizer 之外的尾部 padding
 
 模型 `config.vocab_size`/LM head rows 不一定等于 `len(tokenizer)`。Qwen3-8B 的 head 为 151,936 rows，而锁定 tokenizer 只有 151,669 个真实 token；尾部 267 rows 是硬件对齐 padding，不能被 tokenizer 编码，也不应要求正式 T 为其构边。另一方面，简单开启 partial-support 会掩盖真实的 artifact 缺边。精确 STT 只能在 tokenizer fingerprint 已验证后显式传入 `source_vocab_size`，要求 artifact source IDs 完整且连续覆盖 `0..source_vocab_size-1`，然后在 softmax 前裁掉纯尾部 padded logits；未传 size、存在中间缺口或 artifact 未覆盖 tokenizer vocab 时仍严格失败。
+两个模型依次以 `device_map:auto` 加载时，第二个模型会按第一个模型已经占用的剩余显存重新切分；短 prompt smoke 能通过，不代表较长 benchmark prompt 仍有足够 activation/KV 余量。对于 source 只运行一次 prefill、receiver 承担 prefill 与自回归 decode 的 STT，应允许 recipe 显式把 source 放 CPU、优先给 receiver GPU；override 必须写入逐题 provenance，CPU forward 仍只能在 Slurm 作业中运行。不能用减少样本数掩盖单样本 OOM，也不能把 failed records 计为错误答案。
 
 ## 稀疏 OT 必须同时覆盖两侧 support
 

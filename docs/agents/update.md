@@ -130,3 +130,11 @@
 - Job 245 初步 Exit 0：16.67s、MaxRSS 15.79GiB、0 swap、无异常栈并写出 JSON；进入独立报告/provenance/hash/partial 只读验收，尚不合并 main。
 - Job 245 最终验收通过：schema v2 双路径各 2 tokens、Blackwell cu128/sm_120 provenance、正式 T metadata、shape、support mass、分段 metrics、JSON/stderr SHA 和无 partial 全部完整；进入阶段 2 main 验收整理并准备阶段 3 evaluator。
 - Job 245 后最终本地验收 150/150；6 个变动 Python 文件 Black/compile、Slurm Bash、计划证据路径和 diff 检查均通过，开始整理阶段 2 main 验收提交。
+- 阶段 2 已以 main 提交 `66b9809` 验收推送；开始阶段 3 evaluator 核心，先建立统一 record/adapter/resume/merge/summary 模块及 CLI/recipe/tests，再以窄接口接入既有 evaluator，保持旧模型路径不变。
+- 完成阶段 3 本地 evaluator 实现：新增统一逐题 schema/恢复/合并/汇总、STT adapter/runner、统一入口分派、固定 MMLU-Redux recipe 与 Slurm 脚本；定向 28/28、完整 168/168 通过，准备临时分支远端验收。
+- 远端提交前补齐逐题 code/runtime/config/artifact provenance；定向 26/26、完整 168/168 再次通过，等待 Guqq 同步后提交真实 5 题评测。
+- Guqq 已同步到 `98c5f85` 并通过提交门禁；固定 MMLU-Redux 5 题 STT 评测进入 Slurm Job 246，开始只读终态验收。
+- Job 246 的离线数据/模型加载通过，但双 auto placement 后 5 题全部显存 OOM；失败逐题记录完整、零 success 拒绝 summary。进入 source CPU/receiver GPU-auto 与 16-token 固定 recipe 修复，不增加 GPU 资源。
+- 完成 Job 246 OOM 修复：显式 source CPU/receiver auto、16-token greedy 与 allocator 配置，placement 写入 provenance；定向 25/25、完整 168/168 通过，准备原 records 断点重试。
+- Guqq 已同步 `d98a85e` 并以 Job 246 的 failed records 提交断点复验 Job 247；进入只读终态验收。
+- Job 247 完成 5/5 failed→success 断点重试并生成 latest-only summary；runtime/artifact/device-map/support/metrics/SHA/原子性完整，阶段 3 真实功能验收通过，开始整理 main 并进入阶段 4。

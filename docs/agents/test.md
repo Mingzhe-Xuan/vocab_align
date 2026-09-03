@@ -756,3 +756,44 @@ chunked receiver embedding 本地实际结果：
 
 - `python -m pytest -o addopts= --basetemp=local/test-tmp/final-stage2 -q`：150 passed（72.90s），仅有既存 pandas 可选依赖 2 条 warning。
 - 最终 6 个变动 Python 文件经 Black `format_str` 检查全部 unchanged、内存 compile 6/6；`smoke_real_models.sbatch` Bash syntax、两份计划的 Job 245/脚本/Blackwell profile 路径和 `git diff --check` 均通过。
+
+## 2026-09-03：阶段 3 统一 evaluator 核心单元
+
+测试计划：
+
+- R/S/T2T/C2C/STT 的 stub adapters 对同一 fixture 共享完全相同的 `sample_id`、canonical messages、prompt hash/metadata、true answer 和严格 answer parser；方法差异只出现在 generation/metrics/diagnostics。
+- 逐样本成功记录采用版本化统一 schema，STT 分段 latency、source/virtual/output lengths、peak memory 和 transport quality 可原样保存；非有限 metrics 或缺字段明确失败。
+- 单样本异常写入 status=`failed` 记录和独立 bad-sample JSONL，继续后续样本；summary 分母只含成功记录，失败不静默算错或丢弃。
+- resume 跳过已有完整 success，重试 failed/incomplete；重复 success、输入 sample ID 重复或既有记录与当前 prompt fingerprint 不符时失败。
+- 多 rank JSONL merge 按 subject/question index/sample ID 确定排序并拒绝重复；summary/category 计数守恒，逐题 records 是唯一统计输入。
+- CLI 从 records JSONL 生成原子 summary，输入缺失/空 success/非法 JSON 显式失败；help 不加载模型或访问网络。完整 pytest、Black、compile、README/recipe/计划路径与 diff 检查均须通过。
+
+本地实际结果：
+
+- `python -m pytest ... test_evaluation.py test_summarize_transport.py test_transport_runner.py test_smoke_stt.py`：28 passed（31.07s），覆盖五类 method schema、STT adapter 指标/diagnostics、配置 factory、失败恢复、重复/漂移拒绝、rank merge、runner 输出和既有 smoke 回归。
+- `python -m pytest -o addopts= --basetemp local/pytest-stage3-full`：168 passed（103.78s），仅有既存 pandas 可选依赖 2 条 warning；新增 Slurm/recipe 静态门禁通过。
+- `python -m script.evaluation.unified_evaluator --help` 与 summary CLI help 通过；数学评测的可选 `math_verify` 已改为对应数据集才延迟导入。
+- 生产 Python 文件已由 Black 格式化，测试格式通过 Black diff 校验；内存语法编译与 `git diff --check` 通过。Windows pytest/Black 的缓存原子替换受目录 ACL 限制，改用 workspace `local/` basetemp 与只读格式 diff，不改变测试标准。
+
+真实集成待验收：
+
+- 固定 `abstract_algebra` 前 5 题、greedy 64-token、正式 500k artifact、`blackwell-cu128`、单 RTX 5090；加载前必须通过 CUDA/锁定依赖/30GiB/compiled-arch/artifact 门禁。
+- Slurm 成功后检查 5 条逐题 success 或显式 failure、canonical/prompt metadata、source/virtual/output lengths、分段 latency、support quality、summary 计数与 accuracy、无 `.partial`、作业 Exit/MaxRSS/日志哈希。
+- 提交前 provenance 复核新增：每条 STT success diagnostics 必须绑定 git code version、runtime profile/package/CUDA arch/device、transport config、artifact path/SHA-256/shape/nnz/metadata；factory stub 与真实 adapter schema 均覆盖。修正后定向 26/26（6.04s）、完整 168/168（93.19s）通过，仅有既存 pandas 可选依赖 2 条 warning。
+
+Job 246 OOM 修复测试计划：
+
+- loader 默认调用保持 smoke recipe 原 `device_map`，evaluator factory 可显式把 `source_device_map=cpu`、`target_device_map=auto` 传入并写入 provenance；未配置 override 时行为不变。
+- 固定评测 recipe 将 source CPU offload、receiver GPU auto 和 16-token greedy 答案边界写死；Slurm 保持 1 GPU/64G/30m 并增加 expandable segments，测试脚本、环境名、离线与无 uv。
+- 重跑 adapter/smoke/Slurm 定向测试与完整回归；真实复验必须重试 Job 246 的 failed records，并至少产生 success summary。CPU source 推理仍必须在 Slurm 内，不能在登录节点验证。
+
+Job 246 OOM 修复本地实际结果：
+
+- 定向 `test_evaluation.py`、`test_smoke_stt.py`、`test_transport_evaluation_slurm.py`：25 passed（4.56s），覆盖 device-map override 传递/provenance、默认 smoke loader 回归、16-token recipe 和 expandable-segments Slurm 环境。
+- 完整 `python -m pytest -o addopts= --basetemp local/pytest-stage3-offload-full`：168 passed（89.93s），仅有既存 pandas 可选依赖 2 条 warning。下一步以临时提交同步 Guqq，保留 Job 246 failed records并验证 resume 重试。
+
+Job 247 真实断点复验结果：
+
+- Job 247 使用 `d98a85e`、source CPU/receiver auto、同一正式 artifact 和原 Job 246 records；约 5 分钟完成，历史 5 failed 后追加 5 success，latest summary 为 5 success/0 failed/0 correct，证明 failed-only resume 与统计分母正确。集群 accounting disabled，故无 sacct MaxRSS；逐题 CUDA peak 平均 28,121,007,411 bytes，均低于 31.37GiB 设备容量。
+- 平均 source/transport/receiver-prefill/decode/total 为 59.3623/0.7554/0.06735/0.04576/60.23085s；平均 source/virtual/output 为 154.4/154.4/2 tokens。5 条生成均为 receiver IDs `[1062,2]`、文本 `>`、prediction null，因此 accuracy 0.0 是如实质量结果，不作为阶段 3 功能通过阈值。
+- provenance：runtime `blackwell-cu128`，source/target override `cpu`/`auto`，artifact `[131069,151669]`、2,733,518 nnz、SHA `1495d522...`，evaluator code `d98a85e5...`；active/retained mass 1.0、dropped 0。records/summary SHA 为 `5fd221487e7338bbe5ccfa95956e9eaa7012a6c1faf75508dcb1daa6e11c1644` / `5e7a2def5dffddf580d2c9b0c6ecb4ab1b78b18131d67bf8dd8f9513ba2cbbbf`，stderr/stdout SHA 为 `699e5ce4c173e9f87e5008e90dbff8d58620abd977b38c26619847547e20da74` / `a39b5b0767cfc2f8e472296c9435f07bca6e9caf2475a63865bf363ea340a81d`，无 partial。阶段 3 真实功能验收通过。

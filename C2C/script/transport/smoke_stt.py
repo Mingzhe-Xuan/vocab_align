@@ -103,6 +103,7 @@ def validate_runtime_requirements(
     require_locked_runtime: bool,
     min_gpu_memory_gib: float,
     runtime_profile: str = "project-cu124",
+    allow_existing_output: bool = False,
 ) -> None:
     if not isinstance(min_gpu_memory_gib, (int, float)) or not (
         0 < float(min_gpu_memory_gib) < float("inf")
@@ -111,7 +112,7 @@ def validate_runtime_requirements(
     if not artifact_path.is_file():
         raise SmokeError(f"transport artifact does not exist: {artifact_path}")
     partial = output_path.with_name(output_path.name + ".partial")
-    if output_path.exists() or partial.exists():
+    if not allow_existing_output and (output_path.exists() or partial.exists()):
         raise SmokeError(f"refusing to overwrite smoke output: {output_path}")
     if require_locked_runtime:
         if runtime_profile not in RUNTIME_PROFILES:
@@ -368,7 +369,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _load_runtime(config: TransportConfig, artifact_path: Path):
+def _load_runtime(
+    config: TransportConfig,
+    artifact_path: Path,
+    *,
+    source_device_map: Any | None = None,
+    target_device_map: Any | None = None,
+):
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     dtype = {
@@ -395,13 +402,17 @@ def _load_runtime(config: TransportConfig, artifact_path: Path):
         config.source.name,
         revision=config.source.revision,
         torch_dtype=dtype[config.source.dtype],
-        device_map=config.source.device_map,
+        device_map=(
+            config.source.device_map if source_device_map is None else source_device_map
+        ),
     )
     target_model = AutoModelForCausalLM.from_pretrained(
         config.target.name,
         revision=config.target.revision,
         torch_dtype=dtype[config.target.dtype],
-        device_map=config.target.device_map,
+        device_map=(
+            config.target.device_map if target_device_map is None else target_device_map
+        ),
     )
     wrapper = TrainingFreeTransportModel(
         source_model,

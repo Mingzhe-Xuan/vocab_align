@@ -2,14 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。正式 OpenHermes 500k corpus/manifest、manifest-bound full-vocabulary T artifact、正式 Slurm 入口与真实模型 Receiver-only/STT 短序列 smoke 均已通过本地和远端验收；当前整理阶段 2 验收提交并进入阶段 3 统一 evaluator。
+正在实施 Training-free Soft-Token Transport。阶段 2 已以 main `66b9809` 验收；阶段 3 的版本化逐题记录、失败恢复、确定性合并/汇总、STT adapter、统一 evaluator 窄入口和固定 MMLU-Redux recipe 已通过本地 168/168 与 Guqq Job 247 真实 5 题断点验收。当前整理阶段 3 main 验收提交并进入阶段 4 近似消融。
 
 ## 当前计划
 
-1. 补齐 Job 245 与 runtime/padded-vocab/chunked-memory 证据，最终复跑本地回归并把阶段 2 净变更整理为 main 验收提交。
-2. 进入阶段 3 统一 evaluator 实现单元：先记录接口结构与测试计划，复用现有题目格式化/答案解析/保存逻辑，不改变旧 C2C 路径。
-3. 完成 R/S/T2T/C2C 的统一 schema、分卡/断点续跑和 tiny evaluator smoke，再通过 Slurm 做最小真实集成。
-3. 实现阶段 3 统一 evaluator 和固定 MMLU-Redux 小子集配对评测，再进入冻结近似消融与泛化实验。
+1. 将阶段 3 经 Job 247 验收的净变更整理为 main 提交，保留真实 failed→success resume 证据并排除 `docs/assets/alignment.py`。
+2. 进入阶段 4 实现单元：复核现有 hard/top-m/precompute/ORF 接口与计划需求，先在 `test.md` 固定消融配置、误差和一致性测试。
+3. 补齐统一 evaluator 的近似模式适配与固定 ablation recipe，通过本地 oracle 后再提交最小 Slurm 集成。
 
 ## 变更记录
 
@@ -137,5 +136,14 @@
 - 2026-09-03 05:26 +08:00：Job 245 初步成功：0:16.67/Exit 0/MaxRSS 16,560,968 KiB/0 swap、无异常栈，chunked 路径跨过旧 OOM并写出 JSON。下一步只读验收报告全字段、SHA 与无 partial 后再整理 main。
 - 2026-09-03 05:29 +08:00：Job 245 报告最终验收通过：schema v2、Receiver-only/STT 各 2 tokens、runtime/profile/sm_120、正式 artifact provenance、shape、有限 support mass/metrics、JSON/stderr SHA 与无 partial 全部完整。进入阶段 2 main 验收整理，之后推进阶段 3 evaluator。
 - 2026-09-03 05:32 +08:00：Job 245 后最终代码树完整回归 150/150；6 个变动 Python 文件 Black unchanged/内存 compile、Slurm Bash、两份计划证据路径与 diff 检查全部通过。进入未验收证据提交与 main squash 验收提交。
+- 2026-09-03 05:36 +08:00：阶段 2 已以 main 验收提交 `66b9809` 推送；进入阶段 3 统一 evaluator 核心单元。代码结构为 `rosetta/transport/evaluation.py`（统一 sample/result/record、resume/merge/summary 与 adapter 协议）、`script/transport/summarize_transport.py`（CLI 聚合）、eval recipe 和独立 evaluation tests；随后再以窄分支接入既有 `unified_evaluator.py`，避免先在 1,800+ 行循环中复制 STT 逻辑。
+- 2026-09-03 05:24 +08:00：阶段 3 本地实现完成：统一入口按 `training_free_transport` 分派到独立 adapter/runner，逐题 JSONL 支持失败继续、prompt/method 安全恢复、确定性 rank merge 与原子 summary；固定 Blackwell 5 题 MMLU-Redux recipe 和 Slurm 入口。定向 28/28、完整 168/168 通过；下一步形成临时验证提交并执行 Guqq Slurm 真机验收。
+- 2026-09-03 05:43 +08:00：远端提交前复核发现逐题记录缺少独立 runtime/artifact/code provenance，已在 adapter diagnostics 绑定 code SHA、完整 runtime profile、transport config、artifact SHA/shape/nnz/metadata；定向 26/26、完整 168/168 通过。下一步推送修正，Guqq pull 后执行最终门禁并提交 Slurm。
+- 2026-09-03 05:47 +08:00：远端复合 inline Python 因 Windows/SSH/Bash 多层引号第三次造成连接或诊断失败，已按规范补充 lessons 并取消该路径；源码/环境未受影响。下一步服务器首项 pull 后用纯 shell 门禁直接提交 Slurm，由作业内正式 dataset loader 验证离线缓存。
+- 2026-09-03 05:50 +08:00：Guqq 已同步 provenance 修正，artifact/空输出/空队列门禁通过，固定 5 题真实评测提交为 Slurm Job 246。下一步只读监控终态并验收逐题 records、summary、资源、哈希和无 partial。
+- 2026-09-03 06:01 +08:00：Job 246 离线数据和双模型加载成功，但 sequential `device_map:auto` 占用约 30.3GiB，5 个长 prompt 均在额外 1.4—1.7GiB 分配时 OOM；失败逐题记录完整且无 summary，判定未验收。修复调整为 source CPU/receiver GPU-auto、16-token greedy 与显式 provenance，保持同一 GPU 资源，完成本地回归后重试 failed records。
+- 2026-09-03 06:05 +08:00：source CPU/receiver auto override、16-token recipe 和 allocator 配置完成，默认 smoke loader 行为不变；定向 25/25、完整 168/168 通过。下一步推送未验收修复，Guqq pull 后用原 records 验证 failed-only resume。
+- 2026-09-03 06:17 +08:00：Guqq 经有界 pull 同步 `d98a85e`，Job 246 failed records/无 partial/空队列门禁通过，断点复验提交为 Job 247。下一步只读验收 source CPU placement、5 条成功追加、summary 与资源。
+- 2026-09-03 06:21 +08:00：Job 247 最终验收通过：5 个 Job 246 failed 样本全部追加 success，latest summary 为 5 success/0 failed，逐题 code/runtime/config/artifact/device-map/support/metrics 完整，无 partial；输出均为 `[1062,2]`/`>`，parser 如实返回 null，5 题准确率 0 不作为功能门禁。阶段 3 完成，下一步整理 main 并进入阶段 4。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
