@@ -3,12 +3,14 @@ source:
   name: Qwen/Qwen3-8B
   revision: b968826d9c46dd6066d109eabc6255188de91218
   tokenizer_revision: b968826d9c46dd6066d109eabc6255188de91218
+  tokenizer_fingerprint: 1a3852ecf774d7e29cbee6a4e91e6db5ee5c9145a08e1c0ebeb9c97a29695834
   dtype: bfloat16
   device_map: auto
 target:
   name: mistralai/Mistral-Nemo-Instruct-2407
   revision: 04d8a90549d23fc6bd7f642064003592df51e9b3
   tokenizer_revision: 04d8a90549d23fc6bd7f642064003592df51e9b3
+  tokenizer_fingerprint: 8542bdc8f193dbf60d2cda105a0ed472df34f89888842651e38b0388732eb53e
   dtype: bfloat16
   device_map: auto
   checkpoint: pending-new-projector-training
@@ -21,6 +23,7 @@ data:
 seed: 42
 output_path: local/transport/artifacts/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
 output_schema: stt-smoke-v2
+expected_artifact_shape: [131069, 151669]
 construction:
   epsilon: 0.5
   tolerance: 0.002
@@ -28,8 +31,26 @@ construction:
   smoothing: 1.0e-8
 transport:
   tau: 1.0
-  causal_shift: true
+  causal_shift: false
   source_top_m: null
+special_tokens:
+  source_support: full_tokenizer
+  target_support: ordinary_only
+  mapping: exact_kind_then_literal_bytes
+  receiver_boundary: native
+collaboration:
+  sender_role: planner
+  receiver_role: thinker
+  sender_system_prompt: You are the planner. Analyze the problem step by step and produce a useful reasoning plan for another model.
+  receiver_system_prompt: You are the thinker. Use the preceding planner context, think through the problem step by step yourself, and give the final answer.
+  sender_enable_thinking: true
+  receiver_enable_thinking: true
+  context_mode: sender_prompt_and_think
+  receiver_problem_mode: explicit
+sender_generation:
+  do_sample: false
+  max_new_tokens: 2
+  temperature: 1.0
 generation:
   do_sample: false
   max_new_tokens: 2

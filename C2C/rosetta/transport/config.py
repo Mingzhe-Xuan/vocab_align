@@ -29,6 +29,7 @@ class ModelSpec:
     name: str
     revision: str
     tokenizer_revision: str
+    tokenizer_fingerprint: Optional[str] = None
     dtype: str = "bfloat16"
     device_map: Any = "auto"
     checkpoint: Optional[str] = None
@@ -42,6 +43,10 @@ class ModelSpec:
         ):
             if not PINNED_REVISION.fullmatch(revision):
                 raise ConfigError(f"{label} must be a pinned 40-character commit SHA")
+        if self.tokenizer_fingerprint is not None and not re.fullmatch(
+            r"[0-9a-f]{64}", self.tokenizer_fingerprint
+        ):
+            raise ConfigError("tokenizer fingerprint must be a 64-character SHA-256")
         if self.dtype not in {"float32", "float16", "bfloat16"}:
             raise ConfigError(f"unsupported dtype: {self.dtype}")
         if self.checkpoint is not None and not str(self.checkpoint).strip():
@@ -64,6 +69,7 @@ class ModelSpec:
                 "name",
                 "revision",
                 "tokenizer_revision",
+                "tokenizer_fingerprint",
                 "dtype",
                 "device_map",
                 "checkpoint",
@@ -190,6 +196,119 @@ class TransportConstructionSpec:
 
 
 @dataclass(frozen=True)
+class SpecialTokenPolicy:
+    """Frozen safe support policy implemented by the formal builder."""
+
+    source_support: str = "full_tokenizer"
+    target_support: str = "ordinary_only"
+    mapping: str = "exact_kind_then_literal_bytes"
+    receiver_boundary: str = "native"
+
+    def validate(self) -> None:
+        expected = SpecialTokenPolicy()
+        if self != expected:
+            raise ConfigError(
+                "special token policy must use full source support, ordinary-only "
+                "target support, exact-kind/literal-byte mapping, and native receiver "
+                "boundaries"
+            )
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SpecialTokenPolicy":
+        _only_fields(
+            payload,
+            {"source_support", "target_support", "mapping", "receiver_boundary"},
+            "special token policy",
+        )
+        try:
+            value = cls(**payload)
+        except TypeError as exc:
+            raise ConfigError(f"invalid special token policy: {exc}") from exc
+        value.validate()
+        return value
+
+
+@dataclass(frozen=True)
+class CollaborationSpec:
+    """Frozen roles and prompt semantics for Planner-to-Thinker STT."""
+
+    sender_role: str = "planner"
+    receiver_role: str = "thinker"
+    sender_system_prompt: str = (
+        "You are the planner. Analyze the problem step by step and produce a useful "
+        "reasoning plan for another model."
+    )
+    receiver_system_prompt: str = (
+        "You are the thinker. Use the preceding planner context, think through the "
+        "problem step by step yourself, and give the final answer."
+    )
+    sender_enable_thinking: bool = True
+    receiver_enable_thinking: bool = True
+    context_mode: str = "sender_prompt_and_think"
+    receiver_problem_mode: str = "explicit"
+
+    def validate(self) -> None:
+        if self.sender_role != "planner" or self.receiver_role != "thinker":
+            raise ConfigError("collaboration roles must be planner and thinker")
+        if (
+            not self.sender_system_prompt.strip()
+            or not self.receiver_system_prompt.strip()
+        ):
+            raise ConfigError("collaboration system prompts must be nonempty")
+        if self.sender_enable_thinking is not True:
+            raise ConfigError("sender thinking must be explicitly enabled")
+        if self.receiver_enable_thinking is not True:
+            raise ConfigError("receiver thinking must be explicitly enabled")
+        if self.context_mode != "sender_prompt_and_think":
+            raise ConfigError("collaboration must transport sender prompt and think")
+        if self.receiver_problem_mode != "explicit":
+            raise ConfigError("receiver must receive the problem explicitly")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "CollaborationSpec":
+        _only_fields(
+            payload,
+            {
+                "sender_role",
+                "receiver_role",
+                "sender_system_prompt",
+                "receiver_system_prompt",
+                "sender_enable_thinking",
+                "receiver_enable_thinking",
+                "context_mode",
+                "receiver_problem_mode",
+            },
+            "collaboration",
+        )
+        try:
+            value = cls(**payload)
+        except TypeError as exc:
+            raise ConfigError(f"invalid collaboration configuration: {exc}") from exc
+        value.validate()
+        return value
+
+
+def _validate_generation(payload: Mapping[str, Any], label: str) -> None:
+    if payload.get("do_sample") is not False:
+        raise ConfigError(f"{label} generation must explicitly use greedy decoding")
+    max_new_tokens = payload.get("max_new_tokens")
+    if (
+        isinstance(max_new_tokens, bool)
+        or not isinstance(max_new_tokens, int)
+        or max_new_tokens <= 0
+    ):
+        raise ConfigError(f"{label} max_new_tokens must be a positive integer")
+    temperature = payload.get("temperature", 1.0)
+    if (
+        isinstance(temperature, bool)
+        or not isinstance(temperature, (int, float))
+        or not math.isfinite(float(temperature))
+        or float(temperature) <= 0
+    ):
+        raise ConfigError(f"{label} temperature must be finite and positive")
+
+
+@dataclass(frozen=True)
 class TransportConfig:
     schema_version: int
     source: ModelSpec
@@ -198,10 +317,20 @@ class TransportConfig:
     seed: int
     output_path: str
     output_schema: str
+    expected_artifact_shape: Optional[Tuple[int, int]] = None
     construction: TransportConstructionSpec = field(
         default_factory=TransportConstructionSpec
     )
     transport: TransportInferenceSpec = field(default_factory=TransportInferenceSpec)
+    special_tokens: SpecialTokenPolicy = field(default_factory=SpecialTokenPolicy)
+    collaboration: CollaborationSpec = field(default_factory=CollaborationSpec)
+    sender_generation: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "do_sample": False,
+            "max_new_tokens": 128,
+            "temperature": 1.0,
+        }
+    )
     generation: Dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
@@ -212,6 +341,8 @@ class TransportConfig:
         self.data.validate()
         self.construction.validate()
         self.transport.validate()
+        self.special_tokens.validate()
+        self.collaboration.validate()
         if (
             isinstance(self.seed, bool)
             or not isinstance(self.seed, int)
@@ -222,12 +353,28 @@ class TransportConfig:
             raise ConfigError("output_path is required")
         if not self.output_schema.strip():
             raise ConfigError("output_schema is required")
+        if self.expected_artifact_shape is not None and (
+            len(self.expected_artifact_shape) != 2
+            or any(
+                isinstance(size, bool) or not isinstance(size, int) or size <= 0
+                for size in self.expected_artifact_shape
+            )
+        ):
+            raise ConfigError(
+                "expected_artifact_shape must be two positive integer dimensions"
+            )
         if not isinstance(self.generation, dict):
             raise ConfigError("generation must be an object")
+        if not isinstance(self.sender_generation, dict):
+            raise ConfigError("sender_generation must be an object")
+        _validate_generation(self.sender_generation, "sender")
+        _validate_generation(self.generation, "receiver")
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)
         payload["data"]["build_splits"] = list(self.data.build_splits)
+        if self.expected_artifact_shape is not None:
+            payload["expected_artifact_shape"] = list(self.expected_artifact_shape)
         return payload
 
     def to_json(self) -> str:
@@ -248,8 +395,12 @@ class TransportConfig:
                 "seed",
                 "output_path",
                 "output_schema",
+                "expected_artifact_shape",
                 "construction",
                 "transport",
+                "special_tokens",
+                "collaboration",
+                "sender_generation",
                 "generation",
             },
             "transport",
@@ -263,11 +414,32 @@ class TransportConfig:
                 seed=payload["seed"],
                 output_path=payload["output_path"],
                 output_schema=payload["output_schema"],
+                expected_artifact_shape=(
+                    tuple(payload["expected_artifact_shape"])
+                    if payload.get("expected_artifact_shape") is not None
+                    else None
+                ),
                 construction=TransportConstructionSpec.from_dict(
                     payload.get("construction", {})
                 ),
                 transport=TransportInferenceSpec.from_dict(
                     payload.get("transport", {})
+                ),
+                special_tokens=SpecialTokenPolicy.from_dict(
+                    payload.get("special_tokens", {})
+                ),
+                collaboration=CollaborationSpec.from_dict(
+                    payload.get("collaboration", {})
+                ),
+                sender_generation=dict(
+                    payload.get(
+                        "sender_generation",
+                        {
+                            "do_sample": False,
+                            "max_new_tokens": 128,
+                            "temperature": 1.0,
+                        },
+                    )
                 ),
                 generation=dict(payload.get("generation", {})),
             )

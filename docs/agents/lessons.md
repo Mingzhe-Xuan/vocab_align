@@ -50,6 +50,8 @@ CUDA kernel 异步执行，source、transport、receiver prefill 和 decode 的�
 
 沙箱内外混合运行 pytest/格式化工具后，系统 `%TEMP%/pytest-of-<user>` 可能出现 ACL 拒绝，导致所有使用 `tmp_path` 的测试在 setup 阶段统一失败。这不是业务断言失败；应在仓库忽略的 `local/test-tmp/` 下先创建父目录，再用全新的 `--basetemp` 完整重跑，不能通过跳过 `tmp_path` 用例降低测试范围。MSYS Bash 的启动提示还可能混入 stdout，跨平台路径测试应只解析 `cygpath` 的最后一个非空输出行并显式指定解码策略。
 
+在包含非 ASCII 上级目录的 Windows 工作区中，从外层目录指定 `--basetemp local/...` 仍可能被 pytest/Pathlib 解析成乱码路径并在创建目录时失败。对于 `C2C` 包，应从 `C2C/` 作为工作目录运行，并把 `--basetemp` 设为该目录内的新相对路径（例如 `.pytest-planner-4`）；这同时保证 `rosetta` 可导入并避开上级路径转码问题。路径收集失败、包导入失败和临时目录 setup 失败均不属于业务测试失败，应修正入口后完整重跑并单独报告。
+
 ## ANN 是 OT 图增广而非仅缺边 fallback
 
 仅在 source 没有 exact/span 时调用 ANN，虽然逐列有边，却会保留大量孤立 exact 分量并阻止 target-only 词获得覆盖，无法满足 Sinkhorn 的连通分量质量约束。ANN 应作为所有 ordinary source 的低优先级增广候选：pair 与 exact/span 重合时保留已有高优先级证据，其余 ANN 边用于连接分量；候选生成还必须做 source→target 与 target→source 双向 top-k，才能显式保证两侧 support。

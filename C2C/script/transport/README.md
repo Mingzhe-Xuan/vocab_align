@@ -14,14 +14,18 @@ in this folder.
   status, valid-artifact resume, external ANN candidates, manifest-bound raw
   conversation mode, direct preview texts, and offline toy mode. Formal runs
   require `--records-jsonl`, `--manifest-json`, and `--build-split` together.
-- `smoke_stt.py`: one pinned prompt run through receiver-only and STT with
-  fingerprint-checked transport, atomic JSON shapes, quality statistics,
-  segmented metrics, runtime metadata, and receiver text. Smoke generation is
-  deliberately limited to one or two new tokens.
+- `smoke_stt.py`: one pinned problem sent explicitly to a planner and thinker,
+  with both chat templates enabling thinking. It generates the planner thought,
+  transports the hidden states of the complete planner prompt plus thought,
+  prepends them to the thinker's native prompt, and records fingerprint-checked
+  shapes, quality statistics, segmented metrics, runtime metadata, and text.
+  Smoke generation is deliberately limited to one or two new tokens per role.
 - `build_ann_candidates.py`: deterministic bidirectional byte-ngram LSH
   candidates with explicit low-evidence connectivity bridges and provenance.
 - `summarize_transport.py`: atomic accuracy, subject, failure-reason, and
-  numeric-metric aggregation from versioned per-sample JSONL records.
+  numeric-metric aggregation from versioned per-sample JSONL records; with a
+  reference file it also reports paired bootstrap, exact McNemar,
+  subject/category slices, five-stage latency, and failure indexes.
 - `run_transport_ablation.py`: deterministically expand a pre-registered dev
   search or its single frozen benchmark-test configuration into atomic JSON.
 

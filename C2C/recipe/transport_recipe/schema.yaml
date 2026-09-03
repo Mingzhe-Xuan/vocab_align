@@ -11,6 +11,7 @@ required:
 model:
   required: [name, revision, tokenizer_revision]
   revision: 40-character hexadecimal commit SHA
+  tokenizer_fingerprint: optional 64-character hexadecimal SHA-256
   dtype: [float32, float16, bfloat16]
   checkpoint_pending_value: pending-new-projector-training
 data:
@@ -29,3 +30,22 @@ transport:
   tau: finite positive number distinct from generation temperature
   causal_shift: boolean
   source_top_m: null or positive integer
+collaboration:
+  sender_role: planner
+  receiver_role: thinker
+  sender_enable_thinking: true
+  receiver_enable_thinking: true
+  context_mode: sender_prompt_and_think
+  receiver_problem_mode: explicit
+sender_generation:
+  do_sample: false
+  max_new_tokens: positive integer planner-think budget
+generation:
+  do_sample: false
+  max_new_tokens: positive integer thinker-answer budget
+expected_artifact_shape: optional [target active vocabulary, source active vocabulary]
+special_tokens:
+  source_support: full_tokenizer
+  target_support: ordinary_only
+  mapping: exact_kind_then_literal_bytes
+  receiver_boundary: native

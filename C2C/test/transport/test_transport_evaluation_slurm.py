@@ -23,7 +23,14 @@ def test_transport_evaluation_slurm_uses_locked_gpu_runtime():
     assert recipe["model"]["min_gpu_memory_gib"] == 30.0
     assert recipe["model"]["source_device_map"] == "cpu"
     assert recipe["model"]["target_device_map"] == "auto"
-    assert recipe["model"]["generation_config"]["max_new_tokens"] == 16
+    assert recipe["model"]["generation_config"]["max_new_tokens"] == 64
+    assert recipe["model"]["sender_generation_config"] == {
+        "do_sample": False,
+        "max_new_tokens": 64,
+        "temperature": 1.0,
+    }
+    assert recipe["eval"]["use_cot"] is True
+    assert "planner-thinker" in recipe["output"]["output_dir"]
     assert recipe["eval"]["limit"] == 5
 
 

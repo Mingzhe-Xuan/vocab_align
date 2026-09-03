@@ -2,15 +2,22 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 2 已以 main `66b9809` 验收；阶段 3 的版本化逐题记录、失败恢复、确定性合并/汇总、STT adapter、统一 evaluator 窄入口、固定 MMLU-Redux recipe 与 Slurm 脚本已完成本地实现，完整回归 168/168。当前准备临时验证提交和 Guqq 真实 5 题评测。
+Planner→Thinker exact STT 已完成本地实现与完整回归：sender 是 planner、receiver 是 thinker；同一题目同时进入两侧原生提示词并显式开启两侧 CoT；sender 先生成 think，再将 `sender prompt + sender think` 全 context hidden states 经 STT 对齐，前置拼接到 receiver 自己显式编码的题目 prompt，最后由 receiver 思考并回答。当前等待形成临时远程验证提交，并在 Guqq 通过 Slurm 重跑四项 benchmark；旧 prompt-only 结果仅作历史诊断，近似/消融继续延期。
 
 ## 当前计划
 
-1. 在临时验证分支提交并推送阶段 3 实现；登记 Guqq 连接，服务器先 pull，再预取/核验 MMLU-Redux 小子集缓存。
-2. 通过 Slurm 执行固定 5 题 STT 评测，验收逐题 schema、失败记录、summary、runtime/artifact provenance、资源和原子性；失败则保持未验收并修复。
-3. 真实评测通过后整理阶段 3 main 验收提交，再进入阶段 4 冻结近似与消融。
+1. 形成并推送标记为未验收的 planner→thinker 临时验证提交。
+2. Guqq 首项执行 `git pull`，通过 Slurm 依次运行协议 smoke 与 MMLU-Redux、GSM8K、MATH-500、LongBench exact 小样本。
+3. 核验逐题协议 diagnostics、输出、分数、耗时、显存及产物完整性；通过后整理验收提交并报告，近似/消融继续延期。
 
 ## 变更记录
+
+- 2026-09-03 11:39 +08:00：exact benchmark 验收提交 `c8dc57a` 已推送且远端一致；完整目标仍缺阶段 5 统计/泛化及部分配对基线。进入配对统计实现单元，先本地完成确定性显著性、切片、延迟与失败索引；近似/消融实验继续延期。
+- 2026-09-03 11:57 +08:00：阶段 5 配对统计实现完成，16/16 定向与 202/202 完整回归通过；默认 Black 用户缓存连续卡住后查阅并新增经验，改用仓库内任务缓存完成格式检查。下一步形成验收提交，再进入反向/第二模型对审计。
+- 2026-09-03 12:04 +08:00：配对统计提交 `119036a` 已推送。方向审计确认 live tokenizer loader 已有指纹校验，但 recipe 未冻结指纹、wrapper 无独立 expected direction，且反向/第二模型对 recipe 缺失；进入 recipe 指纹/special policy 与 wrapper 方向门禁实现，第二模型对复用既有 Qwen3→DeepSeek 真实 tokenizer 审计。
+- 2026-09-03 12:10 +08:00：反向/第二模型对配置安全单元完成，61/61 定向、206/206 完整回归及 Black/AST/diff 通过；三个方向独立固定 artifact 路径、shape、指纹和 special policy，wrapper 在 forward 前拒绝反向 artifact。下一步形成验收提交，再只读核验 Guqq 构建新方向 full T 的前置条件。
+- 2026-09-03 12:18 +08:00：用户替换研究目标，停止反向/第二模型对 full T 与实验推进；新主协议为 Planner→Thinker 双题目、双 CoT，并把完整 sender prompt+think hidden-state STT prefix 拼到 receiver native prompt 前。旧 prompt-only Jobs 245/247–253 降为历史诊断，下一步先完成计划修订与本地实现测试，再重跑 exact benchmarks。
+- 2026-09-03 12:44 +08:00：Planner→Thinker 协议实现、smoke/benchmark recipes 与文档迁移完成；定向 80/80、完整 207/207、Black 检查通过。下一步形成未验收临时提交，并按连接审计与 Slurm 规则运行真实模型 smoke 和四项 exact benchmark。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。
@@ -155,6 +162,9 @@
 - 2026-09-03 10:48 +08:00：验收前代码复核发现 LongBench formatter 已输出 source-tokenizer chat prompt，而 adapter 会再次套 chat template；Job 250 因而只保留为诊断，不能成为最终 Qasper 证据。进入“已渲染 prompt 单次编码”修复单元，保持 Job 250 自然运行；本地测试通过后仅重跑 Qasper exact，Jobs 248/249 不受该路径影响。
 - 2026-09-03 10:52 +08:00：LongBench 单次渲染修复完成：sample 显式标记预渲染 prompt，adapter 直接编码并在 diagnostics 留痕；普通 benchmark 路径不变，非法标记失败。定向 25/25、完整 195/195、AST/Bash 通过，Black 两处机械格式已修正。下一步完成最终静态检查并推送兼容未验收提交，然后以独立目录仅重跑 Qasper exact。
 - 2026-09-03 11:07 +08:00：Job 250 原始错误确认为 exact sparse transport 对 2048-token 序列一次展开 edge contributions，申请 21.10GiB 而 OOM；零 success summary 拒绝正确。进入 exact query-chunk 修复：参考 `docs/assets/alignment.py` 的 32-query chunk，把 sequence 分块而不改变完整词表/T 数学；修复测试通过后再跑 Qasper。
-- 2026-09-03 11:12 +08:00：exact query-chunk 修复完成：65-token toy 严格产生 `[32,32,1]`，定向 51/51、完整 196/196、AST/Bash 通过；估算 Job 250 的最大 edge contribution 块由 21.10GiB 降至约 0.33GiB，仍保留完整词表与 T。下一步最终 Black/diff、推送兼容提交，归档 Job 250 failed 目录后提交修复版 Qasper exact。
+- 2026-09-03 11:05 +08:00：exact query-chunk 修复完成：65-token toy 严格产生 `[32,32,1]`，定向 51/51、完整 196/196、AST/Bash 通过；估算 Job 250 的最大 edge contribution 块由 21.10GiB 降至约 0.33GiB，仍保留完整词表与 T。下一步最终 Black/diff、推送兼容提交，归档 Job 250 failed 目录后提交修复版 Qasper exact。
+- 2026-09-03 11:27 +08:00：Job 253 最终验收通过：Qasper 1/1 success、0 failed、无 bad/partial，单次渲染与完整 exact diagnostics/provenance 齐全；2060-token 输入总耗时 909.34s、transport 44.67s、CUDA peak 23.69GiB。输出 `>`，按 `external_required` 不伪造 accuracy。四 benchmark smoke 已齐，进入永久报告与 main 整理。
+- 2026-09-03 11:34 +08:00：已把兼容分支验证增量按序移植到 main-based 分支并保留双方审计历史；C2C 与 Guqq 已测树一致，完整回归 196/196（122.42s），Black/AST/Bash/diff 通过。下一步保存最终证据提交，再 squash 到 main 形成单个验收提交并推送。
+- 2026-09-03 11:37 +08:00：main 已将 `validation/exact-benchmark-smokes` 的全部已验收净变更 squash 暂存，未携带任何 `[UNACCEPTED]` 历史；`docs/assets/alignment.py` 仍未跟踪且排除。下一步形成单个正式提交、推送并核验远端。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

@@ -13,17 +13,21 @@ model:
     do_sample: false
     max_new_tokens: 64
     temperature: 1.0
+  sender_generation_config:
+    do_sample: false
+    max_new_tokens: 64
+    temperature: 1.0
 output:
-  output_dir: local/transport/evaluation/gsm8k-smoke
-  records: local/transport/evaluation/gsm8k-smoke/stt.records.jsonl
-  bad_samples: local/transport/evaluation/gsm8k-smoke/stt.bad-samples.jsonl
-  summary: local/transport/evaluation/gsm8k-smoke/stt.summary.json
+  output_dir: local/transport/evaluation/planner-thinker-gsm8k-smoke
+  records: local/transport/evaluation/planner-thinker-gsm8k-smoke/stt.records.jsonl
+  bad_samples: local/transport/evaluation/planner-thinker-gsm8k-smoke/stt.bad-samples.jsonl
+  summary: local/transport/evaluation/planner-thinker-gsm8k-smoke/stt.summary.json
 eval:
   dataset: gsm8k
   dataset_revision: 740312add88f781978c0658806c59bc2815b9866
   gpu_ids: [0]
   answer_method: generate
-  use_cot: false
+  use_cot: true
   use_template: true
   sample_interval: 1
   limit: 3

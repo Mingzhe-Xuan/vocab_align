@@ -90,7 +90,9 @@ def _subject_samples(
                     "LongBench prompt formatting requires source tokenizer"
                 )
             evaluator.current_evaluating_subject = subject
-            prompt = evaluator._format_longbench_example(example, source_tokenizer)
+            prompt = evaluator._format_longbench_example(
+                example, source_tokenizer, apply_chat_template=False
+            )
             true_answer = "<external-longbench-scorer>"
             scoring_mode = "external"
         else:
@@ -112,7 +114,7 @@ def _subject_samples(
             "answer_method": evaluator.eval_config["answer_method"],
         }
         if scoring_mode == "external":
-            metadata["source_prompt_rendered"] = True
+            metadata["source_prompt_rendered"] = False
             metadata["longbench"] = {
                 "answers": example.get("answers", []),
                 "all_classes": example.get("all_classes", []),

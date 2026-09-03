@@ -21,6 +21,7 @@ class TransportMetrics:
     virtual_tokens: int
     output_tokens: int
     peak_memory_bytes: int | None
+    receiver_prompt_tokens: int = 0
 
     def validate(self, timing_tolerance: float = 1e-6) -> None:
         stages = (
@@ -39,6 +40,7 @@ class TransportMetrics:
                 self.source_input_tokens,
                 self.virtual_tokens,
                 self.output_tokens,
+                self.receiver_prompt_tokens,
             )
         ):
             raise MetricsError("token lengths must be nonnegative integers")
@@ -51,4 +53,5 @@ class TransportMetrics:
         payload["memory_status"] = (
             "unavailable" if self.peak_memory_bytes is None else "available"
         )
+        payload["prefill_tokens"] = self.virtual_tokens + self.receiver_prompt_tokens
         return payload

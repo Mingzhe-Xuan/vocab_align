@@ -49,8 +49,13 @@ def _config():
             "output_schema": "stt-result-v1",
             "transport": {
                 "tau": 0.7,
-                "causal_shift": True,
+                "causal_shift": False,
                 "source_top_m": None,
+            },
+            "sender_generation": {
+                "max_new_tokens": 2,
+                "do_sample": False,
+                "temperature": 1.0,
             },
             "generation": {"max_new_tokens": 2, "do_sample": False},
         }
@@ -75,19 +80,43 @@ def _artifact():
 
 
 class SourceTokenizer:
+    def apply_chat_template(self, messages, **kwargs):
+        assert messages[-1] == {"role": "user", "content": "hello"}
+        assert "planner" in messages[0]["content"].lower()
+        assert kwargs == {
+            "tokenize": False,
+            "add_generation_prompt": True,
+            "enable_thinking": True,
+        }
+        return "sender:hello"
+
     def __call__(self, text, **kwargs):
-        assert text == "hello"
-        assert kwargs == {"return_tensors": "pt", "add_special_tokens": True}
+        assert text == "sender:hello"
+        assert kwargs == {"return_tensors": "pt", "add_special_tokens": False}
         return {
             "input_ids": torch.tensor([[0, 1]]),
             "attention_mask": torch.tensor([[1, 1]]),
         }
 
+    def decode(self, token_ids, *, skip_special_tokens):
+        assert skip_special_tokens is True
+        return "sender-think:" + ",".join(str(value) for value in token_ids)
+
 
 class TargetTokenizer:
+    def apply_chat_template(self, messages, **kwargs):
+        assert messages[-1] == {"role": "user", "content": "hello"}
+        assert "thinker" in messages[0]["content"].lower()
+        assert kwargs == {
+            "tokenize": False,
+            "add_generation_prompt": True,
+            "enable_thinking": True,
+        }
+        return "receiver:hello"
+
     def __call__(self, text, **kwargs):
-        assert text == "hello"
-        assert kwargs == {"return_tensors": "pt", "add_special_tokens": True}
+        assert text == "receiver:hello"
+        assert kwargs == {"return_tensors": "pt", "add_special_tokens": False}
         return {
             "input_ids": torch.tensor([[8, 9, 10]]),
             "attention_mask": torch.tensor([[1, 1, 1]]),
@@ -101,7 +130,8 @@ class TargetTokenizer:
 class DummyWrapper:
     def __init__(self):
         self.source_model = SimpleNamespace(
-            get_input_embeddings=lambda: SimpleNamespace(weight=torch.zeros((2, 3)))
+            get_input_embeddings=lambda: SimpleNamespace(weight=torch.zeros((2, 3))),
+            generate=self._generate_sender,
         )
         self.receiver_model = SimpleNamespace(
             get_input_embeddings=lambda: SimpleNamespace(weight=torch.zeros((5, 3)))
@@ -109,33 +139,49 @@ class DummyWrapper:
         self.artifact = _artifact()
         self.calls = []
 
+    @staticmethod
+    def _generate_sender(*, input_ids, attention_mask, **kwargs):
+        assert torch.equal(input_ids, torch.tensor([[0, 1]]))
+        assert torch.equal(attention_mask, torch.tensor([[1, 1]]))
+        assert kwargs["do_sample"] is False
+        assert kwargs["max_new_tokens"] == 2
+        return torch.tensor([[0, 1, 0, 1]])
+
     def generate(self, input_ids=None, **kwargs):
         if kwargs.get("transport") is False:
             self.calls.append((kwargs["receiver_input_ids"].clone(), kwargs))
             return torch.tensor([[8, 9, 10, 1, 2]])
         self.calls.append((input_ids.clone(), kwargs))
+        assert torch.equal(input_ids, torch.tensor([[0, 1, 0, 1]]))
+        assert torch.equal(
+            kwargs["source_attention_mask"], torch.ones((1, 4), dtype=torch.long)
+        )
+        assert torch.equal(kwargs["receiver_input_ids"], torch.tensor([[8, 9, 10]]))
         metrics = TransportMetrics(
             source_seconds=0.1,
             transport_seconds=0.2,
             receiver_prefill_seconds=0.3,
             decode_seconds=0.4,
             total_seconds=1.0,
-            source_input_tokens=2,
-            virtual_tokens=2,
+            source_input_tokens=4,
+            virtual_tokens=4,
             output_tokens=2,
             peak_memory_bytes=None,
+            receiver_prompt_tokens=3,
         )
         stats = SoftTransportStats(
-            retained_mass=torch.ones((1, 2)),
-            dropped_top_m_mass=torch.zeros((1, 2)),
-            active_support_mass=torch.ones((1, 2)),
+            retained_mass=torch.ones((1, 4)),
+            dropped_top_m_mass=torch.zeros((1, 4)),
+            active_support_mass=torch.ones((1, 4)),
             top_m=None,
         )
         return TransportGenerationOutput(
             sequences=torch.tensor([[3, 4]]),
-            virtual_prompt_shape=(1, 2, 3),
+            virtual_prompt_shape=(1, 7, 3),
             stats=stats,
             metrics=metrics,
+            aligned_sender_shape=(1, 4, 3),
+            receiver_prompt_shape=(1, 3, 3),
         )
 
 
@@ -150,14 +196,28 @@ def test_build_and_atomically_save_smoke_report(tmp_path):
         config=_config(),
         code_version="test-code",
     )
-    assert report["schema_version"] == 2
+    assert report["schema_version"] == 3
     assert len(report["input_fingerprint"]) == 64
     assert report["artifact"]["shape"] == [2, 2]
     assert report["shapes"] == {
-        "source_input_ids": [1, 2],
-        "virtual_prompt": [1, 2, 3],
+        "sender_prompt_ids": [1, 2],
+        "sender_context_ids": [1, 4],
+        "aligned_sender": [1, 4, 3],
+        "receiver_prompt_ids": [1, 3],
+        "receiver_prompt": [1, 3, 3],
+        "virtual_prompt": [1, 7, 3],
         "receiver_output_ids": [1, 2],
     }
+    assert report["collaboration"]["sender_role"] == "planner"
+    assert report["collaboration"]["receiver_role"] == "thinker"
+    assert report["collaboration"]["sender_enable_thinking"] is True
+    assert report["collaboration"]["receiver_enable_thinking"] is True
+    assert report["collaboration"]["sender_think_token_ids"] == [0, 1]
+    assert report["collaboration"]["prefix_order"] == [
+        "aligned_sender_prompt",
+        "aligned_sender_think",
+        "receiver_native_prompt",
+    ]
     assert report["transport_quality"]["retained_mass"]["minimum"] == 1.0
     assert report["metrics"]["memory_status"] == "unavailable"
     assert report["receiver_only"]["shapes"] == {

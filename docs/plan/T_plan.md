@@ -1,8 +1,8 @@
-# Training-free Soft-Token Transport（STT）实验计划
+# Planner→Thinker Training-free Soft-Token Transport（STT）实验计划
 
 ## 1. 目标
 
-在保留 C2C 的协作任务、OpenHermes 训练语料、下游任务和评测协议的前提下，比较跨模型通信空间：文本、可训练 KV cache，以及由固定词表传输矩阵构成的连续 soft-token embedding。主实验改用 tokenizer 和模型架构差异明显的 Qwen3→Mistral-Nemo 模型对。
+在保留 C2C 的协作任务、OpenHermes 训练语料、下游任务和评测协议的前提下，实现训练免费的 Planner→Thinker 协作：sender A 是 planner，receiver B 是 thinker；同一题目分别进入两侧的原生提示词，两侧均显式开启 CoT。A 先生成 planner think，再把 `sender prompt + sender think` 的全部上下文 hidden states 通过固定词表传输矩阵对齐成 B embedding，并前置拼接到 B 自己显式编码的题目提示词；B 随后按 thinker 提示词继续思考并回答。主模型对仍为 tokenizer 和架构差异明显的 Qwen3→Mistral-Nemo。
 
 原 C2C：
 
@@ -10,21 +10,31 @@ $$
 (K^A,V^A) \xrightarrow{\text{trained projector}} (K^B,V^B).
 $$
 
-拟议 STT 不训练 projector。对 source A 在 prompt 位置 $t$ 的 logits $z_t^A$，以固定、稀疏、列随机的 $T_{A\to B}$ 映射到 receiver B 的输入 embedding：
+STT 不训练 projector。令 $P_A(q)$、$P_B(q)$ 为分别包含同一题目 $q$ 的 planner/thinker 原生 chat prompt，$r_A$ 为 A 显式 CoT 生成的 planner think，$h_t^A$ 为完整 sender context $P_A(q)\Vert r_A$ 在位置 $t$ 的最终 hidden state。通过 A 的 LM head 与固定、稀疏、列随机 $T_{A\to B}$ 对齐：
 
 $$
-p_t^A=\operatorname{softmax}(z_t^A/\tau),\qquad
+p_t^A=\operatorname{softmax}(\operatorname{LMHead}_A(h_t^A)/\tau),\qquad
 e_t^B=W_{\mathrm{in}}^B T_{A\to B}p_t^A.
 $$
+
+receiver 的 prefill 输入严格为
+
+$$
+[e_1^B,\ldots,e_n^B]\ \Vert\ W_{\mathrm{in}}^B\operatorname{Tok}_B(P_B(q)),
+$$
+
+即概念顺序 `sender prompt + sender think + receiver prompt`。前两段是 aligned continuous embeddings，后一段是 B 自己 tokenizer 的显式文本 embeddings；B 再显式 CoT 生成最终答案。
 
 问题：**training-corpus-fitted、但没有任何梯度训练的 soft-token transport，能否优于 receiver-only/T2T，并接近或补充可训练的 KV-C2C？**
 
 ## 2. 定义与边界
 
-- A 为协作系统的 source/teacher，B 为 receiver/base；所有对照固定相同的 A→B 方向。
+- A 为 sender/planner，B 为 receiver/thinker；所有对照固定相同的 A→B 方向。
 - “training-free”指 A、B、$T$、adapter 均不经梯度更新；用训练语料做 byte-span 计数是无标签离线统计，必须报告为 *training-free, corpus-fitted transport*，而非无数据或 zero-shot mapping。
 - STT 不再是 KV-C2C 的等价实现；它保留的是 C2C 的协作任务和模型设置，改变的是通信表示空间。
-- 第一版只做 prompt-only transport：source 编码 prompt，receiver 从 virtual soft prompt 开始独立生成。生成期不做 A/B 双向同步。
+- 主协议传输 A 的完整上下文而非 prompt-only：A 先生成一次有限预算的 planner think，然后对 `sender prompt + sender think` 全位置做 exact STT；A 在 B 开始生成后不再同步。
+- 题目必须同时出现在 $P_A(q)$ 和 $P_B(q)$ 中。禁止只让 A 看题，也禁止用 A 的 rendered prompt 替代 B 的原生 prompt。
+- sender 与 receiver 的 system/user instruction 均须明确要求逐步思考；tokenizer 支持原生 thinking 开关时必须设置 `enable_thinking=true`，evaluator 的 `use_cot` 也固定为 `true`。
 - 不使用 benchmark test 或 dev 数据拟合 $T$；不训练 LoRA、projector、蒸馏头或任何可学习桥接模块。
 
 ## 3. 固定设置与数据隔离
@@ -55,11 +65,11 @@ $$
 
 ### 3.3 固定评测条件
 
-所有方法固定相同的 benchmark 样本、canonical messages、few-shot/CoT、贪心解码和 `max_new_tokens`；A、B 分别使用已冻结的原生 chat template，并同时保存 canonical messages 与最终 rendered prompt。固定每个模型的精度、device map、GPU、warm-up 和 offload 规则。每题保存两侧输入长度、virtual prompt 长度、输出长度、首 token 延迟、总延迟、峰值显存及逐题输出。
+所有方法固定相同的 benchmark 样本、canonical messages、few-shot、双侧 CoT、贪心解码以及独立的 sender/receiver `max_new_tokens`。A、B 分别使用已冻结的原生 chat template；逐题保存 canonical problem、sender/receiver rendered prompt、sender think 文本与 token IDs。固定每个模型的精度、device map、GPU、warm-up 和 offload 规则。每题保存 sender prompt/think/context 长度、aligned prefix 长度、receiver prompt/output 长度、各段 latency、峰值显存及逐题输出。
 
 由于两个模型无法在当前 2 GB 本地 GPU 上同时驻留，本地主机只用于 tokenizer 对齐、$T$ 构建和短序列 CPU 数值 oracle。端到端质量实验使用能同时容纳 A/B 的 GPU 或明确的多 GPU device map；使用 CPU/disk offload 的运行只报告功能正确性，不进入正式 latency 主表。
 
-T2T 必须固定 source 的背景文本生成预算，并报告实际平均通信 token 数；否则不能与仅一次 source prefill 的 STT 比较 latency。
+T2T 与 Planner→Thinker STT 必须使用相同的 sender think 预算并报告实际通信 token 数；STT 额外执行完整 sender context forward 以取得所有 hidden-state alignment 输入，该成本必须单独计入，不得沿用旧 prompt-only latency。
 
 ## 4. 构建固定词表矩阵 $T_{A\to B}$
 
@@ -236,7 +246,7 @@ $$
 - 真实 Qwen3→Mistral-Nemo full-vocabulary 构建使用 `tolerance = 2e-3`，即上述两侧 L1 residual 的最大值不超过 `0.002`。该阈值是工程/实验 artifact 的预注册近似精度，不替代小图数值 oracle。
 - convergence report 和 audit 必须同时保存阈值及实际 row/column residual。出现 NaN/Inf、不可行支撑或 residual 超过对应层级阈值时仍失败，不能保存有效 artifact。
 
-该真实图阈值于 2026-09-02 根据用户确认调整；Job 234 的 row/column residual 为 `1.6915304665e-3`/`6.2669379185e-14`，在新阈值内，但它仍使用旧 `1e-9` 配置且没有产出 artifact，因此不能把旧 checkpoint 标记为有效。按新配置重跑的 Job 236 已完成原子保存和独立稀疏审计：row/column residual 为 `1.9975102855e-3`/`8.5268617950e-14`，`max_column_sum_error=1.1883827256e-12`，checkpoint 为 `complete/fresh`，峰值 RSS 为 `2,113,980 KiB`、0 swap；该预览 artifact 因而满足本节工程验收阈值。
+该真实图阈值于 2026-09-02 根据用户确认调整；Job 234 的 row/column residual 为 `1.6915304665e-3`/`6.2669379185e-14`，在新阈值内，但它仍使用旧 `1e-9` 配置且没有产出 artifact，因此不能把旧 checkpoint 标记为有效。按新配置重跑的 preview Job 236 已完成原子保存和独立稀疏审计。正式 OpenHermes transport_train Job 240 进一步绑定 495,000 samples/997,233 canonical messages，row/column residual 为 `1.9655245213e-3`/`1.0560509249e-13`，`max_column_sum_error=1.2299050667e-12`，checkpoint 为 `complete/fresh`，峰值 RSS 为 `8,036,128 KiB`、0 swap；该正式 artifact 满足本节工程验收阈值。
 
 优先在 top-$k$ 候选支撑图上直接运行稀疏 Sinkhorn，而不是先求稠密 $\Pi$ 再裁剪。若在 Sinkhorn 后再次 top-$k$ 并逐列归一化，会破坏目标边际 $b$；该结果必须标记为 `sparsified-approximate` 并重新报告边际误差。稠密全词表 Sinkhorn 仅用于小规模数值 oracle，不作为第一版大词表实现。
 
@@ -272,18 +282,22 @@ $$
 ## 5. STT 推理协议
 
 ```text
-prompt
-  → A tokenizer + no-grad source forward
-  → source logits
-  → softmax(logits / tau) → fixed sparse T[A→B] → B virtual embeddings
-  → receiver B 的 inputs_embeds prefill
+problem q
+  → planner prompt P_A(q), enable_thinking=true
+  → A no-grad generate → sender think r_A
+  → A no-grad full-context hidden states H_A(P_A(q) + r_A)
+  → LMHead_A(H_A) → softmax(/tau) → fixed sparse T[A→B]
+  → aligned sender embeddings E_A
+problem q
+  → thinker prompt P_B(q), enable_thinking=true → B native embeddings
+  → concat [E_A ; Emb_B(P_B(q))] → receiver B inputs_embeds prefill
   → B 的标准 KV cache 与标准 generate
-  → B 生成答案
+  → B 显式 CoT 思考并生成答案
 ```
 
-receiver 在 prefill 阶段不直接接收其自身 tokenizer 的 prompt token，而接收与 A prompt 时间步等长的连续 virtual tokens；生成 response 时仍使用 B 的原生 tokenizer 和 embedding。
+receiver 在 prefill 中同时接收 aligned sender context 和自身 tokenizer 显式编码的 thinker prompt。题目在 planner 与 thinker prompt 中各出现一次；拼接发生在 embedding 维，不能把 A token IDs 交给 B，也不能把 A 文本偷偷改由 B 重编码为 T2T。
 
-A 在位置 $t$ 的 logits 预测下一 token，故必须实现明确的因果 shift。第一版协议为“起始 embedding + shifted source logits”；另在小规模上比较 `shift` 与 `no-shift`。该选择必须有 shape、position、mask 和 cache 长度单元测试。
+每个 $h_t^A$ 都对应一个 aligned embedding，必须覆盖 sender prompt 与 sender think 的全部有效位置。因此新主协议不再使用旧版“receiver 起始 embedding + shifted source logits”，固定 `causal_shift=false`；receiver 的原生 BOS/chat boundary 已包含在 $P_B(q)$ 中。mask 与 position IDs 在两段拼接后从零连续重建，padding 不能进入有效长度。
 
 精确 oracle：
 
@@ -354,15 +368,17 @@ T2T 使用现有 `TwoStageInference`，固定 A 生成背景、B 生成答案。
 
 **验收：** Sinkhorn 按精度分层收敛：真实 full-vocabulary 构建的两侧最大 L1 residual 与 $\lVert Ta-b\rVert_1$ 不超过 `2e-3`，toy/dense oracle 保持 `1e-9` 或原测试阈值；$T$ 的非负性和列和审计通过；special token 无危险误配；artifact 可独立加载与复算。报告必须保存实际 residual 和采用的阈值。
 
-### 阶段 2：STT 精确原型
+### 阶段 2：Planner→Thinker STT 精确原型
 
-新增独立 `TrainingFreeTransportModel`；source no-grad logits → fixed transport → receiver `inputs_embeds` prefill → 原生生成。短序列上用显式矩阵计算作数值 oracle。
+新增独立 `TrainingFreeTransportModel`；sender 显式 CoT generate → 完整 sender context hidden/logits → fixed transport → 与 receiver 原生题目 prompt embeddings 拼接 → receiver 显式 CoT 生成。短序列上用显式矩阵和手工拼接作数值 oracle。
 
-**验收：** 无梯度/optimizer state；输出可生成；禁用 transport 时可复现 Receiver-only；中间 shape/mask/position/cache 均被测试。
+**验收：** 无梯度/optimizer state；题目在两侧 prompt 中均存在且两侧 CoT 打开；sender prompt/think 全位置均被对齐；receiver 原生 prompt 位于 aligned prefix 之后；中间 shape/mask/position/cache 与独立生成预算均被测试。
+
+**历史证据（已被新协议取代）：** Job 245 只证明旧 prompt-only exact STT 可执行，不能作为 Planner→Thinker 协议验收；新协议必须重新跑真实 smoke 与 benchmark。
 
 ### 阶段 3：统一评测
 
-在 evaluator 增加 `model_name: training_free_transport` 分支，复用原 prompt、答案解析、分卡和结果 schema，增加分段 latency。先跑固定子集，再跑完整 MMLU-Redux。
+在 evaluator 的 `training_free_transport` 分支构造 planner/thinker 两套含同题目的 prompt，显式开启两侧 CoT，记录 sender think、完整拼接长度和新增分段 latency；继续复用原题目格式化、答案解析、分卡和结果 schema。
 
 **验收：** 各方法题目与 prompt 相同，可逐样本比较，失败样本有日志而非静默跳过。
 
@@ -374,9 +390,9 @@ T2T 使用现有 `TwoStageInference`，固定 A 生成背景、B 生成答案。
 
 **验收：** 主结论不依赖未报告的 test-set 调参。
 
-### 阶段 5：泛化
+### 阶段 5：Planner→Thinker benchmark 验收
 
-增加反向 Mistral-Nemo→Qwen3 或第二个异 tokenizer 模型对并跑最小主表；扩展数学/长上下文；汇总显著性、失败案例和 latency 分解。
+> 2026-09-03 目标修订：反向/第二模型对实验不再是当前验收前置；已实现的方向安全配置保留供以后使用。当前先用新的双题目、双 CoT、完整 sender context + receiver native prompt 协议，在 MMLU-Redux、GSM8K、MATH-500、LongBench 上重新运行 exact 小样本并报告质量、失败、各段 latency、长度和显存。近似与消融继续暂缓。
 
 ## 9. 代码边界、风险与交付物
 

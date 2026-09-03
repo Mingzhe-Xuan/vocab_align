@@ -149,3 +149,9 @@
 - 完成 LongBench 已渲染 prompt 单次编码修复：metadata/diagnostics 显式标记，普通 exact benchmark 渲染路径保持不变，非法标记显式失败；定向 25/25、完整 195/195、AST/Bash 通过，准备静态复核后推送 Qasper-only 验证提交。
 - Job 250 失败根因定位为 exact transport 对 2048×2,733,518 query-edge contributions 一次性物化，额外申请 21.10GiB；进入 32-token query 分块的等价 exact 修复，不启用或评测任何近似方法。
 - exact query-chunk 修复完成：65-token 用例按 `[32,32,1]` 分块且语义/统计不变，定向 51/51、完整 196/196、AST/Bash 通过；准备最终静态检查和 Qasper-only 真机复验。
+- Job 253 完成 Qasper exact 真机验收：1/1 success、0 failed、无 bad/partial；2060-token 输入下 source/transport/total 864.25/44.67/909.34s，CUDA peak 23.69GiB，单次渲染与完整 exact provenance 齐全。生成仍为 `>`，外部 scorer 未运行；四 benchmark 结果齐备，进入永久报告与 main 验收整理。
+- main-based 最终移植树与 Guqq 已测 C2C 一致，且保留 main 的正式 artifact/smoke 计划证据；完整回归 196/196、Black/AST/Bash/diff 均通过，准备最终 squash 验收提交。
+- main 已完成最终净变更的 squash 暂存；待形成并推送单个验收提交后向用户交付四 benchmark 报告，近似/消融保持延期。
+- exact benchmark 净变更已以 main `c8dc57a` 推送且远端一致；继续完整目标的阶段 5，完成配对结果统计库与聚合 CLI：固定 seed percentile bootstrap、exact two-sided McNemar、subject/category 守恒切片、source/transport/receiver/decode latency、失败索引和显式排除原因。定向 16/16、完整 202/202、Black/compile/CLI/diff 通过；近似/消融实验未运行。
+- 完成反向 Mistral-Nemo→Qwen3 与第二 Qwen3→DeepSeek 方向 recipes、recipe schema/README、tokenizer fingerprint 与 target×source expected shape 门禁、固定 special policy，以及 wrapper 层双向 fingerprint 拒绝；定向 61/61、完整 206/206 和静态检查通过。新方向 full T/benchmark 尚未运行，不把 recipe 误报为实验结果。
+- 完成 Planner→Thinker 双 CoT exact STT 临时验证单元：同一题目分别进入 planner/thinker 原生提示词，sender 先生成 think，完整 sender prompt+think hidden states 全位置 exact 对齐后前置于 receiver native prompt；同步迁移 smoke、四项 benchmark 独立输出、diagnostics/metrics 和五阶段耗时。本地定向 80/80、完整 207/207、Black 通过；真实 Slurm benchmark 尚未验收，近似/消融未运行。

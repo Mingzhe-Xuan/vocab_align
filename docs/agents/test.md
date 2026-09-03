@@ -872,3 +872,56 @@ wrapper 近似模式测试计划：
 - wrapper/soft-transport/evaluator/runner 定向回归 51/51 通过；65-token exact 输入严格分为 `[32, 32, 1]`，拼接后 embeddings `(1, 65, 2)` 和 mass stats `(1, 65)` 与既有 exact oracle 一致。
 - 完整 `python -m pytest -o addopts= --basetemp local/pytest-exact-query-chunk-full -q`：196 passed，150.74s；仍只有既存 pandas 可选依赖 2 条 warning。
 - 六个相关 Python 文件内存 AST 和通用 benchmark Slurm Bash syntax 通过；首次 `black --diff` 仅要求 wrapper 两行机械折叠，已按输出修正并待最终复核。
+- Guqq Job 253（LongBench Qasper exact smoke）最终通过：1 record、1 success、0 failed、0 scored/1 unscored、accuracy null，scoring status `external_required`；生成 `>`，官方参考为 `Ground truth is not established in the paper`。source/virtual/output 为 2060/2060/2 tokens，source/transport/prefill/decode/total 为 864.2460/44.6731/0.3430/0.0745/909.3365s，CUDA peak 25,437,179,392 bytes（23.69GiB）。
+- Job 253 diagnostics：`source_prompt_rendered=true`、virtual shape `[1,2060,5120]`、`approximation_mode=exact`、top-m null、transport stats available、retained/active mass `1.0000002384`、dropped mass 0；code `e02f4ad...`、正式 artifact SHA/shape/nnz、source CPU/target auto 和 Qasper revision/file SHA 齐全。records/summary SHA 为 `a8918457...`/`009ca3f4...`，stdout/stderr SHA 为 `d5a75c97...`/`7c3ab6b2...`，无 bad-samples 或 `.partial`。
+- 兼容分支最终静态/文档检查：六个相关 Python 文件 `black --diff` unchanged、内存 AST 通过；两份模块 README、永久结果报告、两份计划路径存在，报告中的 Job 253/909.34s/23.69GiB/external-scorer/近似延期字段可检索，`git diff --check` 通过。`docs/assets/alignment.py` 保持未跟踪用户参考，不进入提交。
+- main-based 最终移植树复验：C2C 与 Guqq 已测兼容树无差异，同时保留 main 的正式 Job 240/245 计划证据；完整 `python -m pytest -o addopts= --basetemp local/pytest-exact-mainbased-final -q` 为 196 passed、122.42s，仍仅有既存 pandas 可选依赖 2 条 warning。七个相关 Python 文件 `black --diff` unchanged、内存 AST 和通用 Slurm Bash syntax 通过。
+# 2026-09-03：阶段 5 配对统计与结果聚合单元
+
+测试计划：
+
+- paired bootstrap 仅使用双方均成功且已评分的相同 sample ID；固定 seed 必须逐位可复现，置信区间边界有序，并拒绝非法重复次数、置信水平或不可配对输入。
+- McNemar 输出 both-correct、reference-only、candidate-only、both-wrong 四格计数和 exact two-sided p-value；手工用例计数正确，零 discordant/all-identical 时返回 p=1，而不是除零或缺失。
+- subject/category 切片必须同时报告样本数、双方正确数和 delta，所有切片计数之和分别与 paired 总数守恒；双方同一 sample 的切片标签不一致必须失败。
+- latency 明确聚合 `source_prefill_seconds`、`transport_seconds`、`receiver_prefill_seconds`、`decode_seconds`，报告双方各段 count/mean；不得把缺失字段当作零。
+- failure index 覆盖双方 latest 非成功记录，保留 sample ID、status、error type/message，按稳定键排序；CLI 在既有摘要 schema 上向后兼容地加入完整配对分析。
+- 运行新增统计/CLI 定向 pytest、完整 pytest、Black、AST/compile 与 `git diff --check`；本单元不加载模型、不访问网络、不运行近似或消融实验。
+
+实际结果：
+
+- 新增统计与既有 summarizer/ablation 定向回归：`16 passed in 33.37s`；覆盖固定 seed bootstrap、手工 McNemar 四格表、零 discordant、切片守恒、缺失 latency、不完整/未评分配对、失败索引、标签漂移和 CLI 兼容输出。
+- 完整回归：`202 passed, 2 warnings in 115.86s`；两条 warning 仍仅为既有 pandas 对可选 `numexpr`/`bottleneck` 版本的提示。
+- 五个相关 Python 文件在任务专用 `BLACK_CACHE_DIR` 下 Black unchanged；`compileall`、CLI `--help` 与 `git diff --check` 通过。默认用户 Black 缓存连续卡住三次，未缩减测试范围，经验已写入 `docs/agents/lessons.md`。
+# 2026-09-03：反向/第二模型对配置与方向安全单元
+
+测试计划：
+
+- 主、smoke、反向 Mistral-Nemo→Qwen3 与第二 Qwen3→DeepSeek recipes 均须通过同一 `TransportConfig` schema；模型/tokenizer revision 为 40 位提交，tokenizer fingerprint 为 64 位 SHA-256，artifact 输出路径互不相同。
+- 反向 recipe 的 source/target 名称、revision、tokenizer fingerprint 和 artifact shape 语义必须相对主方向交换；source/target marginals 仍由该方向独立构建，recipe 不得声明转置或复用正向 artifact。
+- 每个正式 recipe 显式冻结安全 special policy：完整 source tokenizer support、ordinary-only target support、exact-kind 后 literal-byte fallback、receiver-native boundary；非法或未知 policy 必须在加载配置时失败。
+- wrapper 接受成对的 expected source/target fingerprints；用正向 artifact 初始化反向 wrapper 必须在任何模型 forward 前失败，匹配方向保持现有 exact oracle 结果不变；近似 wrapper 重建不得丢失方向门禁。
+- 第二模型对使用既有 Qwen3→DeepSeek tokenizer 审计的锁定 revision/fingerprint，不下载模型、不构建 T、不运行远程实验。运行配置/artifact/wrapper 定向 pytest、完整 pytest、Black、compile 与 `git diff --check`。
+
+实际结果：
+
+- config/wrapper/smoke/evaluation 定向回归：`61 passed in 4.98s`；主/反向/DeepSeek recipes 均解析，方向交换、三组独立路径/shape/fingerprint、严格 special policy、wrapper 正反指纹拒绝与匹配路径通过。
+- 完整回归：`206 passed, 2 warnings in 112.49s`；两条 warning 仍仅为既有 pandas 可选依赖提示。
+- 七个相关 Python 文件 Black unchanged，六个文件内存 AST 通过，source `compileall` 通过，`git diff --check` 通过。测试文件 pycache 原子写受既有 Windows ACL 阻止，因此改用不写文件的 AST 检查；pytest 已实际导入并执行这些测试，未跳过范围。
+- 本单元只验收配置和加载安全；反向/第二模型对尚未构建 full T 或运行 benchmark，recipe README 明确禁止把配置存在误报为实验完成。
+# 2026-09-03：Planner→Thinker 双 CoT exact STT 单元
+
+测试计划：
+
+- adapter 从同一 canonical problem 构造不同角色的 sender/planner 与 receiver/thinker prompts；两次 native chat template 均显式收到 `enable_thinking=true`，recipe `use_cot=true`，生成保持 greedy。
+- sender 先按独立 `sender_max_new_tokens` 生成 think；保存生成 token/text，并把原 sender prompt 与全部有效 think token 拼成完整 context 后重新 no-grad forward。prompt 或 think 任一段被遗漏、generate 未返回原 prompt 前缀、预算非法均显式失败。
+- exact STT 对完整 sender context 每个有效 hidden/logit 位置产生一枚 aligned embedding，新主协议固定 no-shift；receiver prompt 由 receiver tokenizer 显式编码，其 native embeddings 严格拼在 aligned prefix 后。
+- 拼接后的 attention mask、position IDs、receiver KV cache 与 decode position 连续且长度守恒；覆盖 batch、padding、receiver prompt 缺失/shape 不匹配和 EOS。receiver 不能收到 source token IDs。
+- diagnostics/metrics 保存 sender/receiver rendered prompts、sender think、双 CoT 开关、sender prompt/think/context、aligned prefix、receiver prompt/output token 数，以及 planner generation/source alignment/transport/receiver prefill/decode 分段耗时。
+- 更新四项 exact benchmark recipes 为新协议独立输出路径，防止与旧 prompt-only records resume 混用。本地运行定向 pytest、完整 pytest、Black、AST/Bash/diff；真实模型仅由临时验证分支经 Slurm 测试，近似/消融不运行。
+
+实际结果（本地阶段）：
+
+- adapter、wrapper、config、smoke、runner、Slurm recipe 与五阶段统计定向回归：`80 passed, 2 warnings in 8.27s`。测试明确断言两侧拿到相同题目、两个 chat template 均 `enable_thinking=true`、sender 先生成且返回原 prompt 前缀、完整 sender context 全位置对齐，以及 aligned prefix 后严格跟随 receiver native embeddings。
+- 最终完整 `python -m pytest -o addopts= --basetemp .pytest-full-planner-final -q`：`207 passed, 2 warnings in 124.25s`；两条 warning 仍仅为 pandas 对可选 `numexpr`/`bottleneck` 版本的既存提示。
+- 14 个新协议模块/测试文件 Black unchanged；保留既有风格的 legacy unified evaluator 通过内存 AST 与 25/25 adapter/runner 复验，避免把全文件机械格式化混入本单元。Windows 路径/临时目录的三次入口失败未进入业务断言；修正为从 `C2C/` 运行并使用内部相对 `--basetemp` 后完整通过，经验已追加到 `docs/agents/lessons.md`。
+- 真实模型协议 smoke 与四项 benchmark 尚未运行；本地结果不能替代 Slurm/GPU 验收，当前提交只能标记为临时未验收。
