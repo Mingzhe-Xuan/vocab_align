@@ -53,6 +53,10 @@ does not modify the existing C2C projector or wrapper.
   receiver/source/T2T/C2C/STT adapters.
 - `wrapper.py`: no-grad source prefill, explicit causal-shift virtual prompts,
   receiver KV-cache decoding, and an independent receiver-only baseline path.
+  Exact soft transport partitions the source sequence into 32-token query
+  chunks before applying the same full-vocabulary softmax and complete sparse
+  transport. This bounds the query-by-edge intermediate without changing the
+  exact transport distribution or enabling an approximation mode.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.

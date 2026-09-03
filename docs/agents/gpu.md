@@ -448,3 +448,21 @@
 - 2026-09-03 11:02 +08:00 Job 250 诊断终态：pull 门禁通过；作业已离队并写出 1 条 failed record/bad-sample、无 summary。runner 随后按设计以 `cannot summarize records without successful samples` 退出，未把失败计为分数。下一次连接先 pull，再用 `head`/`tail` 只读定位该 JSON 中的原始 error type/message 和失败阶段；修复版提交参数依据该证据决定。
 - 2026-09-03 11:03 +08:00 Job 250 错误读取用途：连接后首项 pull `d2ddf88`；仅用标准 `head`/`tail` 读取 failed JSON 的开头/结尾和文件哈希，定位双模板诊断的直接错误，不修改结果或提交作业。
 - 2026-09-03 11:04 +08:00 Job 250 读取结果：pull 门禁通过；records 与 bad-samples 内容相同，SHA 均为 `76932cc2...`。因 canonical prompt 很长，`head -c 3500` 尚未到 error 字段。紧接该 pull 门禁，按许可只把这一份 22,590-byte failed JSON scp 到本地忽略结果目录解析；服务器文件保持不变。
+- 2026-09-03 11:07 +08:00 Qasper exact 复验提交用途：本地已从 Job 250 record 确认 `OutOfMemoryError` 为 21.10GiB query-edge 中间量，并推送通过 196 项回归的 query-chunk 修复 `e02f4ad`。连接后首项从 GitHub ff-only pull 该提交；随后核验 HEAD、数据/artifact、Job 250 已离队，把失败目录完整改名为 `longbench-qasper-double-render-job250` 保留，再确认有效输出路径为空并通过同一 Slurm 脚本/recipe 提交修复版 2048-token Qasper exact。移动仅作用于本任务结果目录且可恢复；不删除产物、不运行近似/消融。
+- 2026-09-03 11:08 +08:00 Qasper exact 复验提交结果：Guqq 首项 pull 成功快进至 `e02f4ad`，数据 SHA `7c6bf3a2...` 和正式 artifact 门禁通过；Job 250 失败目录已完整保留为 `longbench-qasper-double-render-job250`，有效输出路径为空。修复版完整 exact 作业已提交为 Job 253，仍为 2048-token 输入上限/32-token 输出、source CPU/receiver GPU，不含任何近似参数。
+- 2026-09-03 11:08 +08:00 Job 253 首次监控用途：连接后首项 pull `e02f4ad`，只读查看队列、模型/数据加载日志和有效输出 records/partial；不取消或重提。
+- 2026-09-03 11:09 +08:00 Job 253 首次监控结果：pull 门禁通过；作业在 node221 运行 0:38，双模型 shards 已正常加载，有效输出目录为空且 stderr 无异常。下一次连接继续只读查看运行时间、records/partial 和错误增量。
+- 2026-09-03 11:10 +08:00 Job 253 第二次监控用途：连接后首项 pull `e02f4ad`；只读检查队列、有效输出、stderr 尾部和当前 GPU 资源状态，不干预作业。
+- 2026-09-03 11:11 +08:00 Job 253 第二次监控结果：pull 门禁通过；作业在 node221 运行至 3:06，有效输出仍空且无 partial/异常，保持自然运行。
+- 2026-09-03 11:13 +08:00 Job 253 第三次监控用途：连接后首项 pull `e02f4ad`；只读查看队列、records/summary/partial 和 stderr 增量。若仍运行则退出，不增加诊断负载。
+- 2026-09-03 11:13 +08:00 Job 253 第三次监控结果：pull 门禁通过；作业运行至 4:03，有效输出仍空且 stderr 无异常，继续等待 source CPU 与 exact transport 完成。
+- 2026-09-03 11:15 +08:00 Job 253 第四次监控用途：连接后首项 pull `e02f4ad`；只读查看作业时间、有效 records/summary/partial 和错误增量，不干预作业。
+- 2026-09-03 11:15 +08:00 Job 253 第四次监控结果：pull 门禁通过；作业在 node221 运行至 7:15，仍无 records/partial/异常，继续等待。
+- 2026-09-03 11:17 +08:00 Job 253 第五次监控用途：连接后首项 pull `e02f4ad`；只读查看队列、有效输出和 stderr，重点确认是否跨过约 17 分钟时 Job 250 的旧 OOM 点。
+- 2026-09-03 11:18 +08:00 Job 253 第五次监控结果：pull 门禁通过；作业运行至 10:38，仍无 records/partial/异常，尚未到旧 OOM 时间点。
+- 2026-09-03 11:20 +08:00 Job 253 第六次监控与 MMLU 结果收集用途：连接后首项 pull `e02f4ad`；只读查看 Job 253 队列/输出/日志。同时核验 Job 247 MMLU records/summary 路径与 SHA；紧接 pull 门禁按许可 scp 两个小型 JSON 到本地忽略结果目录，统一四 benchmark 报告口径。
+- 2026-09-03 11:21 +08:00 第六次监控与 MMLU 收集结果：pull 门禁通过；Job 253 运行至 13:33 且无异常。MMLU records/summary 为 55,712/763 bytes，SHA `5fd22148...`/`5e7a2def...`，scp 后本地一致；latest 5 条 success 均输出 `>`、prediction null，0/5 质量结论确认。
+- 2026-09-03 11:24 +08:00 Job 253 第七次监控用途：连接后首项 pull `e02f4ad`；只读检查队列、有效输出和 stderr，重点确认是否已跨过 Job 250 约 17 分钟 OOM 点并进入 receiver/落盘阶段。
+- 2026-09-03 11:25 +08:00 Job 253 第七次监控结果：pull 门禁通过；作业已离队并写出 39,113-byte records 与 843-byte summary，各 1 条/份。stdout 明确报告保存成功，stderr 无异常栈，query-chunk 已跨过 Job 250 的 21.10GiB OOM。
+- 2026-09-03 11:26 +08:00 Job 253 最终验收用途：连接后首项 pull `e02f4ad`；只读读取 summary、records/summary SHA、partial/bad-sample 状态和日志尾部。紧接 pull 门禁按许可 scp 两份 JSON 到本地忽略结果目录，解析逐题 generation、external scoring、单次渲染 diagnostics、exact/provenance、latency/token/peak memory；不修改服务器产物。
+- 2026-09-03 11:27 +08:00 Job 253 最终验收结果：pull 门禁通过；summary 为 1 success/0 failed/0 scored/1 external-required，accuracy null。source/virtual/output 2060/2060/2，source/transport/prefill/decode/total 864.2460/44.6731/0.3430/0.0745/909.3365s，CUDA peak 25,437,179,392 bytes。records/summary/log stdout/stderr SHA 为 `a8918457...`/`009ca3f4...`/`d5a75c97...`/`7c3ab6b2...`，无 bad-samples 或 partial。scp 本地解析确认输出 `>`、reference、`source_prompt_rendered=true`、exact/no-top-m、完整 code/artifact/runtime/data provenance；最终验收通过。

@@ -149,3 +149,4 @@
 - 完成 LongBench 已渲染 prompt 单次编码修复：metadata/diagnostics 显式标记，普通 exact benchmark 渲染路径保持不变，非法标记显式失败；定向 25/25、完整 195/195、AST/Bash 通过，准备静态复核后推送 Qasper-only 验证提交。
 - Job 250 失败根因定位为 exact transport 对 2048×2,733,518 query-edge contributions 一次性物化，额外申请 21.10GiB；进入 32-token query 分块的等价 exact 修复，不启用或评测任何近似方法。
 - exact query-chunk 修复完成：65-token 用例按 `[32,32,1]` 分块且语义/统计不变，定向 51/51、完整 196/196、AST/Bash 通过；准备最终静态检查和 Qasper-only 真机复验。
+- Job 253 完成 Qasper exact 真机验收：1/1 success、0 failed、无 bad/partial；2060-token 输入下 source/transport/total 864.25/44.67/909.34s，CUDA peak 23.69GiB，单次渲染与完整 exact provenance 齐全。生成仍为 `>`，外部 scorer 未运行；四 benchmark 结果齐备，进入永久报告与 main 验收整理。
