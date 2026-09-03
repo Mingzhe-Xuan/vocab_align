@@ -159,6 +159,7 @@ def build_orf_transport_state(
     tau: float,
     seed: int,
     source_chunk_size: int = 1_024,
+    source_vocab_size: int | None = None,
 ) -> OrfTransportState:
     """Pre-aggregate sparse-transport ORF numerator ``S`` and denominator ``z``."""
     _require_torch()
@@ -177,6 +178,21 @@ def build_orf_transport_state(
         raise OrfError("source chunk size must be a positive integer")
     if np.any(artifact.source_token_ids >= output_weight.shape[0]):
         raise OrfError("artifact source token ID exceeds output vocabulary")
+    if source_vocab_size is None:
+        source_vocab_size = output_weight.shape[0]
+    if (
+        isinstance(source_vocab_size, bool)
+        or not isinstance(source_vocab_size, int)
+        or not 1 <= source_vocab_size <= output_weight.shape[0]
+    ):
+        raise OrfError("source_vocab_size must be in the output vocabulary")
+    if not np.array_equal(
+        artifact.source_token_ids,
+        np.arange(source_vocab_size, dtype=np.int64),
+    ):
+        raise OrfError(
+            "artifact must provide contiguous full support for source_vocab_size"
+        )
     if np.any(artifact.target_token_ids >= receiver_embedding_weight.shape[0]):
         raise OrfError("artifact target token ID exceeds receiver vocabulary")
     if output_bias is not None and output_bias.shape != (output_weight.shape[0],):
@@ -238,7 +254,7 @@ def build_orf_transport_state(
         seed=seed,
         source_fingerprint=str(artifact.metadata["source_fingerprint"]),
         target_fingerprint=str(artifact.metadata["target_fingerprint"]),
-        source_vocab_size=output_weight.shape[0],
+        source_vocab_size=source_vocab_size,
         target_vocab_size=receiver_embedding_weight.shape[0],
     )
 

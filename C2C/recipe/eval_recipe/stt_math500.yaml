@@ -1,0 +1,29 @@
+schema_version: 1
+model:
+  model_name: training_free_transport
+  transport_config: recipe/transport_recipe/qwen3_8b_to_mistral_nemo_instruct_2407.yaml
+  artifact: local/transport/artifacts/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
+  runtime_profile: blackwell-cu128
+  source_device_map: cpu
+  target_device_map: auto
+  require_cuda: true
+  require_locked_runtime: true
+  min_gpu_memory_gib: 30.0
+  generation_config:
+    do_sample: false
+    max_new_tokens: 128
+    temperature: 1.0
+output:
+  output_dir: local/transport/evaluation/math500-smoke
+  records: local/transport/evaluation/math500-smoke/stt.records.jsonl
+  bad_samples: local/transport/evaluation/math500-smoke/stt.bad-samples.jsonl
+  summary: local/transport/evaluation/math500-smoke/stt.summary.json
+eval:
+  dataset: math-500
+  gpu_ids: [0]
+  answer_method: generate
+  use_cot: false
+  use_template: true
+  sample_interval: 1
+  limit: 3
+  subjects: [all]

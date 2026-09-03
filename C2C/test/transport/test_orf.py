@@ -124,3 +124,30 @@ def test_orf_validation_and_fingerprint_failures_are_explicit():
     )
     with pytest.raises(OrfError, match="denominator"):
         apply_orf_transport(torch.zeros(1, 2), broken)
+
+
+def test_orf_state_accepts_only_verified_trailing_lm_head_padding():
+    artifact = _artifact(np.eye(2))
+    output = torch.tensor([[0.1, 0.0], [0.0, 0.1], [100.0, 100.0]])
+    state = build_orf_transport_state(
+        output,
+        None,
+        artifact,
+        torch.eye(2),
+        feature_count=4,
+        tau=1.0,
+        seed=5,
+        source_vocab_size=2,
+    )
+    assert state.source_vocab_size == 2
+    with pytest.raises(OrfError, match="full support"):
+        build_orf_transport_state(
+            output,
+            None,
+            artifact,
+            torch.eye(2),
+            feature_count=4,
+            tau=1.0,
+            seed=5,
+            source_vocab_size=3,
+        )

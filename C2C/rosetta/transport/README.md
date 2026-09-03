@@ -5,6 +5,9 @@ does not modify the existing C2C projector or wrapper.
 
 ## Modules and interfaces
 
+- `ablation.py`: deterministic pre-registered dev expansion, frozen test
+  configurations, and sample-ID paired accuracy summaries with explicit
+  missing-pair reports.
 - `vocab_transport.py`: local special/exact/span baseline for tiny corpora.
 - `sinkhorn.py`: dense oracle and sparse log-domain scaling with gauge-fixed,
   marginal-scaled Newton-CG acceleration and residual backtracking for

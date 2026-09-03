@@ -48,6 +48,7 @@ class EvaluationSample:
     prompt: str
     true_answer: str
     prompt_metadata: Mapping[str, Any] = field(default_factory=dict)
+    scoring_mode: str = "exact"
 
     def validate(self) -> None:
         if not self.sample_id or not self.subject or not self.prompt:
@@ -60,6 +61,8 @@ class EvaluationSample:
             raise EvaluationError("question_index must be a nonnegative integer")
         if not isinstance(self.true_answer, str) or not self.true_answer:
             raise EvaluationError("true_answer must be a nonempty string")
+        if self.scoring_mode not in {"exact", "external"}:
+            raise EvaluationError("scoring_mode must be exact or external")
         if not self.canonical_messages:
             raise EvaluationError("canonical_messages must be nonempty")
         for message in self.canonical_messages:
@@ -71,15 +74,17 @@ class EvaluationSample:
     @property
     def prompt_fingerprint(self) -> str:
         self.validate()
-        return _canonical_hash(
-            {
-                "canonical_messages": [
-                    dict(message) for message in self.canonical_messages
-                ],
-                "prompt": self.prompt,
-                "prompt_metadata": dict(self.prompt_metadata),
-            }
-        )
+        payload = {
+            "canonical_messages": [
+                dict(message) for message in self.canonical_messages
+            ],
+            "prompt": self.prompt,
+            "prompt_metadata": dict(self.prompt_metadata),
+        }
+        # Preserve stage-3 exact-record hashes; external scoring is a new protocol.
+        if self.scoring_mode != "exact":
+            payload["scoring_mode"] = self.scoring_mode
+        return _canonical_hash(payload)
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,7 @@ def _base_record(sample: EvaluationSample, method: str) -> dict[str, Any]:
         "prompt_fingerprint": sample.prompt_fingerprint,
         "prompt_metadata": dict(sample.prompt_metadata),
         "true_answer": sample.true_answer,
+        "scoring_mode": sample.scoring_mode,
     }
 
 
@@ -201,12 +207,23 @@ def evaluate_samples(
         try:
             generated = adapter.generate_one(sample)
             generated.validate()
-            prediction = answer_parser(generated.text)
+            prediction = (
+                answer_parser(generated.text)
+                if sample.scoring_mode == "exact"
+                else None
+            )
             record = {
                 **base,
                 "status": "success",
                 "prediction": prediction,
-                "is_correct": prediction == sample.true_answer,
+                "is_correct": (
+                    prediction == sample.true_answer
+                    if sample.scoring_mode == "exact"
+                    else None
+                ),
+                "scoring_status": (
+                    "scored" if sample.scoring_mode == "exact" else "external_required"
+                ),
                 "generation": {
                     "text": generated.text,
                     "token_ids": list(generated.token_ids),
@@ -270,13 +287,20 @@ def summarize_evaluation_records(
     if not successes:
         raise EvaluationError("cannot summarize records without successful samples")
     subjects: dict[str, list[bool]] = {}
+    unscored_subjects: dict[str, int] = {}
     methods: dict[str, int] = {}
     numeric_metrics: dict[str, list[float]] = {}
     for record in successes:
-        if not isinstance(record.get("is_correct"), bool):
-            raise EvaluationError("successful record requires boolean is_correct")
         subject = str(record.get("subject", ""))
-        subjects.setdefault(subject, []).append(bool(record["is_correct"]))
+        is_correct = record.get("is_correct")
+        if isinstance(is_correct, bool):
+            subjects.setdefault(subject, []).append(is_correct)
+        elif is_correct is None and record.get("scoring_mode") == "external":
+            unscored_subjects[subject] = unscored_subjects.get(subject, 0) + 1
+        else:
+            raise EvaluationError(
+                "successful record requires boolean is_correct or external scoring"
+            )
         method = str(record.get("method", ""))
         methods[method] = methods.get(method, 0) + 1
         metrics = record.get("metrics", {})
@@ -286,7 +310,10 @@ def summarize_evaluation_records(
         for name, value in metrics.items():
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 numeric_metrics.setdefault(str(name), []).append(float(value))
-    correct = sum(bool(record["is_correct"]) for record in successes)
+    scored = [
+        record for record in successes if isinstance(record.get("is_correct"), bool)
+    ]
+    correct = sum(bool(record["is_correct"]) for record in scored)
     failure_reasons: dict[str, int] = {}
     for record in failures:
         error = record.get("error")
@@ -298,8 +325,10 @@ def summarize_evaluation_records(
         "total_records": len(records),
         "successful_samples": len(successes),
         "failed_samples": len(failures),
+        "scored_samples": len(scored),
+        "unscored_samples": len(successes) - len(scored),
         "correct_samples": correct,
-        "accuracy": correct / len(successes),
+        "accuracy": None if not scored else correct / len(scored),
         "methods": dict(sorted(methods.items())),
         "metric_means": {
             name: sum(values) / len(values)
@@ -307,11 +336,18 @@ def summarize_evaluation_records(
         },
         "subjects": {
             subject: {
-                "samples": len(values),
+                "samples": len(values) + unscored_subjects.get(subject, 0),
+                "scored": len(values),
+                "unscored": unscored_subjects.get(subject, 0),
                 "correct": sum(values),
-                "accuracy": sum(values) / len(values),
+                "accuracy": None if not values else sum(values) / len(values),
             }
-            for subject, values in sorted(subjects.items())
+            for subject, values in sorted(
+                {
+                    **{name: values for name, values in subjects.items()},
+                    **{name: subjects.get(name, []) for name in unscored_subjects},
+                }.items()
+            )
         },
         "failed_sample_ids": sorted(
             str(record.get("sample_id")) for record in failures

@@ -25,3 +25,43 @@ def test_transport_evaluation_slurm_uses_locked_gpu_runtime():
     assert recipe["model"]["target_device_map"] == "auto"
     assert recipe["model"]["generation_config"]["max_new_tokens"] == 16
     assert recipe["eval"]["limit"] == 5
+
+
+def test_cross_benchmark_smoke_recipes_are_exact_and_isolated():
+    expected = {
+        "stt_gsm8k.yaml": ("gsm8k", 3, 64),
+        "stt_math500.yaml": ("math-500", 3, 128),
+        "stt_longbench_qasper.yaml": ("longbench", 1, 32),
+    }
+    output_dirs = set()
+    for filename, (dataset, limit, max_new_tokens) in expected.items():
+        recipe = yaml.safe_load(
+            Path("recipe/eval_recipe", filename).read_text(encoding="utf-8")
+        )
+        assert recipe["model"]["source_device_map"] == "cpu"
+        assert recipe["model"]["target_device_map"] == "auto"
+        assert "approximation" not in recipe["model"]
+        assert recipe["model"]["generation_config"]["do_sample"] is False
+        assert recipe["model"]["generation_config"]["max_new_tokens"] == max_new_tokens
+        assert recipe["eval"]["dataset"] == dataset
+        assert recipe["eval"]["limit"] == limit
+        output_dirs.add(recipe["output"]["output_dir"])
+    assert len(output_dirs) == len(expected)
+
+    script = Path("script/transport/slurm/evaluate_stt_benchmark.sbatch").read_text(
+        encoding="utf-8"
+    )
+    assert "#SBATCH --gres=gpu:1" in script
+    assert ".venv-smoke-cu128/bin/python" in script
+    assert 'config_path="${1:?' in script
+    assert "HF_HUB_OFFLINE=1" in script
+    assert "uv " not in script
+
+    prompt = yaml.safe_load(
+        Path("recipe/eval_recipe/longbench_qasper_prompt.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert set(prompt) == {"qasper"}
+    assert "{context}" in prompt["qasper"]
+    assert "{input}" in prompt["qasper"]

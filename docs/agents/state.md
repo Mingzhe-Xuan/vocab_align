@@ -144,5 +144,10 @@
 - 2026-09-03 06:01 +08:00：Job 246 离线数据和双模型加载成功，但 sequential `device_map:auto` 占用约 30.3GiB，5 个长 prompt 均在额外 1.4—1.7GiB 分配时 OOM；失败逐题记录完整且无 summary，判定未验收。修复调整为 source CPU/receiver GPU-auto、16-token greedy 与显式 provenance，保持同一 GPU 资源，完成本地回归后重试 failed records。
 - 2026-09-03 06:05 +08:00：source CPU/receiver auto override、16-token recipe 和 allocator 配置完成，默认 smoke loader 行为不变；定向 25/25、完整 168/168 通过。下一步推送未验收修复，Guqq pull 后用原 records 验证 failed-only resume。
 - 2026-09-03 06:17 +08:00：Guqq 经有界 pull 同步 `d98a85e`，Job 246 failed records/无 partial/空队列门禁通过，断点复验提交为 Job 247。下一步只读验收 source CPU placement、5 条成功追加、summary 与资源。
+- 2026-09-03 06:21 +08:00：Job 247 最终验收通过：5 个 Job 246 failed 样本全部追加 success，latest summary 为 5 success/0 failed，逐题 code/runtime/config/artifact/device-map/support/metrics 完整，无 partial；输出均为 `[1062,2]`/`>`，parser 如实返回 null，5 题准确率 0 不作为功能门禁。阶段 3 完成，下一步整理 main 并进入阶段 4。
+- 2026-09-03 09:27 +08:00：阶段 3 已以 main `1453832` 验收推送；进入阶段 4 首个实现单元。现有 `approximations.py`/`orf.py` 已具备 TH、top-m、precompute/chunk 与 ORF 数学核心，缺口收敛为预注册消融展开、dev→test 冻结门禁、配对完整性统计和 evaluator 近似模式接入；先实现纯配置/统计层，再改 wrapper。
+- 2026-09-03 09:35 +08:00：预注册消融展开、冻结 test 门禁和显式缺失配对统计完成，定向 10/10；进入 wrapper 近似模式单元。接口固定 `exact/hard/top_m/precomputed/orf`，ORF 直接调用 source backbone hidden state绕过 LM head；各模式依赖、stats 可用性和 padded vocab 继续严格验证。
+- 2026-09-03 09:40 +08:00：用户调整优先级：近似与消融实验暂缓，不作为当前验收条件；已完成的本地实现保留并停止扩展。当前阶段改为精确 STT 的跨 benchmark 验证，先补齐 MMLU-Redux、GSM8K、MATH-500、LongBench 的确定性小样本加载/记录协议，再通过 Slurm 逐项测试并如实报告任务分数、失败、耗时和显存；可选 benchmark 与完整规模运行在这轮 smoke 后决定。
+- 2026-09-03 09:55 +08:00：跨 benchmark 本地实现与验收完成：四类 loader、LongBench 外部评分语义、三个新增 exact smoke recipe 和通用 Slurm 入口已就绪；定向 24/24、完整 192/192、Black/compile/Bash/diff 通过。下一步形成 main-based `[UNACCEPTED]` 验证提交并推送；Guqq pull 后确认数据缓存，缺失资源按 `net.sh` 后下载，再分别提交 GSM8K、MATH-500、LongBench Qasper 作业，MMLU-Redux 使用已验收 Job 247 作为同协议证据。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

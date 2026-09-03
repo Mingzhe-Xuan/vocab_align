@@ -1,6 +1,8 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from rosetta.transport.evaluation import GenerationResult
 from script.evaluation import transport_runner
 
@@ -71,6 +73,68 @@ def test_subject_samples_preserve_canonical_prompt_metadata(monkeypatch, tmp_pat
     ]
     assert samples[0].prompt_metadata["use_template"] is True
     assert evaluator.format_calls == [{"use_cot": False, "use_template": True}]
+
+
+@pytest.mark.parametrize(
+    "dataset_name,subject,expected_args",
+    [
+        ("mmlu-redux", "abstract_algebra", ("fixture/data", "abstract_algebra")),
+        ("gsm8k", "main", ("fixture/data", "main")),
+        ("math-500", "all", ("fixture/data",)),
+        ("longbench", "qasper", ("fixture/data", "qasper")),
+    ],
+)
+def test_benchmark_loaders_use_explicit_dataset_configs(
+    monkeypatch, dataset_name, subject, expected_args
+):
+    evaluator = SimpleNamespace(
+        dataset_name=dataset_name,
+        dataset_config={"dataset_name": "fixture/data"},
+    )
+    calls = []
+    monkeypatch.setattr(
+        transport_runner,
+        "load_dataset",
+        lambda *args: calls.append(args) or {"test": []},
+    )
+    transport_runner._load_subject_dataset(evaluator, subject)
+    assert calls == [expected_args]
+
+
+def test_longbench_sample_preserves_external_scorer_inputs(monkeypatch, tmp_path):
+    evaluator = _evaluator(tmp_path)
+    evaluator.dataset_name = "longbench"
+    evaluator.dataset_config = {
+        "dataset_name": "fixture/longbench",
+        "test_split": "test",
+        "subjects": ["qasper"],
+    }
+    evaluator._format_longbench_example = lambda example, tokenizer: "Long prompt"
+    monkeypatch.setattr(
+        transport_runner,
+        "load_dataset",
+        lambda *args: {
+            "test": [
+                {
+                    "answers": ["reference"],
+                    "all_classes": [],
+                    "length": 123,
+                    "_id": "row-1",
+                }
+            ]
+        },
+    )
+    sample = transport_runner._subject_samples(
+        evaluator, "qasper", source_tokenizer=object()
+    )[0]
+    assert sample.scoring_mode == "external"
+    assert sample.true_answer == "<external-longbench-scorer>"
+    assert sample.prompt_metadata["longbench"] == {
+        "answers": ["reference"],
+        "all_classes": [],
+        "length": 123,
+        "id": "row-1",
+    }
 
 
 def test_transport_runner_writes_records_and_summary(monkeypatch, tmp_path):
