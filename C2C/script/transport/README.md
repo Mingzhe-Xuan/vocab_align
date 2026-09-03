@@ -21,7 +21,9 @@ in this folder.
 - `build_ann_candidates.py`: deterministic bidirectional byte-ngram LSH
   candidates with explicit low-evidence connectivity bridges and provenance.
 - `summarize_transport.py`: atomic accuracy, subject, failure-reason, and
-  numeric-metric aggregation from versioned per-sample JSONL records.
+  numeric-metric aggregation from versioned per-sample JSONL records; with a
+  reference file it also reports paired bootstrap, exact McNemar,
+  subject/category slices, four-stage latency, and failure indexes.
 - `run_transport_ablation.py`: deterministically expand a pre-registered dev
   search or its single frozen benchmark-test configuration into atomic JSON.
 

@@ -152,3 +152,4 @@
 - Job 253 完成 Qasper exact 真机验收：1/1 success、0 failed、无 bad/partial；2060-token 输入下 source/transport/total 864.25/44.67/909.34s，CUDA peak 23.69GiB，单次渲染与完整 exact provenance 齐全。生成仍为 `>`，外部 scorer 未运行；四 benchmark 结果齐备，进入永久报告与 main 验收整理。
 - main-based 最终移植树与 Guqq 已测 C2C 一致，且保留 main 的正式 artifact/smoke 计划证据；完整回归 196/196、Black/AST/Bash/diff 均通过，准备最终 squash 验收提交。
 - main 已完成最终净变更的 squash 暂存；待形成并推送单个验收提交后向用户交付四 benchmark 报告，近似/消融保持延期。
+- exact benchmark 净变更已以 main `c8dc57a` 推送且远端一致；继续完整目标的阶段 5，完成配对结果统计库与聚合 CLI：固定 seed percentile bootstrap、exact two-sided McNemar、subject/category 守恒切片、source/transport/receiver/decode latency、失败索引和显式排除原因。定向 16/16、完整 202/202、Black/compile/CLI/diff 通过；近似/消融实验未运行。

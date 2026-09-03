@@ -1,5 +1,9 @@
 # 经验记录
 
+## Windows Black 默认缓存可能在格式化完成后卡住
+
+Windows 沙箱中 Black 可能已经完成文件解析甚至写回，却在访问用户级默认缓存时持续占用 CPU 且不退出；重复运行 `python -m black` 不会改善，并会让格式化与后续测试串联命令看似整体挂起。连续复现后应先单独运行格式化命令，并把任务专用的 `BLACK_CACHE_DIR` 指向仓库内已忽略的 `local/` 子目录，再分别执行 `black` 和测试。不能因为缓存卡住跳过格式检查，也不应删除或修改用户级共享缓存。
+
 ## 病态稀疏支撑需要保持目标不变的对偶加速
 
 即使候选图存在对所有 active edges 严格为正的可行 coupling，交替 row/column scaling 在极端边际和低证据 feasibility 边上仍可能以很慢的速率收敛；真实图中 column residual 已到机器精度而 row residual 在 10,000 次后仍为 `5.58e-4`。在验收要求固定时，不能为使单次作业通过而临时提高 `max_iter`、放宽 tolerance 或直接采用可行 coupling 代替熵正则最优解；容差只能作为显式、版本化的产品需求调整。应先用标准 log-domain Sinkhorn warm up，再固定 dual gauge，在同一 Gibbs kernel 上做保持目标不变的二阶加速，最后继续标准缩放并用原始两侧 L1 residual 验收。正 smoothing 会使 dual Hessian 的边际尺度对角跨越许多数量级；必须用 `z = sqrt(marginal) * x` 的可逆坐标缩放把局部对角预条件到约 1。早期 L-BFGS 方案已被真实图的函数值精度平台否定，当前应使用 Hessian-vector Newton-CG 与 residual backtracking。加速器必须有独立预算和方法记录；非有限变量、不可行支撑和总预算耗尽仍显式失败。

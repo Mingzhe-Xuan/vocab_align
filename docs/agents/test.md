@@ -876,3 +876,19 @@ wrapper 近似模式测试计划：
 - Job 253 diagnostics：`source_prompt_rendered=true`、virtual shape `[1,2060,5120]`、`approximation_mode=exact`、top-m null、transport stats available、retained/active mass `1.0000002384`、dropped mass 0；code `e02f4ad...`、正式 artifact SHA/shape/nnz、source CPU/target auto 和 Qasper revision/file SHA 齐全。records/summary SHA 为 `a8918457...`/`009ca3f4...`，stdout/stderr SHA 为 `d5a75c97...`/`7c3ab6b2...`，无 bad-samples 或 `.partial`。
 - 兼容分支最终静态/文档检查：六个相关 Python 文件 `black --diff` unchanged、内存 AST 通过；两份模块 README、永久结果报告、两份计划路径存在，报告中的 Job 253/909.34s/23.69GiB/external-scorer/近似延期字段可检索，`git diff --check` 通过。`docs/assets/alignment.py` 保持未跟踪用户参考，不进入提交。
 - main-based 最终移植树复验：C2C 与 Guqq 已测兼容树无差异，同时保留 main 的正式 Job 240/245 计划证据；完整 `python -m pytest -o addopts= --basetemp local/pytest-exact-mainbased-final -q` 为 196 passed、122.42s，仍仅有既存 pandas 可选依赖 2 条 warning。七个相关 Python 文件 `black --diff` unchanged、内存 AST 和通用 Slurm Bash syntax 通过。
+# 2026-09-03：阶段 5 配对统计与结果聚合单元
+
+测试计划：
+
+- paired bootstrap 仅使用双方均成功且已评分的相同 sample ID；固定 seed 必须逐位可复现，置信区间边界有序，并拒绝非法重复次数、置信水平或不可配对输入。
+- McNemar 输出 both-correct、reference-only、candidate-only、both-wrong 四格计数和 exact two-sided p-value；手工用例计数正确，零 discordant/all-identical 时返回 p=1，而不是除零或缺失。
+- subject/category 切片必须同时报告样本数、双方正确数和 delta，所有切片计数之和分别与 paired 总数守恒；双方同一 sample 的切片标签不一致必须失败。
+- latency 明确聚合 `source_prefill_seconds`、`transport_seconds`、`receiver_prefill_seconds`、`decode_seconds`，报告双方各段 count/mean；不得把缺失字段当作零。
+- failure index 覆盖双方 latest 非成功记录，保留 sample ID、status、error type/message，按稳定键排序；CLI 在既有摘要 schema 上向后兼容地加入完整配对分析。
+- 运行新增统计/CLI 定向 pytest、完整 pytest、Black、AST/compile 与 `git diff --check`；本单元不加载模型、不访问网络、不运行近似或消融实验。
+
+实际结果：
+
+- 新增统计与既有 summarizer/ablation 定向回归：`16 passed in 33.37s`；覆盖固定 seed bootstrap、手工 McNemar 四格表、零 discordant、切片守恒、缺失 latency、不完整/未评分配对、失败索引、标签漂移和 CLI 兼容输出。
+- 完整回归：`202 passed, 2 warnings in 115.86s`；两条 warning 仍仅为既有 pandas 对可选 `numexpr`/`bottleneck` 版本的提示。
+- 五个相关 Python 文件在任务专用 `BLACK_CACHE_DIR` 下 Black unchanged；`compileall`、CLI `--help` 与 `git diff --check` 通过。默认用户 Black 缓存连续卡住三次，未缩减测试范围，经验已写入 `docs/agents/lessons.md`。

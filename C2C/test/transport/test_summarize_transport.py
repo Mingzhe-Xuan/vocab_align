@@ -104,3 +104,7 @@ def test_summarizer_reports_incomplete_pairing(tmp_path):
     paired = json.loads(output.read_text(encoding="utf-8"))["paired_comparison"]
     assert paired["complete_pairing"] is False
     assert paired["missing_candidate_ids"] == ["missing"]
+    analysis = json.loads(output.read_text(encoding="utf-8"))["paired_analysis"]
+    assert analysis["bootstrap"]["seed"] == 0
+    assert analysis["mcnemar"]["both_correct"] == 1
+    assert analysis["slices"]["subject"]["math"]["samples"] == 1

@@ -8,6 +8,9 @@ does not modify the existing C2C projector or wrapper.
 - `ablation.py`: deterministic pre-registered dev expansion, frozen test
   configurations, and sample-ID paired accuracy summaries with explicit
   missing-pair reports.
+- `statistics.py`: deterministic paired bootstrap and exact McNemar analysis,
+  conserved subject/category slices, four-stage latency summaries, and stable
+  failure indexes for unified evaluation records.
 - `vocab_transport.py`: local special/exact/span baseline for tiny corpora.
 - `sinkhorn.py`: dense oracle and sparse log-domain scaling with gauge-fixed,
   marginal-scaled Newton-CG acceleration and residual backtracking for
