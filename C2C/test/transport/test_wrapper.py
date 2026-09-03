@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import torch
 
+import rosetta.transport.wrapper as wrapper_module
 from rosetta.transport.artifact import artifact_from_dense
 from rosetta.transport.approximations import precompute_source_values
 from rosetta.transport.orf import apply_orf_transport, build_orf_transport_state
@@ -230,6 +231,29 @@ def test_hard_top_m_and_precomputed_modes_follow_their_oracles():
         precomputed_source_values=source_values,
     ).build_virtual_prompt(input_ids)
     torch.testing.assert_close(precomputed.embeddings, exact.embeddings)
+
+
+def test_exact_transport_chunks_long_source_queries_without_changing_results(
+    monkeypatch,
+):
+    seen_lengths = []
+    original = wrapper_module.transport_embeddings
+
+    def tracked_transport(logits, *args, **kwargs):
+        seen_lengths.append(logits.shape[1])
+        return original(logits, *args, **kwargs)
+
+    monkeypatch.setattr(wrapper_module, "transport_embeddings", tracked_transport)
+    input_ids = torch.tensor([[0, 1, 2] * 21 + [0, 1]])
+    model = TrainingFreeTransportModel(
+        TinySource(), TinyReceiver(), _artifact(), tau=1.0, causal_shift=False
+    )
+    virtual = model.build_virtual_prompt(input_ids)
+
+    assert seen_lengths == [32, 32, 1]
+    assert virtual.embeddings.shape == (1, 65, 2)
+    assert virtual.stats.retained_mass.shape == (1, 65)
+    torch.testing.assert_close(virtual.stats.retained_mass, torch.ones((1, 65)))
 
 
 def test_orf_mode_uses_backbone_only_and_reports_stats_unavailable():
