@@ -925,3 +925,19 @@ wrapper 近似模式测试计划：
 - 最终完整 `python -m pytest -o addopts= --basetemp .pytest-full-planner-final -q`：`207 passed, 2 warnings in 124.25s`；两条 warning 仍仅为 pandas 对可选 `numexpr`/`bottleneck` 版本的既存提示。
 - 14 个新协议模块/测试文件 Black unchanged；保留既有风格的 legacy unified evaluator 通过内存 AST 与 25/25 adapter/runner 复验，避免把全文件机械格式化混入本单元。Windows 路径/临时目录的三次入口失败未进入业务断言；修正为从 `C2C/` 运行并使用内部相对 `--basetemp` 后完整通过，经验已追加到 `docs/agents/lessons.md`。
 - 真实模型协议 smoke 与四项 benchmark 尚未运行；本地结果不能替代 Slurm/GPU 验收，当前提交只能标记为临时未验收。
+
+# 2026-09-03：正式 T artifact 使用文档单元
+
+测试计划：
+
+- 从本地正式 `.npz` 只读核对文件大小、SHA-256、数组字段、shape、nnz、dtype 和 metadata fingerprints，文档不得混淆 recipe 构建目标路径与当前实际使用路径。
+- 检查文档引用的本地文件、Python 模块、四个 benchmark recipes 和 Slurm 入口均存在；示例命令必须从 `C2C/` 目录运行，并明确真实推理只能在 Guqq 经 Slurm 执行。
+- 检查方向固定为 Qwen3-8B→Mistral-Nemo、矩阵布局为 `[target, source]`，禁止转置、dense 化和 Git 提交；程序化示例使用 fingerprint-checked loader，不绕过 wrapper/adapter。
+- 本单元仅修改 Markdown/`.gitignore`，无需新增代码单元测试；完成后运行链接/路径、命令、格式与 `git diff --check` 检查并记录实际结果。
+
+实际结果：
+
+- 本地正式 artifact 经 `load_transport_artifact(..., allow_pickle=False)` 路径加载成功：shape `(131069, 151669)`、`2,733,518` nnz、权重 `float64`；文件大小与 SHA-256 已与 scp 前远端值一致。
+- 文档自身、本地 artifact、四个 benchmark recipes、通用 Slurm 入口、artifact loader、wrapper 和 adapter 共 10 个引用路径全部存在；PowerShell/Bash 示例的工作目录与换行语法已人工复核。
+- `git diff --check` 通过；关键大小、SHA、shape、Slurm 命令和 fingerprint 警告均可检索。首次路径存在性命令从 `C2C/` 错用仓库根相对路径而返回 False，改从仓库根完整重跑后 10/10 均为 True，不属于文档链接失败。
+- 审计发现正式 artifact metadata fingerprints `c39a.../12be...` 与当前 recipe `1a385.../8542...` 不一致；文档显式要求严格拒绝并先复核 provenance，未通过删除 fingerprint 检查降低标准。

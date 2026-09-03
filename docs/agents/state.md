@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Planner→Thinker exact STT 已完成本地实现与完整回归：sender 是 planner、receiver 是 thinker；同一题目同时进入两侧原生提示词并显式开启两侧 CoT；sender 先生成 think，再将 `sender prompt + sender think` 全 context hidden states 经 STT 对齐，前置拼接到 receiver 自己显式编码的题目 prompt，最后由 receiver 思考并回答。当前等待形成临时远程验证提交，并在 Guqq 通过 Slurm 重跑四项 benchmark；旧 prompt-only 结果仅作历史诊断，近似/消融继续延期。
+Planner→Thinker exact STT 已完成本地实现与完整回归，正式 T 已从 Guqq 复制到本地根目录并通过 SHA-256 校验，`docs/assets/T_artifact_usage.md` 已完成。文档核验发现正式 artifact metadata 的 tokenizer fingerprints 与当前 transport recipe 冻结值不一致；严格 loader 应拒绝该组合，因此继续远程 benchmark 前必须复核 fingerprint 算法/provenance 并使三者一致，不能关闭门禁。旧 prompt-only 结果仅作历史诊断，近似/消融继续延期。
 
 ## 当前计划
 
@@ -18,6 +18,8 @@ Planner→Thinker exact STT 已完成本地实现与完整回归：sender 是 pl
 - 2026-09-03 12:10 +08:00：反向/第二模型对配置安全单元完成，61/61 定向、206/206 完整回归及 Black/AST/diff 通过；三个方向独立固定 artifact 路径、shape、指纹和 special policy，wrapper 在 forward 前拒绝反向 artifact。下一步形成验收提交，再只读核验 Guqq 构建新方向 full T 的前置条件。
 - 2026-09-03 12:18 +08:00：用户替换研究目标，停止反向/第二模型对 full T 与实验推进；新主协议为 Planner→Thinker 双题目、双 CoT，并把完整 sender prompt+think hidden-state STT prefix 拼到 receiver native prompt 前。旧 prompt-only Jobs 245/247–253 降为历史诊断，下一步先完成计划修订与本地实现测试，再重跑 exact benchmarks。
 - 2026-09-03 12:44 +08:00：Planner→Thinker 协议实现、smoke/benchmark recipes 与文档迁移完成；定向 80/80、完整 207/207、Black 检查通过。下一步形成未验收临时提交，并按连接审计与 Slurm 规则运行真实模型 smoke 和四项 exact benchmark。
+- 2026-09-03 22:04 +08:00：进入正式 T artifact 使用文档单元；先用本地已校验文件核对数组 schema、shape、nnz、dtype 与 tokenizer fingerprints，再记录路径、方向、校验、Slurm/recipe 和 Python 接口。仅修改文档与忽略规则，不改算法或运行计算。
+- 2026-09-03 22:09 +08:00：正式 T 使用文档完成，artifact loader、10 个引用路径、命令与 diff 格式检查通过。核验同时发现 artifact fingerprints `c39a.../12be...` 与 recipe 的 `1a385.../8542...` 不一致；将远程 benchmark 前置条件调整为先查明 fingerprint provenance，保持严格失败，不绕过校验。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

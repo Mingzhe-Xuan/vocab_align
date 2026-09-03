@@ -156,3 +156,4 @@
 - 完成反向 Mistral-Nemo→Qwen3 与第二 Qwen3→DeepSeek 方向 recipes、recipe schema/README、tokenizer fingerprint 与 target×source expected shape 门禁、固定 special policy，以及 wrapper 层双向 fingerprint 拒绝；定向 61/61、完整 206/206 和静态检查通过。新方向 full T/benchmark 尚未运行，不把 recipe 误报为实验结果。
 - 完成 Planner→Thinker 双 CoT exact STT 临时验证单元：同一题目分别进入 planner/thinker 原生提示词，sender 先生成 think，完整 sender prompt+think hidden states 全位置 exact 对齐后前置于 receiver native prompt；同步迁移 smoke、四项 benchmark 独立输出、diagnostics/metrics 和五阶段耗时。本地定向 80/80、完整 207/207、Black 通过；真实 Slurm benchmark 尚未验收，近似/消融未运行。
 - 按用户要求将 Guqq 正式 Qwen3→Mistral-Nemo T artifact 复制到本地仓库根目录；39,951,267-byte 文件经 SFTP 断点续传完成，本地/远端 SHA-256 均为 `1495d522...aba97`。新增根目录精确忽略规则，未暂存或提交该大文件；仅清理本次失败传输产生的 131,072-byte partial。
+- 新增 `docs/assets/T_artifact_usage.md`，记录正式 T 的双端路径、方向、CSC schema、完整性数据、Planner→Thinker STT 位置、Slurm recipes、低层 loader 与禁用事项；artifact 只读加载及 10 个引用路径检查通过。同步发现 artifact 与当前 recipe tokenizer fingerprints 不一致并明确列为 benchmark 前置阻塞，不绕过严格校验。
