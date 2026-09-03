@@ -22,6 +22,8 @@ in this folder.
   candidates with explicit low-evidence connectivity bridges and provenance.
 - `summarize_transport.py`: atomic accuracy, subject, failure-reason, and
   numeric-metric aggregation from versioned per-sample JSONL records.
+- `run_transport_ablation.py`: deterministically expand a pre-registered dev
+  search or its single frozen benchmark-test configuration into atomic JSON.
 
 Run commands as modules from the `C2C` root, for example:
 
@@ -47,3 +49,16 @@ It requests one GPU without pinning a partition, validates the locked runtime
 before loading model weights, refuses to overwrite an existing report, and
 defaults to offline Hugging Face cache access. Its timings are diagnostics, not
 benchmark results.
+
+The exact-STT cross-benchmark smoke recipes cover GSM8K, MATH-500, and one
+LongBench Qasper sample in addition to MMLU-Redux. Submit each recipe through
+the generic Slurm entry point, for example:
+
+```bash
+sbatch script/transport/slurm/evaluate_stt_benchmark.sbatch \
+  recipe/eval_recipe/stt_gsm8k.yaml
+```
+
+These are small functional/initial-quality samples, not full benchmark scores.
+LongBench keeps the official Qasper prompt and reference fields but marks rows
+as requiring the external official scorer.

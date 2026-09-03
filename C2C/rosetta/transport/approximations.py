@@ -57,12 +57,19 @@ def hard_transport_embeddings(
     *,
     tau: float,
     top_m: int | None = None,
+    source_vocab_size: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, SoftTransportStats]:
     """Return TH embeddings, breaking probability ties by original target ID."""
     _require_torch()
     if receiver_embedding_weight.device != logits.device:
         raise ApproximationError("receiver embedding and logits must share a device")
-    target, stats = transport_probabilities(logits, artifact, tau=tau, top_m=top_m)
+    target, stats = transport_probabilities(
+        logits,
+        artifact,
+        tau=tau,
+        top_m=top_m,
+        source_vocab_size=source_vocab_size,
+    )
     active_embeddings = _active_receiver_embeddings(
         artifact, receiver_embedding_weight
     ).to(dtype=logits.dtype)
@@ -127,6 +134,7 @@ def precomputed_transport_embeddings(
     *,
     tau: float,
     top_m: int | None = None,
+    source_vocab_size: int | None = None,
 ) -> tuple[torch.Tensor, SoftTransportStats]:
     """Apply precomputed compact source values to source probabilities."""
     _require_torch()
@@ -134,7 +142,13 @@ def precomputed_transport_embeddings(
         raise ApproximationError("source values must match artifact source columns")
     if source_values.device != logits.device:
         raise ApproximationError("source values and logits must share a device")
-    source, stats = source_probabilities(logits, artifact, tau=tau, top_m=top_m)
+    source, stats = source_probabilities(
+        logits,
+        artifact,
+        tau=tau,
+        top_m=top_m,
+        source_vocab_size=source_vocab_size,
+    )
     return source @ source_values.to(dtype=logits.dtype), stats
 
 
@@ -146,6 +160,7 @@ def chunked_transport_embeddings(
     tau: float,
     top_m: int | None = None,
     edge_chunk_size: int = 65_536,
+    source_vocab_size: int | None = None,
 ) -> tuple[torch.Tensor, SoftTransportStats]:
     """Accumulate receiver embeddings by edge chunks without materializing C."""
     _require_torch()
@@ -157,7 +172,13 @@ def chunked_transport_embeddings(
         raise ApproximationError("edge chunk size must be a positive integer")
     if receiver_embedding_weight.device != logits.device:
         raise ApproximationError("receiver embedding and logits must share a device")
-    source, stats = source_probabilities(logits, artifact, tau=tau, top_m=top_m)
+    source, stats = source_probabilities(
+        logits,
+        artifact,
+        tau=tau,
+        top_m=top_m,
+        source_vocab_size=source_vocab_size,
+    )
     active_embeddings = _active_receiver_embeddings(
         artifact, receiver_embedding_weight
     ).to(dtype=logits.dtype)

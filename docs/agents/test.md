@@ -797,3 +797,38 @@ Job 247 真实断点复验结果：
 - Job 247 使用 `d98a85e`、source CPU/receiver auto、同一正式 artifact 和原 Job 246 records；约 5 分钟完成，历史 5 failed 后追加 5 success，latest summary 为 5 success/0 failed/0 correct，证明 failed-only resume 与统计分母正确。集群 accounting disabled，故无 sacct MaxRSS；逐题 CUDA peak 平均 28,121,007,411 bytes，均低于 31.37GiB 设备容量。
 - 平均 source/transport/receiver-prefill/decode/total 为 59.3623/0.7554/0.06735/0.04576/60.23085s；平均 source/virtual/output 为 154.4/154.4/2 tokens。5 条生成均为 receiver IDs `[1062,2]`、文本 `>`、prediction null，因此 accuracy 0.0 是如实质量结果，不作为阶段 3 功能通过阈值。
 - provenance：runtime `blackwell-cu128`，source/target override `cpu`/`auto`，artifact `[131069,151669]`、2,733,518 nnz、SHA `1495d522...`，evaluator code `d98a85e5...`；active/retained mass 1.0、dropped 0。records/summary SHA 为 `5fd221487e7338bbe5ccfa95956e9eaa7012a6c1faf75508dcb1daa6e11c1644` / `5e7a2def5dffddf580d2c9b0c6ecb4ab1b78b18131d67bf8dd8f9513ba2cbbbf`，stderr/stdout SHA 为 `699e5ce4c173e9f87e5008e90dbff8d58620abd977b38c26619847547e20da74` / `a39b5b0767cfc2f8e472296c9435f07bca6e9caf2475a63865bf363ea340a81d`，无 partial。阶段 3 真实功能验收通过。
+
+## 2026-09-03：阶段 4 消融计划与配对统计单元
+
+测试计划：
+
+- 版本化 ablation plan 只接受非空、有限、可 JSON 序列化的预注册维度；dev 按稳定键序做确定 Cartesian 展开，run ID 与 YAML 键顺序无关且无重复。
+- frozen test 参数必须覆盖每个维度且值属于 dev search space；benchmark test 只能生成该冻结组合，不能用 CLI/YAML 额外 override 偷换 tau、epsilon、shift、T 来源或近似参数。
+- 固定 recipe 明确 `transport_dev` 选择空间与 benchmark test 冻结值，包含 T 来源、local/Sinkhorn、epsilon、tau、shift、exact/hard/top-m/ORF；路径和输出均在忽略的 `local/transport/ablation/`。
+- 配对统计以 sample ID 的 latest successful records 为输入，报告 reference/candidate 缺失 ID、成对数、两侧 accuracy 与 delta；存在缺失时仍显式输出但 `complete_pairing=false`，不得静默取交集宣称完整配对。
+- `run_transport_ablation.py` 仅生成原子 plan JSON，不加载模型/访问网络；dev/test help 与生成命令、非法 frozen 配置、Black/AST、完整 pytest 和 README/路径/diff 均验证。
+
+wrapper 近似模式测试计划：
+
+- `exact` 保持现有 wrapper 输出逐位不变；`top_m` 要求正 `source_top_m` 并记录丢弃质量，full-vocab m 退化为 exact；`hard` 等于 `argmax(Tp)` 的 receiver embedding且 deterministic tie-break。
+- `precomputed` 必须提供 shape/device 正确的 `W_in^B T` source values，并与 exact oracle 对齐；hard/precomputed/top-m 都接受 fingerprint-verified tokenizer vocab 对 LM-head 尾部 padding 的显式裁剪，中间缺口仍失败。
+- `orf` 必须提供 fingerprint/维度匹配的 state，只调用 source backbone、不得调用 CausalLM LM head；virtual prompt stats 明确 unavailable/null，不伪造 retained mass。输出与 `apply_orf_transport` oracle、shift/mask/receiver prefill 对齐。
+- 非法 mode、缺失/多余 precomputed 或 ORF state、top-m 无 m、backbone 无 hidden state均显式失败；receiver-only 路径不受模式影响。
+- evaluator adapter 把 approximation mode 和 stats availability 写入统一 diagnostics；旧 exact Job 247 schema保持兼容。定向 wrapper/approximations/ORF/evaluation 后运行完整 pytest、Black/AST/diff。
+
+## 2026-09-03：精确 STT 跨 benchmark 验证单元
+
+测试计划：
+
+- 数据加载器按 benchmark 显式选择 Hugging Face config/split：MMLU-Redux 使用 subject config，GSM8K 使用 `main`，MATH-500 不传 config，LongBench 使用具体 task；固定 `limit` 必须作用于原始稳定索引并保留可恢复 sample ID。
+- MMLU/GSM8K/MATH 的参考答案和预测解析沿用同一 `UnifiedEvaluator` 协议；LongBench 保存原始 `answers/all_classes/length/_id` 与生成文本，明确标记为待官方 task scorer 的生成成功，不能伪造 boolean accuracy。
+- 新建版本化的精确 STT multi-benchmark smoke recipes；四项均使用相同模型 revision、正式 T、source CPU/receiver GPU、greedy 解码和独立输出目录，不启用近似或消融参数。
+- 单元测试覆盖四类 loader 调用、开放式无 boolean 标签的 summary、非法/空 task、limit 和 resume；本地完整 pytest 与静态检查通过后，使用临时 `[UNACCEPTED]` 分支在 Guqq 通过 Slurm 逐项运行。
+- 远程验收逐 benchmark 检查成功/失败样本数、原始预测与参考、任务得分或“需官方 scorer”状态、分段 latency、token 长度、峰值显存、runtime/artifact/code provenance、文件 SHA 和无 `.partial`；小样本结果只作为功能与初步质量报告，不冒充完整 benchmark 主表。
+
+本地实际结果：
+
+- benchmark loader、开放式外部评分和 recipe/Slurm 定向测试 24/24 通过；MMLU-Redux/GSM8K/MATH-500/LongBench 的 config/split 调用、稳定 limit、Qasper 参考字段与 `external_required` 汇总均已覆盖。
+- wrapper/approximation/ORF 定向测试 29/29、阶段 4 控制面与 adapter 合并定向测试 53/53 通过；ORF 仅调用 backbone，exact 旧接口保持兼容。按当前需求不提交任何近似/消融远程实验。
+- 完整 `python -m pytest -o addopts= --basetemp local/pytest-benchmark-full -q`：192 passed，132.49s；仅有既存 pandas 对可选 numexpr/bottleneck 版本的 2 条 warning。
+- 变更 Python 文件 Black 检查、`compileall`、通用 benchmark Slurm Bash syntax 与 `git diff --check` 通过；Black 默认缓存 ACL 问题通过仓库内 `local/black-cache-stage4` 规避。

@@ -1,0 +1,23 @@
+schema_version: 1
+dev_split: transport_dev
+test_split: mmlu-redux:test
+dimensions:
+  transport_source: [special_exact, span, ann]
+  fitting: [local, sinkhorn]
+  epsilon: [0.25, 0.5, 1.0]
+  tau: [0.7, 1.0, 1.3]
+  causal_shift: [true, false]
+  approximation:
+    - {mode: exact}
+    - {mode: hard}
+    - {mode: top_m, source_top_m: 256}
+    - {mode: top_m, source_top_m: 1024}
+    - {mode: orf, feature_count: 256, seed: 42}
+    - {mode: orf, feature_count: 1024, seed: 42}
+frozen:
+  transport_source: ann
+  fitting: sinkhorn
+  epsilon: 0.5
+  tau: 1.0
+  causal_shift: true
+  approximation: {mode: exact}

@@ -57,3 +57,50 @@ def test_unified_evaluator_help_does_not_require_optional_math_packages():
     )
     assert result.returncode == 0, result.stderr
     assert "--config" in result.stdout
+
+
+def test_summarizer_reports_incomplete_pairing(tmp_path):
+    reference = tmp_path / "reference.jsonl"
+    candidate = tmp_path / "candidate.jsonl"
+    output = tmp_path / "summary.json"
+    base = {
+        "schema_version": 1,
+        "subject": "math",
+        "question_index": 0,
+        "method": "exact",
+        "status": "success",
+        "is_correct": True,
+        "metrics": {},
+    }
+    reference.write_text(
+        json.dumps({**base, "sample_id": "a"})
+        + "\n"
+        + json.dumps({**base, "sample_id": "missing"})
+        + "\n",
+        encoding="utf-8",
+    )
+    candidate.write_text(
+        json.dumps({**base, "sample_id": "a", "method": "hard"}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "script.transport.summarize_transport",
+            "--records",
+            str(candidate),
+            "--reference-records",
+            str(reference),
+            "--output",
+            str(output),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    paired = json.loads(output.read_text(encoding="utf-8"))["paired_comparison"]
+    assert paired["complete_pairing"] is False
+    assert paired["missing_candidate_ids"] == ["missing"]

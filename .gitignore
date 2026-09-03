@@ -15,5 +15,6 @@ C2C/local/transport/corpora/
 C2C/local/transport/datasets/
 C2C/local/transport/logs/
 C2C/local/test-tmp/
+C2C/local/pytest-*/
 C2C/local/black-cache*/
 C2C/local/pycache/
