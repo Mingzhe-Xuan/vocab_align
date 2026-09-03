@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-正在实施 Training-free Soft-Token Transport。阶段 2 已以 main `66b9809` 验收；阶段 3 的版本化逐题记录、失败恢复、确定性合并/汇总、STT adapter、统一 evaluator 窄入口、固定 MMLU-Redux recipe 与 Slurm 脚本已完成本地实现，完整回归 168/168。当前准备临时验证提交和 Guqq 真实 5 题评测。
+正在实施 Training-free Soft-Token Transport。阶段 2 已以 main `66b9809` 验收；阶段 3 的版本化逐题记录、失败恢复、确定性合并/汇总、STT adapter、统一 evaluator 窄入口和固定 MMLU-Redux recipe 已通过本地 168/168 与 Guqq Job 247 真实 5 题断点验收。当前整理阶段 3 main 验收提交并进入阶段 4 近似消融。
 
 ## 当前计划
 
-1. 在临时验证分支提交并推送阶段 3 实现；登记 Guqq 连接，服务器先 pull，再预取/核验 MMLU-Redux 小子集缓存。
-2. 通过 Slurm 执行固定 5 题 STT 评测，验收逐题 schema、失败记录、summary、runtime/artifact provenance、资源和原子性；失败则保持未验收并修复。
-3. 真实评测通过后整理阶段 3 main 验收提交，再进入阶段 4 冻结近似与消融。
+1. 将阶段 3 经 Job 247 验收的净变更整理为 main 提交，保留真实 failed→success resume 证据并排除 `docs/assets/alignment.py`。
+2. 进入阶段 4 实现单元：复核现有 hard/top-m/precompute/ORF 接口与计划需求，先在 `test.md` 固定消融配置、误差和一致性测试。
+3. 补齐统一 evaluator 的近似模式适配与固定 ablation recipe，通过本地 oracle 后再提交最小 Slurm 集成。
 
 ## 变更记录
 
@@ -144,5 +144,6 @@
 - 2026-09-03 06:01 +08:00：Job 246 离线数据和双模型加载成功，但 sequential `device_map:auto` 占用约 30.3GiB，5 个长 prompt 均在额外 1.4—1.7GiB 分配时 OOM；失败逐题记录完整且无 summary，判定未验收。修复调整为 source CPU/receiver GPU-auto、16-token greedy 与显式 provenance，保持同一 GPU 资源，完成本地回归后重试 failed records。
 - 2026-09-03 06:05 +08:00：source CPU/receiver auto override、16-token recipe 和 allocator 配置完成，默认 smoke loader 行为不变；定向 25/25、完整 168/168 通过。下一步推送未验收修复，Guqq pull 后用原 records 验证 failed-only resume。
 - 2026-09-03 06:17 +08:00：Guqq 经有界 pull 同步 `d98a85e`，Job 246 failed records/无 partial/空队列门禁通过，断点复验提交为 Job 247。下一步只读验收 source CPU placement、5 条成功追加、summary 与资源。
+- 2026-09-03 06:21 +08:00：Job 247 最终验收通过：5 个 Job 246 failed 样本全部追加 success，latest summary 为 5 success/0 failed，逐题 code/runtime/config/artifact/device-map/support/metrics 完整，无 partial；输出均为 `[1062,2]`/`>`，parser 如实返回 null，5 题准确率 0 不作为功能门禁。阶段 3 完成，下一步整理 main 并进入阶段 4。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
