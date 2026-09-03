@@ -69,3 +69,9 @@ source logits 为 `h W^T + b` 时，通信温度作用于整个 logits：ORF que
 真实 2.3M-edge 图进一步表明，即使相对增量目标且 SciPy `ftol=0`，当目标下降在 float64 中恰好不可分辨时，L-BFGS-B 仍会以 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH` 返回；Job 232/233 的 20 次短退及完全相同 residual 证明这不是简单选项问题。严格边际求解不能再依赖函数值 line-search/termination。应直接对 dual gradient 使用 Hessian-vector：在 `sqrt(marginal)` 坐标中以对角预条件 CG 求 Newton 方向，再用原始两侧 L1 residual 做有限 backtracking 和接受判据。CG matvec 与候选评估必须共享显式预算，避免用隐藏的内部迭代绕过总计算上限。
 
 Job 234 暴露了 full-dual 截断 Newton-CG 的另一非显然约束：标准 row/column scaling 结束时 column marginal 已精确到机器误差，有限步 CG 的近似方向却不保证 column 方程为零；若用两侧最大 residual 回溯，方向即使改善 row 方程，也会因新引入的 column residual 只能接受约 `1/1024` 的微步。应解析消去 column dual，使用 reduced row-dual 的 Schur-complement Hessian；每个 row trial 后按 source marginal 精确重归一化各 column，再用 row/column 原始 residual 验收。这样候选始终留在 column-feasible 流形，截断 CG 的误差不会被误当成破坏另一侧约束的步长惩罚。reduced Hessian 仍有常数 gauge，必须固定高质量 anchor 或做正交投影，并保持 Hessian matvec/候选评估的显式预算。
+
+## Long benchmark prompt 与 exact transport 内存
+
+benchmark formatter 的返回值边界必须显式区分“canonical user content”和“已由具体 tokenizer 渲染的模型 prompt”。LongBench 的统一 formatter 已负责 chat template 和按 source tokenizer 截断；STT adapter 若再把该字符串放进 user message 套一次 chat template，会静默改变 benchmark 输入。sample metadata 应标记预渲染状态，adapter 只编码一次并把所选路径写入 diagnostics；普通 benchmark 仍从 canonical messages 单次渲染。
+
+稀疏 $T$ 并不自动保证长序列 exact transport 的中间量稀疏。按所有 edges 执行 `source_probabilities.index_select(columns)` 会物化 `[batch, query, nnz]`；Job 250 在约 2048 queries、2,733,518 edges 时单次申请 21.10GiB 并 OOM。保持相同完整词表 softmax、完整 $T$ 和 receiver expectation 的安全方式是沿 query 维分块，逐块执行同一 exact 运算并按原序拼接 embeddings 与 mass stats。chunk size 是内存调度参数而非近似超参数；测试必须同时验证块上界和未分块 oracle 等价性，不能用缩短 benchmark 样本或 top-m 掩盖 exact 路径的内存错误。
