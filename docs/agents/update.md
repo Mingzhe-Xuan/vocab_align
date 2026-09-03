@@ -143,3 +143,7 @@
 - 按用户要求暂停近似/消融实验，将下一验收目标切换为精确 STT 跨 benchmark 测试与结果报告。首批固定覆盖 MMLU-Redux、GSM8K、MATH-500、LongBench；先修正各数据集加载和开放式任务记录口径，再提交 Slurm 小样本作业。
 - 完成 exact STT 跨 benchmark 本地支持：新增 GSM8K/MATH-500/Qasper 固定 smoke recipes、通用 Slurm 入口和 LongBench `external_required` 记录语义；定向 24/24、完整 192/192 及静态检查通过，准备临时远程验证提交。
 - Guqq Hugging Face DNS 连续失败后切换到许可的本地下载 + scp：两个固定 revision 数据文件已下载并校验 SHA；runner/recipes 新增本地文件格式、SHA 与 dataset revision 门禁，定向 25/25 通过。
+- Guqq 已同步 `fb6c687` 并校验 scp 数据 SHA；GSM8K/MATH-500/Qasper exact smoke 分别提交为 Slurm Job 248/249/250，开始只读验收。
+- Jobs 248/249 exact smoke 初步验收：GSM8K、MATH-500 各 3 条均成功生成且无 failed/partial，两个小样本准确率均为 0；平均总耗时分别 55.43s/62.97s，平均峰值显存分别 27.73GB/28.17GB。Qasper Job 250 继续运行，待三项逐题 provenance、SHA 和终态齐全后形成本轮验收提交与完整报告。
+- Qasper 验收前复核发现 LongBench formatter 与 STT adapter 会连续两次应用 source chat template；Job 250 降级为诊断证据但不取消。已登记单次渲染修复及回归范围，修复通过后使用独立输出目录仅重跑 Qasper exact，不扩大到近似或消融。
+- 完成 LongBench 已渲染 prompt 单次编码修复：metadata/diagnostics 显式标记，普通 exact benchmark 渲染路径保持不变，非法标记显式失败；定向 25/25、完整 195/195、AST/Bash 通过，准备静态复核后推送 Qasper-only 验证提交。

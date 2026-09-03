@@ -159,6 +159,7 @@ def test_longbench_sample_preserves_external_scorer_inputs(monkeypatch, tmp_path
     )[0]
     assert sample.scoring_mode == "external"
     assert sample.true_answer == "<external-longbench-scorer>"
+    assert sample.prompt_metadata["source_prompt_rendered"] is True
     assert sample.prompt_metadata["longbench"] == {
         "answers": ["reference"],
         "all_classes": [],
