@@ -25,6 +25,7 @@ from .soft_transport import SoftTransportStats, transport_embeddings
 
 
 _ModuleBase = torch.nn.Module if torch is not None else object
+_TRANSPORT_QUERY_CHUNK_SIZE = 32
 
 
 class TransportModelError(ValueError):
@@ -351,19 +352,40 @@ class TrainingFreeTransportModel(_ModuleBase):
                     raise TransportModelError(
                         "source logits must be finite floating values"
                     )
-                transport_logits = logits.to(
-                    device=receiver_weight.device, dtype=torch.float32
-                )
                 if self.approximation_mode in {"exact", "top_m"}:
-                    transported, _, stats = transport_embeddings(
-                        transport_logits,
-                        self.artifact,
-                        receiver_weight,
-                        tau=self.tau,
-                        top_m=self.source_top_m,
-                        source_vocab_size=self.source_vocab_size,
+                    transported_chunks = []
+                    stats_chunks = []
+                    for start in range(0, logits.shape[1], _TRANSPORT_QUERY_CHUNK_SIZE):
+                        stop = min(start + _TRANSPORT_QUERY_CHUNK_SIZE, logits.shape[1])
+                        chunk, _, chunk_stats = transport_embeddings(
+                            logits[:, start:stop].to(
+                                device=receiver_weight.device, dtype=torch.float32
+                            ),
+                            self.artifact,
+                            receiver_weight,
+                            tau=self.tau,
+                            top_m=self.source_top_m,
+                            source_vocab_size=self.source_vocab_size,
+                        )
+                        transported_chunks.append(chunk)
+                        stats_chunks.append(chunk_stats)
+                    transported = torch.cat(transported_chunks, dim=1)
+                    stats = SoftTransportStats(
+                        retained_mass=torch.cat(
+                            [item.retained_mass for item in stats_chunks], dim=1
+                        ),
+                        dropped_top_m_mass=torch.cat(
+                            [item.dropped_top_m_mass for item in stats_chunks], dim=1
+                        ),
+                        active_support_mass=torch.cat(
+                            [item.active_support_mass for item in stats_chunks], dim=1
+                        ),
+                        top_m=stats_chunks[0].top_m,
                     )
                 elif self.approximation_mode == "hard":
+                    transport_logits = logits.to(
+                        device=receiver_weight.device, dtype=torch.float32
+                    )
                     transported, _, stats = hard_transport_embeddings(
                         transport_logits,
                         self.artifact,
@@ -372,6 +394,9 @@ class TrainingFreeTransportModel(_ModuleBase):
                         source_vocab_size=self.source_vocab_size,
                     )
                 else:
+                    transport_logits = logits.to(
+                        device=receiver_weight.device, dtype=torch.float32
+                    )
                     transported, stats = precomputed_transport_embeddings(
                         transport_logits,
                         self.artifact,

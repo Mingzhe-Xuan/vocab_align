@@ -841,6 +841,7 @@ wrapper 近似模式测试计划：
 - fallback 最终完整回归 `python -m pytest -o addopts= --basetemp local/pytest-benchmark-data-full -q`：193 passed，189.95s；仍只有既存 pandas 可选依赖 2 条 warning。
 - Guqq Job 248（GSM8K exact smoke）：3 records、3 success、0 failed、3 scored、accuracy 0.0；平均总耗时 55.4335s，平均 source/transport/prefill/decode 为 52.9645/0.8113/0.0852/1.5725s，平均峰值显存 27,725,928,106.7 bytes；records/summary 均完成且无 `.partial`。
 - Guqq Job 249（MATH-500 exact smoke）：3 records、3 success、0 failed、3 scored、accuracy 0.0；平均总耗时 62.9749s，平均 source/transport/prefill/decode 为 60.4815/0.8192/0.0867/1.5874s，平均峰值显存 28,172,192,085.3 bytes；records/summary 均完成且无 `.partial`。
+- Jobs 248/249 产物经 scp 到本地忽略目录复核，SHA 与服务器一致。六条 record 均绑定 code `fb6c687...`、正式 artifact SHA `1495d522...`（131,069×151,669，2,733,518 nnz）、source CPU/target auto、`approximation.mode=exact`，active support mass 均为 1.0。GSM8K 三条输出为重复 `the`、重复短片段和 `>`；MATH-500 为重复 `and` 和两个 `>`；六条 parser prediction 均为 null，因此 0/3 是真实生成质量而不是 execution failure。
 
 ### LongBench 已渲染 prompt 单元
 
@@ -856,3 +857,18 @@ wrapper 近似模式测试计划：
 - transport evaluation/runner 定向回归 25/25 通过；覆盖预渲染 prompt 不再调用 chat template、普通路径仍单次渲染、非布尔标记失败，以及 LongBench sample 标记与外部 scorer 字段。
 - 完整 `python -m pytest -o addopts= --basetemp local/pytest-longbench-rendered-full -q`：195 passed，152.42s；仍只有既存 pandas 可选依赖 2 条 warning。
 - 通用 benchmark Slurm Bash syntax 与四个变更 Python 文件的内存 AST 编译通过。当前 Black 版本不支持 `--cache-dir`，首次 `black --diff` 仅报告测试文件两处换行格式并已按输出修正；随后重新检查。
+
+### Exact 长序列 query-chunk 单元
+
+测试计划：
+
+- exact/top-m soft transport 按 source sequence 维分成至多 32-token query chunks；每块继续调用同一完整词表 softmax、完整稀疏 T 和 receiver embedding 运算，再按原顺序拼接 embeddings 与全部 mass stats，数学语义必须与未分块 dense/sparse oracle 一致。
+- 65-token toy prompt 必须观测到 `[32, 32, 1]`（按实际长度断言）的 transport 调用上界，输出、causal shift、mask 和 stats 与既有 exact 行为一致；短序列既有测试保持逐位通过。
+- 该修复只缩小峰值中间张量，不使用 top-m、ORF 或预计算近似。Job 250 的 21.10GiB 申请应由约 `32/2048` 比例的 query-edge 中间块替代；真实验收仍以修复后 Qasper Job 的 Exit 0、1 success、无 partial 和峰值显存为准。
+- 完成 wrapper/soft-transport/evaluator 定向回归、完整 pytest、Black、内存 AST、Bash 和 diff 检查后，推送新的 `[UNACCEPTED]` 兼容提交并仅重跑 Qasper exact。
+
+实际结果：
+
+- wrapper/soft-transport/evaluator/runner 定向回归 51/51 通过；65-token exact 输入严格分为 `[32, 32, 1]`，拼接后 embeddings `(1, 65, 2)` 和 mass stats `(1, 65)` 与既有 exact oracle 一致。
+- 完整 `python -m pytest -o addopts= --basetemp local/pytest-exact-query-chunk-full -q`：196 passed，150.74s；仍只有既存 pandas 可选依赖 2 条 warning。
+- 六个相关 Python 文件内存 AST 和通用 benchmark Slurm Bash syntax 通过；首次 `black --diff` 仅要求 wrapper 两行机械折叠，已按输出修正并待最终复核。
