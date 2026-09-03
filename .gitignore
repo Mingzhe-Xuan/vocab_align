@@ -6,6 +6,8 @@ htmlcov/
 coverage.xml
 
 # Generated transport artifacts and experiment outputs.
+/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
+/*.npz.*-partial
 C2C/local/transport/artifacts/
 C2C/local/transport/manifests/
 C2C/local/transport/audits/
