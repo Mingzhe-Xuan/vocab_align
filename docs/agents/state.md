@@ -157,5 +157,6 @@
 - 2026-09-03 11:07 +08:00：Job 250 原始错误确认为 exact sparse transport 对 2048-token 序列一次展开 edge contributions，申请 21.10GiB 而 OOM；零 success summary 拒绝正确。进入 exact query-chunk 修复：参考 `docs/assets/alignment.py` 的 32-query chunk，把 sequence 分块而不改变完整词表/T 数学；修复测试通过后再跑 Qasper。
 - 2026-09-03 11:05 +08:00：exact query-chunk 修复完成：65-token toy 严格产生 `[32,32,1]`，定向 51/51、完整 196/196、AST/Bash 通过；估算 Job 250 的最大 edge contribution 块由 21.10GiB 降至约 0.33GiB，仍保留完整词表与 T。下一步最终 Black/diff、推送兼容提交，归档 Job 250 failed 目录后提交修复版 Qasper exact。
 - 2026-09-03 11:27 +08:00：Job 253 最终验收通过：Qasper 1/1 success、0 failed、无 bad/partial，单次渲染与完整 exact diagnostics/provenance 齐全；2060-token 输入总耗时 909.34s、transport 44.67s、CUDA peak 23.69GiB。输出 `>`，按 `external_required` 不伪造 accuracy。四 benchmark smoke 已齐，进入永久报告与 main 整理。
+- 2026-09-03 11:34 +08:00：已把兼容分支验证增量按序移植到 main-based 分支并保留双方审计历史；C2C 与 Guqq 已测树一致，完整回归 196/196（122.42s），Black/AST/Bash/diff 通过。下一步保存最终证据提交，再 squash 到 main 形成单个验收提交并推送。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。
