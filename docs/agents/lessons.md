@@ -26,6 +26,8 @@ full-vocabulary artifact 即使以 CSC 保存，audit 若先调用 `transport_to
 
 Guqq 登录节点可能能解析 GitHub，却在 `git pull` 时出现 GnuTLS `recv error (-110)` 或长时间无响应。发生网络连接问题时，先在服务器运行 `bash net.sh`，再重试 HTTPS `git pull`；不要切换到 GitHub SSH transport，因为该服务器没有对应的 GitHub public key。若仍无法同步，则暂停需要新源码的服务器任务并保留已生成数据。不得用 `scp` 覆盖服务器受 Git 管理源码，因为服务器源码只能通过 `git pull` 同步。
 
+连续三次 20–45 秒有界 pull 均可能在无输出状态被本地 timeout 杀死，即使 `net.sh` 已成功开通网络；这不足以证明 GitHub 不可达，也可能只是 HTTPS 建连或 pack 传输超过短窗口。完成 `net.sh` 后应允许一次可轮询的正常 `git pull --ff-only` 持续更久，并通过本地会话每 30–60 秒观察，而不是重复制造短超时。若长 pull 最终仍失败，再以其明确退出信息诊断；不得因等待较长而跳过“每次连接首项 pull”的门禁。
+
 从 Windows PowerShell 调用 `ssh Guqq "... python -c ..."` 时，PowerShell、SSH 和远端 Bash 的多层引号会在执行前重写参数；即使本地字符串看似成对，远端也可能收到无引号 Python 源码，导致连接建立后连首项 pull 都因整段 Bash parse 失败而未执行。远端轻量诊断优先使用已提交并测试的 `python -m` 入口或无嵌套引号的 `pip show`、`test`、`stat` 等命令；不得继续堆叠转义猜测。确需复合 Python 诊断时，应先在本地实现为受 Git 管理的明确 CLI，经 pull 后调用。
 
 ## OT active support 与 artifact 坐标
