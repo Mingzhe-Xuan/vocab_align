@@ -137,3 +137,4 @@
 - Job 246 的离线数据/模型加载通过，但双 auto placement 后 5 题全部显存 OOM；失败逐题记录完整、零 success 拒绝 summary。进入 source CPU/receiver GPU-auto 与 16-token 固定 recipe 修复，不增加 GPU 资源。
 - 完成 Job 246 OOM 修复：显式 source CPU/receiver auto、16-token greedy 与 allocator 配置，placement 写入 provenance；定向 25/25、完整 168/168 通过，准备原 records 断点重试。
 - Guqq 已同步 `d98a85e` 并以 Job 246 的 failed records 提交断点复验 Job 247；进入只读终态验收。
+- Job 247 完成 5/5 failed→success 断点重试并生成 latest-only summary；runtime/artifact/device-map/support/metrics/SHA/原子性完整，阶段 3 真实功能验收通过，开始整理 main 并进入阶段 4。
