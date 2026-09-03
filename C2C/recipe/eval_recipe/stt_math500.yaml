@@ -20,6 +20,10 @@ output:
   summary: local/transport/evaluation/math500-smoke/stt.summary.json
 eval:
   dataset: math-500
+  dataset_revision: 6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be
+  data_format: json
+  data_file: local/transport/datasets/math500/test.jsonl
+  data_file_sha256: 35dc41080a3680858b27fa7e0533d2d547825316fc5dafe5d316f4ccc5a06132
   gpu_ids: [0]
   answer_method: generate
   use_cot: false

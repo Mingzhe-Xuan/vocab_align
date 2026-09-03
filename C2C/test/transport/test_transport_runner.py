@@ -90,6 +90,7 @@ def test_benchmark_loaders_use_explicit_dataset_configs(
     evaluator = SimpleNamespace(
         dataset_name=dataset_name,
         dataset_config={"dataset_name": "fixture/data"},
+        eval_config={},
     )
     calls = []
     monkeypatch.setattr(
@@ -99,6 +100,35 @@ def test_benchmark_loaders_use_explicit_dataset_configs(
     )
     transport_runner._load_subject_dataset(evaluator, subject)
     assert calls == [expected_args]
+
+
+def test_local_benchmark_file_is_hash_checked_and_loaded_by_format(
+    monkeypatch, tmp_path
+):
+    data = tmp_path / "test.jsonl"
+    data.write_text('{"answer": "A"}\n', encoding="utf-8")
+    from rosetta.transport.corpus import file_sha256
+
+    evaluator = SimpleNamespace(
+        dataset_name="math-500",
+        dataset_config={"dataset_name": "remote", "test_split": "test"},
+        eval_config={
+            "data_file": str(data),
+            "data_file_sha256": file_sha256(data),
+            "data_format": "json",
+        },
+    )
+    calls = []
+    monkeypatch.setattr(
+        transport_runner,
+        "load_dataset",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or {"test": []},
+    )
+    transport_runner._load_subject_dataset(evaluator, "all")
+    assert calls == [(("json",), {"data_files": {"test": str(data)}})]
+    evaluator.eval_config["data_file_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        transport_runner._load_subject_dataset(evaluator, "all")
 
 
 def test_longbench_sample_preserves_external_scorer_inputs(monkeypatch, tmp_path):

@@ -149,5 +149,6 @@
 - 2026-09-03 09:35 +08:00：预注册消融展开、冻结 test 门禁和显式缺失配对统计完成，定向 10/10；进入 wrapper 近似模式单元。接口固定 `exact/hard/top_m/precomputed/orf`，ORF 直接调用 source backbone hidden state绕过 LM head；各模式依赖、stats 可用性和 padded vocab 继续严格验证。
 - 2026-09-03 09:40 +08:00：用户调整优先级：近似与消融实验暂缓，不作为当前验收条件；已完成的本地实现保留并停止扩展。当前阶段改为精确 STT 的跨 benchmark 验证，先补齐 MMLU-Redux、GSM8K、MATH-500、LongBench 的确定性小样本加载/记录协议，再通过 Slurm 逐项测试并如实报告任务分数、失败、耗时和显存；可选 benchmark 与完整规模运行在这轮 smoke 后决定。
 - 2026-09-03 09:55 +08:00：跨 benchmark 本地实现与验收完成：四类 loader、LongBench 外部评分语义、三个新增 exact smoke recipe 和通用 Slurm 入口已就绪；定向 24/24、完整 192/192、Black/compile/Bash/diff 通过。下一步形成 main-based `[UNACCEPTED]` 验证提交并推送；Guqq pull 后确认数据缓存，缺失资源按 `net.sh` 后下载，再分别提交 GSM8K、MATH-500、LongBench Qasper 作业，MMLU-Redux 使用已验收 Job 247 作为同协议证据。
+- 2026-09-03 10:31 +08:00：Guqq 的 Hugging Face DNS 在 `net.sh` 后仍连续失败，按许可改用本地固定 revision 下载 + scp；MATH-500 JSONL 446,564 bytes/SHA `35dc4108...`，Qasper Parquet 1,863,050 bytes/SHA `7c6bf3a2...`。runner 新增显式 `data_file`/format/SHA 门禁，recipes 绑定完整 dataset commit 和文件 SHA；定向 25/25 通过。下一步推送兼容提交、服务器 pull 后 scp 两文件，再提交三个 exact Slurm 作业。
 - 2026-09-01 20:19 +08:00：暂停 wrapper 实现并修订 GPU 测试提交流程；采用临时分支上的未验收验证提交供服务器 pull 和 Slurm 测试，正式分支仍只接受测试通过的验收提交。
 - 2026-09-01 20:20 +08:00：GPU 测试提交流程修订完成；规范文本、相关文档路径与 Git diff 检查通过，恢复 TrainingFreeTransportModel wrapper 实现。

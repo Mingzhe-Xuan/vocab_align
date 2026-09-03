@@ -21,6 +21,10 @@ output:
   summary: local/transport/evaluation/longbench-qasper-smoke/stt.summary.json
 eval:
   dataset: longbench
+  dataset_revision: 36dca87b51c492bf896705ab6953d3a6141dd012
+  data_format: parquet
+  data_file: local/transport/datasets/longbench-qasper/test.parquet
+  data_file_sha256: 7c6bf3a2a402b557d001808ba345a23921a211c39bf2d36d925d1d70e21b3f03
   gpu_ids: [0]
   answer_method: generate
   use_cot: false

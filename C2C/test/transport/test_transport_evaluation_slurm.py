@@ -45,8 +45,15 @@ def test_cross_benchmark_smoke_recipes_are_exact_and_isolated():
         assert recipe["model"]["generation_config"]["max_new_tokens"] == max_new_tokens
         assert recipe["eval"]["dataset"] == dataset
         assert recipe["eval"]["limit"] == limit
+        assert len(recipe["eval"]["dataset_revision"]) == 40
         output_dirs.add(recipe["output"]["output_dir"])
     assert len(output_dirs) == len(expected)
+    for filename in ("stt_math500.yaml", "stt_longbench_qasper.yaml"):
+        recipe = yaml.safe_load(
+            Path("recipe/eval_recipe", filename).read_text(encoding="utf-8")
+        )
+        assert recipe["eval"]["data_format"] in {"json", "parquet"}
+        assert len(recipe["eval"]["data_file_sha256"]) == 64
 
     script = Path("script/transport/slurm/evaluate_stt_benchmark.sbatch").read_text(
         encoding="utf-8"
