@@ -16,7 +16,7 @@ import torch
 import yaml
 
 from rosetta.transport.artifact import load_transport_artifact
-from rosetta.transport.config import TransportConfig
+from rosetta.transport.config import ConfigError, TransportConfig
 from rosetta.transport.token_metadata import tokenizer_fingerprint
 from rosetta.transport.wrapper import (
     TrainingFreeTransportModel,
@@ -493,11 +493,30 @@ def _load_runtime(
         revision=config.target.tokenizer_revision,
         use_fast=True,
     )
+    source_fingerprint = tokenizer_fingerprint(source_tokenizer)
+    target_fingerprint = tokenizer_fingerprint(target_tokenizer)
+    if (
+        config.source.tokenizer_fingerprint is not None
+        and config.source.tokenizer_fingerprint != source_fingerprint
+    ):
+        raise ConfigError("source tokenizer does not match configured fingerprint")
+    if (
+        config.target.tokenizer_fingerprint is not None
+        and config.target.tokenizer_fingerprint != target_fingerprint
+    ):
+        raise ConfigError("target tokenizer does not match configured fingerprint")
     artifact = load_transport_artifact(
         artifact_path,
-        source_fingerprint=tokenizer_fingerprint(source_tokenizer),
-        target_fingerprint=tokenizer_fingerprint(target_tokenizer),
+        source_fingerprint=source_fingerprint,
+        target_fingerprint=target_fingerprint,
     )
+    if (
+        config.expected_artifact_shape is not None
+        and artifact.shape != config.expected_artifact_shape
+    ):
+        raise ConfigError(
+            "artifact shape does not match configured target-by-source direction"
+        )
     source_model = AutoModelForCausalLM.from_pretrained(
         config.source.name,
         revision=config.source.revision,
@@ -522,6 +541,8 @@ def _load_runtime(
         causal_shift=config.transport.causal_shift,
         source_top_m=config.transport.source_top_m,
         source_vocab_size=len(source_tokenizer),
+        source_fingerprint=source_fingerprint,
+        target_fingerprint=target_fingerprint,
     )
     return wrapper, source_tokenizer, target_tokenizer
 

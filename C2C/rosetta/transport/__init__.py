@@ -55,6 +55,7 @@ from .config import (
     CollaborationSpec,
     DataSpec,
     ModelSpec,
+    SpecialTokenPolicy,
     TransportConfig,
     TransportConstructionSpec,
     TransportInferenceSpec,
@@ -123,6 +124,7 @@ from .soft_transport import (
     transport_probabilities,
     source_probabilities,
 )
+from .statistics import TransportStatisticsError, paired_transport_statistics
 from .vocab_transport import (
     LocalTransportArtifact,
     VocabTransportBuildResult,
@@ -175,6 +177,7 @@ __all__ = [
     "SparseCoupling",
     "SoftTransportError",
     "SoftTransportStats",
+    "SpecialTokenPolicy",
     "TransportArtifact",
     "TransportConfig",
     "TransportConstructionSpec",
@@ -184,6 +187,7 @@ __all__ = [
     "TransportGenerationOutput",
     "TransportModelError",
     "TransportPrefill",
+    "TransportStatisticsError",
     "VirtualPrompt",
     "VocabTransportBuildResult",
     "TokenMetadata",
@@ -225,6 +229,7 @@ __all__ = [
     "ordinary_bytes_index",
     "positive_orf_features",
     "paired_evaluation_summary",
+    "paired_transport_statistics",
     "precompute_source_values",
     "precomputed_transport_embeddings",
     "save_transport",
