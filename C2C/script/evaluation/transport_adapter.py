@@ -126,6 +126,8 @@ def _configure_approximation(
         "receiver_start_token_id": wrapper.receiver_start_token_id,
         "source_vocab_size": wrapper.source_vocab_size,
         "approximation_mode": mode,
+        "source_fingerprint": wrapper.source_fingerprint,
+        "target_fingerprint": wrapper.target_fingerprint,
     }
     if mode == "top_m":
         common["source_top_m"] = approximation.get("source_top_m")

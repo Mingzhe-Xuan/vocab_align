@@ -387,6 +387,41 @@ def test_missing_start_token_and_cache_fail_explicitly():
         model.prefill(torch.tensor([[0, 1]]))
 
 
+def test_wrapper_rejects_forward_artifact_in_reverse_direction():
+    artifact = _artifact()
+    with pytest.raises(TransportModelError, match="source tokenizer fingerprint"):
+        TrainingFreeTransportModel(
+            TinySource(),
+            TinyReceiver(),
+            artifact,
+            tau=1.0,
+            source_fingerprint="target",
+            target_fingerprint="source",
+        )
+
+    model = TrainingFreeTransportModel(
+        TinySource(),
+        TinyReceiver(),
+        artifact,
+        tau=1.0,
+        source_fingerprint="source",
+        target_fingerprint="target",
+    )
+    assert model.source_fingerprint == "source"
+    assert model.target_fingerprint == "target"
+
+
+def test_wrapper_requires_direction_fingerprints_as_a_pair():
+    with pytest.raises(TransportModelError, match="provided together"):
+        TrainingFreeTransportModel(
+            TinySource(),
+            TinyReceiver(),
+            _artifact(),
+            tau=1.0,
+            source_fingerprint="source",
+        )
+
+
 @pytest.mark.parametrize(
     "kwargs,message",
     [

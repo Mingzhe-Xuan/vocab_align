@@ -2,18 +2,20 @@
 
 ## 当前状态
 
-Training-free Soft-Token Transport 的 exact 跨 benchmark 固定小样本验收已完成并以 `c8dc57a` 推送。阶段 5 配对统计实现现已完成：聚合器提供确定性 paired bootstrap、exact two-sided McNemar、守恒 subject/category 切片、四段 latency 与稳定失败索引，并显式报告缺失/失败/未评分样本；完整回归 202/202 通过，验收提交已形成。当前进入反向/第二模型对配置与方向安全审计。近似与消融实验按用户要求延期。
+Training-free Soft-Token Transport 的 exact 跨 benchmark 和阶段 5 配对统计已分别以 `c8dc57a`、`119036a` 推送。反向 Mistral-Nemo→Qwen3 与第二 Qwen3→DeepSeek recipes、固定 tokenizer 指纹/目标×源 shape/special policy、wrapper 方向门禁已经实现，定向 61/61、完整 206/206 通过。当前准备形成配置安全验收提交，随后核验反向或第二模型对 full T/最小主表的服务器数据、模型与作业前置条件。近似与消融实验按用户要求延期。
 
 ## 当前计划
 
-1. 推送阶段 5 配对统计验收提交并核验远端一致性。
-2. 审计并补齐反向/第二模型对 recipe 与 artifact 方向安全校验。
-3. 核验剩余非近似基线/泛化验收；需要真实模型计算时仅经 Slurm 执行。近似/消融实验继续延期。
+1. 形成并推送反向/第二模型对配置与方向安全验收提交。
+2. 只读核验 Guqq 的 canonical corpus、ANN、模型 cache 与磁盘/集群条件，选择反向或第二模型对构建独立 full T。
+3. 经 Slurm 完成所选方向的 exact 最小主表并报告；近似/消融实验继续延期。
 
 ## 变更记录
 
 - 2026-09-03 11:39 +08:00：exact benchmark 验收提交 `c8dc57a` 已推送且远端一致；完整目标仍缺阶段 5 统计/泛化及部分配对基线。进入配对统计实现单元，先本地完成确定性显著性、切片、延迟与失败索引；近似/消融实验继续延期。
 - 2026-09-03 11:57 +08:00：阶段 5 配对统计实现完成，16/16 定向与 202/202 完整回归通过；默认 Black 用户缓存连续卡住后查阅并新增经验，改用仓库内任务缓存完成格式检查。下一步形成验收提交，再进入反向/第二模型对审计。
+- 2026-09-03 12:04 +08:00：配对统计提交 `119036a` 已推送。方向审计确认 live tokenizer loader 已有指纹校验，但 recipe 未冻结指纹、wrapper 无独立 expected direction，且反向/第二模型对 recipe 缺失；进入 recipe 指纹/special policy 与 wrapper 方向门禁实现，第二模型对复用既有 Qwen3→DeepSeek 真实 tokenizer 审计。
+- 2026-09-03 12:10 +08:00：反向/第二模型对配置安全单元完成，61/61 定向、206/206 完整回归及 Black/AST/diff 通过；三个方向独立固定 artifact 路径、shape、指纹和 special policy，wrapper 在 forward 前拒绝反向 artifact。下一步形成验收提交，再只读核验 Guqq 构建新方向 full T 的前置条件。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

@@ -892,3 +892,19 @@ wrapper 近似模式测试计划：
 - 新增统计与既有 summarizer/ablation 定向回归：`16 passed in 33.37s`；覆盖固定 seed bootstrap、手工 McNemar 四格表、零 discordant、切片守恒、缺失 latency、不完整/未评分配对、失败索引、标签漂移和 CLI 兼容输出。
 - 完整回归：`202 passed, 2 warnings in 115.86s`；两条 warning 仍仅为既有 pandas 对可选 `numexpr`/`bottleneck` 版本的提示。
 - 五个相关 Python 文件在任务专用 `BLACK_CACHE_DIR` 下 Black unchanged；`compileall`、CLI `--help` 与 `git diff --check` 通过。默认用户 Black 缓存连续卡住三次，未缩减测试范围，经验已写入 `docs/agents/lessons.md`。
+# 2026-09-03：反向/第二模型对配置与方向安全单元
+
+测试计划：
+
+- 主、smoke、反向 Mistral-Nemo→Qwen3 与第二 Qwen3→DeepSeek recipes 均须通过同一 `TransportConfig` schema；模型/tokenizer revision 为 40 位提交，tokenizer fingerprint 为 64 位 SHA-256，artifact 输出路径互不相同。
+- 反向 recipe 的 source/target 名称、revision、tokenizer fingerprint 和 artifact shape 语义必须相对主方向交换；source/target marginals 仍由该方向独立构建，recipe 不得声明转置或复用正向 artifact。
+- 每个正式 recipe 显式冻结安全 special policy：完整 source tokenizer support、ordinary-only target support、exact-kind 后 literal-byte fallback、receiver-native boundary；非法或未知 policy 必须在加载配置时失败。
+- wrapper 接受成对的 expected source/target fingerprints；用正向 artifact 初始化反向 wrapper 必须在任何模型 forward 前失败，匹配方向保持现有 exact oracle 结果不变；近似 wrapper 重建不得丢失方向门禁。
+- 第二模型对使用既有 Qwen3→DeepSeek tokenizer 审计的锁定 revision/fingerprint，不下载模型、不构建 T、不运行远程实验。运行配置/artifact/wrapper 定向 pytest、完整 pytest、Black、compile 与 `git diff --check`。
+
+实际结果：
+
+- config/wrapper/smoke/evaluation 定向回归：`61 passed in 4.98s`；主/反向/DeepSeek recipes 均解析，方向交换、三组独立路径/shape/fingerprint、严格 special policy、wrapper 正反指纹拒绝与匹配路径通过。
+- 完整回归：`206 passed, 2 warnings in 112.49s`；两条 warning 仍仅为既有 pandas 可选依赖提示。
+- 七个相关 Python 文件 Black unchanged，六个文件内存 AST 通过，source `compileall` 通过，`git diff --check` 通过。测试文件 pycache 原子写受既有 Windows ACL 阻止，因此改用不写文件的 AST 检查；pytest 已实际导入并执行这些测试，未跳过范围。
+- 本单元只验收配置和加载安全；反向/第二模型对尚未构建 full T 或运行 benchmark，recipe README 明确禁止把配置存在误报为实验完成。

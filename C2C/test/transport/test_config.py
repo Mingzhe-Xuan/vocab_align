@@ -8,6 +8,7 @@ from rosetta.transport.config import (
     DataSpec,
     ModelSpec,
     PENDING_CHECKPOINT,
+    SpecialTokenPolicy,
     TransportConfig,
     TransportConstructionSpec,
     TransportInferenceSpec,
@@ -158,3 +159,46 @@ def test_pinned_recipe_explicitly_enables_causal_shift():
         max_iter=10_000,
         smoothing=1e-8,
     )
+
+
+def _recipe(name):
+    path = Path(__file__).resolve().parents[2] / "recipe" / "transport_recipe" / name
+    return TransportConfig.from_dict(yaml.safe_load(path.read_text(encoding="utf-8")))
+
+
+def test_reverse_and_second_model_pair_recipes_pin_independent_directions():
+    forward = _recipe("qwen3_8b_to_mistral_nemo_instruct_2407.yaml")
+    reverse = _recipe("mistral_nemo_to_qwen3_8b.yaml")
+    second = _recipe("qwen3_8b_to_deepseek_r1_distill_llama_8b.yaml")
+
+    assert reverse.source.name == forward.target.name
+    assert reverse.target.name == forward.source.name
+    assert reverse.source.revision == forward.target.revision
+    assert reverse.target.revision == forward.source.revision
+    assert reverse.source.tokenizer_fingerprint == forward.target.tokenizer_fingerprint
+    assert reverse.target.tokenizer_fingerprint == forward.source.tokenizer_fingerprint
+    assert reverse.expected_artifact_shape == (151643, 131072)
+    assert forward.expected_artifact_shape == (131069, 151669)
+    assert reverse.output_path != forward.output_path
+    assert second.target.name == "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    assert second.expected_artifact_shape == (128000, 151669)
+    assert len({forward.output_path, reverse.output_path, second.output_path}) == 3
+    assert forward.special_tokens == reverse.special_tokens == second.special_tokens
+    assert forward.special_tokens == SpecialTokenPolicy()
+
+
+def test_recipe_fingerprints_shapes_and_special_policy_are_strict():
+    payload = _payload()
+    payload["source"]["tokenizer_fingerprint"] = "not-a-sha"
+    with pytest.raises(ConfigError, match="fingerprint"):
+        TransportConfig.from_dict(payload)
+
+    payload = _payload()
+    payload["expected_artifact_shape"] = [2, 0]
+    with pytest.raises(ConfigError, match="artifact_shape"):
+        TransportConfig.from_dict(payload)
+
+    payload = _payload()
+    payload["special_tokens"] = {"target_support": "all_tokens"}
+    with pytest.raises(ConfigError, match="special token policy"):
+        TransportConfig.from_dict(payload)

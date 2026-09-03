@@ -29,6 +29,7 @@ class ModelSpec:
     name: str
     revision: str
     tokenizer_revision: str
+    tokenizer_fingerprint: Optional[str] = None
     dtype: str = "bfloat16"
     device_map: Any = "auto"
     checkpoint: Optional[str] = None
@@ -42,6 +43,10 @@ class ModelSpec:
         ):
             if not PINNED_REVISION.fullmatch(revision):
                 raise ConfigError(f"{label} must be a pinned 40-character commit SHA")
+        if self.tokenizer_fingerprint is not None and not re.fullmatch(
+            r"[0-9a-f]{64}", self.tokenizer_fingerprint
+        ):
+            raise ConfigError("tokenizer fingerprint must be a 64-character SHA-256")
         if self.dtype not in {"float32", "float16", "bfloat16"}:
             raise ConfigError(f"unsupported dtype: {self.dtype}")
         if self.checkpoint is not None and not str(self.checkpoint).strip():
@@ -64,6 +69,7 @@ class ModelSpec:
                 "name",
                 "revision",
                 "tokenizer_revision",
+                "tokenizer_fingerprint",
                 "dtype",
                 "device_map",
                 "checkpoint",
@@ -190,6 +196,39 @@ class TransportConstructionSpec:
 
 
 @dataclass(frozen=True)
+class SpecialTokenPolicy:
+    """Frozen safe support policy implemented by the formal builder."""
+
+    source_support: str = "full_tokenizer"
+    target_support: str = "ordinary_only"
+    mapping: str = "exact_kind_then_literal_bytes"
+    receiver_boundary: str = "native"
+
+    def validate(self) -> None:
+        expected = SpecialTokenPolicy()
+        if self != expected:
+            raise ConfigError(
+                "special token policy must use full source support, ordinary-only "
+                "target support, exact-kind/literal-byte mapping, and native receiver "
+                "boundaries"
+            )
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SpecialTokenPolicy":
+        _only_fields(
+            payload,
+            {"source_support", "target_support", "mapping", "receiver_boundary"},
+            "special token policy",
+        )
+        try:
+            value = cls(**payload)
+        except TypeError as exc:
+            raise ConfigError(f"invalid special token policy: {exc}") from exc
+        value.validate()
+        return value
+
+
+@dataclass(frozen=True)
 class TransportConfig:
     schema_version: int
     source: ModelSpec
@@ -198,10 +237,12 @@ class TransportConfig:
     seed: int
     output_path: str
     output_schema: str
+    expected_artifact_shape: Optional[Tuple[int, int]] = None
     construction: TransportConstructionSpec = field(
         default_factory=TransportConstructionSpec
     )
     transport: TransportInferenceSpec = field(default_factory=TransportInferenceSpec)
+    special_tokens: SpecialTokenPolicy = field(default_factory=SpecialTokenPolicy)
     generation: Dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
@@ -212,6 +253,7 @@ class TransportConfig:
         self.data.validate()
         self.construction.validate()
         self.transport.validate()
+        self.special_tokens.validate()
         if (
             isinstance(self.seed, bool)
             or not isinstance(self.seed, int)
@@ -222,12 +264,24 @@ class TransportConfig:
             raise ConfigError("output_path is required")
         if not self.output_schema.strip():
             raise ConfigError("output_schema is required")
+        if self.expected_artifact_shape is not None and (
+            len(self.expected_artifact_shape) != 2
+            or any(
+                isinstance(size, bool) or not isinstance(size, int) or size <= 0
+                for size in self.expected_artifact_shape
+            )
+        ):
+            raise ConfigError(
+                "expected_artifact_shape must be two positive integer dimensions"
+            )
         if not isinstance(self.generation, dict):
             raise ConfigError("generation must be an object")
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)
         payload["data"]["build_splits"] = list(self.data.build_splits)
+        if self.expected_artifact_shape is not None:
+            payload["expected_artifact_shape"] = list(self.expected_artifact_shape)
         return payload
 
     def to_json(self) -> str:
@@ -248,8 +302,10 @@ class TransportConfig:
                 "seed",
                 "output_path",
                 "output_schema",
+                "expected_artifact_shape",
                 "construction",
                 "transport",
+                "special_tokens",
                 "generation",
             },
             "transport",
@@ -263,11 +319,19 @@ class TransportConfig:
                 seed=payload["seed"],
                 output_path=payload["output_path"],
                 output_schema=payload["output_schema"],
+                expected_artifact_shape=(
+                    tuple(payload["expected_artifact_shape"])
+                    if payload.get("expected_artifact_shape") is not None
+                    else None
+                ),
                 construction=TransportConstructionSpec.from_dict(
                     payload.get("construction", {})
                 ),
                 transport=TransportInferenceSpec.from_dict(
                     payload.get("transport", {})
+                ),
+                special_tokens=SpecialTokenPolicy.from_dict(
+                    payload.get("special_tokens", {})
                 ),
                 generation=dict(payload.get("generation", {})),
             )

@@ -21,9 +21,10 @@ does not modify the existing C2C projector or wrapper.
   matrix and its provenance. Loading never enables NumPy pickle payloads;
   column normalization stays at dtype precision while the recorded marginal
   L1 tolerance is bounded by the pre-registered full-vocabulary requirement.
-- `config.py`: immutable model/data/runtime configuration with pinned revision,
-  construction (`epsilon`, tolerance, iterations, smoothing), inference, and
-  cross-field validation.
+- `config.py`: immutable model/data/runtime configuration with pinned revision
+  and optional tokenizer fingerprint, direction-specific expected artifact
+  shape, frozen special-token policy, construction (`epsilon`, tolerance,
+  iterations, smoothing), inference, and cross-field validation.
 - `manifest.py`: order-independent train/dev splits based on stable sample IDs.
 - `corpus.py`: pinned raw-corpus hashing, canonical conversation identities,
   exact-content deduplication, and manifest-bound split loading.
@@ -60,6 +61,8 @@ does not modify the existing C2C projector or wrapper.
   chunks before applying the same full-vocabulary softmax and complete sparse
   transport. This bounds the query-by-edge intermediate without changing the
   exact transport distribution or enabling an approximation mode.
+  When expected source/target tokenizer fingerprints are supplied, it rejects
+  a reversed artifact before any model forward.
 
 Generated artifacts belong under `local/transport/artifacts/` (or an explicit
 runtime output directory), not in this source package.

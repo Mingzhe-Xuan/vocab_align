@@ -7,23 +7,22 @@ source:
   dtype: bfloat16
   device_map: auto
 target:
-  name: mistralai/Mistral-Nemo-Instruct-2407
-  revision: 04d8a90549d23fc6bd7f642064003592df51e9b3
-  tokenizer_revision: 04d8a90549d23fc6bd7f642064003592df51e9b3
-  tokenizer_fingerprint: 8542bdc8f193dbf60d2cda105a0ed472df34f89888842651e38b0388732eb53e
+  name: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+  revision: 6a6f4aa4197940add57724a7707d069478df56b1
+  tokenizer_revision: 6a6f4aa4197940add57724a7707d069478df56b1
+  tokenizer_fingerprint: eecdd1d11a2057ee4e73047275f4f3313404cab5170aa7bd7fc84878ef561d91
   dtype: bfloat16
   device_map: auto
   checkpoint: pending-new-projector-training
 data:
   dataset: teknium/OpenHermes-2.5
   revision: 05c3557e57b6dd1d0e0cb8369ba53b43e15fd10b
-  build_splits:
-    - transport_train
+  build_splits: [transport_train]
   dev_fraction: 0.01
 seed: 42
-output_path: local/transport/artifacts/qwen3_8b_to_mistral_nemo_openhermes_500k.npz
-output_schema: stt-smoke-v2
-expected_artifact_shape: [131069, 151669]
+output_path: local/transport/artifacts/qwen3_8b_to_deepseek_r1_distill_llama_8b.npz
+output_schema: stt-result-v1
+expected_artifact_shape: [128000, 151669]
 construction:
   epsilon: 0.5
   tolerance: 0.002
@@ -40,5 +39,5 @@ special_tokens:
   receiver_boundary: native
 generation:
   do_sample: false
-  max_new_tokens: 2
+  max_new_tokens: 128
   temperature: 1.0

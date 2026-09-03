@@ -152,10 +152,23 @@ class TrainingFreeTransportModel(_ModuleBase):
         approximation_mode: str | None = None,
         precomputed_source_values: torch.Tensor | None = None,
         orf_state: OrfTransportState | None = None,
+        source_fingerprint: str | None = None,
+        target_fingerprint: str | None = None,
     ) -> None:
         _require_torch()
         super().__init__()
         artifact.validate()
+        if (source_fingerprint is None) != (target_fingerprint is None):
+            raise TransportModelError(
+                "source and target fingerprints must be provided together"
+            )
+        if source_fingerprint is not None:
+            if not source_fingerprint or not target_fingerprint:
+                raise TransportModelError("tokenizer fingerprints must be nonempty")
+            if artifact.metadata["source_fingerprint"] != source_fingerprint:
+                raise TransportModelError("source tokenizer fingerprint mismatch")
+            if artifact.metadata["target_fingerprint"] != target_fingerprint:
+                raise TransportModelError("target tokenizer fingerprint mismatch")
         if not np.isfinite(tau) or tau <= 0:
             raise TransportModelError("transport tau must be finite and positive")
         if not isinstance(causal_shift, bool):
@@ -274,6 +287,8 @@ class TrainingFreeTransportModel(_ModuleBase):
         self.approximation_mode = approximation_mode
         self.precomputed_source_values = precomputed_source_values
         self.orf_state = orf_state
+        self.source_fingerprint = source_fingerprint
+        self.target_fingerprint = target_fingerprint
 
     def build_virtual_prompt(
         self,
