@@ -1,5 +1,10 @@
 # Exact STT benchmark smoke 结果
 
+> 历史结果（已被 2026-09-03 的 planner→thinker 协议取代）。下列 Job
+> 247/248/249/253 的 receiver 没有接收独立的原生题目提示词，也没有先生成
+> sender thought，因此不能作为新需求的验收结果。新协议的 benchmark 结果
+> 将写入新的输出目录并另行补充；在完成前，不应拿本页旧分数判断新实现质量。
+
 ## 范围与口径
 
 本报告记录 Qwen3-8B → Mistral-Nemo-Instruct-2407 的 training-free

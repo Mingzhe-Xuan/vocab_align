@@ -2,13 +2,13 @@
 
 ## 当前状态
 
-Training-free Soft-Token Transport 的 exact 跨 benchmark 和阶段 5 配对统计已分别以 `c8dc57a`、`119036a` 推送。反向 Mistral-Nemo→Qwen3 与第二 Qwen3→DeepSeek recipes、固定 tokenizer 指纹/目标×源 shape/special policy、wrapper 方向门禁已经实现，定向 61/61、完整 206/206 通过。当前准备形成配置安全验收提交，随后核验反向或第二模型对 full T/最小主表的服务器数据、模型与作业前置条件。近似与消融实验按用户要求延期。
+Planner→Thinker exact STT 已完成本地实现与完整回归：sender 是 planner、receiver 是 thinker；同一题目同时进入两侧原生提示词并显式开启两侧 CoT；sender 先生成 think，再将 `sender prompt + sender think` 全 context hidden states 经 STT 对齐，前置拼接到 receiver 自己显式编码的题目 prompt，最后由 receiver 思考并回答。当前等待形成临时远程验证提交，并在 Guqq 通过 Slurm 重跑四项 benchmark；旧 prompt-only 结果仅作历史诊断，近似/消融继续延期。
 
 ## 当前计划
 
-1. 形成并推送反向/第二模型对配置与方向安全验收提交。
-2. 只读核验 Guqq 的 canonical corpus、ANN、模型 cache 与磁盘/集群条件，选择反向或第二模型对构建独立 full T。
-3. 经 Slurm 完成所选方向的 exact 最小主表并报告；近似/消融实验继续延期。
+1. 形成并推送标记为未验收的 planner→thinker 临时验证提交。
+2. Guqq 首项执行 `git pull`，通过 Slurm 依次运行协议 smoke 与 MMLU-Redux、GSM8K、MATH-500、LongBench exact 小样本。
+3. 核验逐题协议 diagnostics、输出、分数、耗时、显存及产物完整性；通过后整理验收提交并报告，近似/消融继续延期。
 
 ## 变更记录
 
@@ -16,6 +16,8 @@ Training-free Soft-Token Transport 的 exact 跨 benchmark 和阶段 5 配对统
 - 2026-09-03 11:57 +08:00：阶段 5 配对统计实现完成，16/16 定向与 202/202 完整回归通过；默认 Black 用户缓存连续卡住后查阅并新增经验，改用仓库内任务缓存完成格式检查。下一步形成验收提交，再进入反向/第二模型对审计。
 - 2026-09-03 12:04 +08:00：配对统计提交 `119036a` 已推送。方向审计确认 live tokenizer loader 已有指纹校验，但 recipe 未冻结指纹、wrapper 无独立 expected direction，且反向/第二模型对 recipe 缺失；进入 recipe 指纹/special policy 与 wrapper 方向门禁实现，第二模型对复用既有 Qwen3→DeepSeek 真实 tokenizer 审计。
 - 2026-09-03 12:10 +08:00：反向/第二模型对配置安全单元完成，61/61 定向、206/206 完整回归及 Black/AST/diff 通过；三个方向独立固定 artifact 路径、shape、指纹和 special policy，wrapper 在 forward 前拒绝反向 artifact。下一步形成验收提交，再只读核验 Guqq 构建新方向 full T 的前置条件。
+- 2026-09-03 12:18 +08:00：用户替换研究目标，停止反向/第二模型对 full T 与实验推进；新主协议为 Planner→Thinker 双题目、双 CoT，并把完整 sender prompt+think hidden-state STT prefix 拼到 receiver native prompt 前。旧 prompt-only Jobs 245/247–253 降为历史诊断，下一步先完成计划修订与本地实现测试，再重跑 exact benchmarks。
+- 2026-09-03 12:44 +08:00：Planner→Thinker 协议实现、smoke/benchmark recipes 与文档迁移完成；定向 80/80、完整 207/207、Black 检查通过。下一步形成未验收临时提交，并按连接审计与 Slurm 规则运行真实模型 smoke 和四项 exact benchmark。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

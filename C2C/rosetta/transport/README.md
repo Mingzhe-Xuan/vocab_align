@@ -9,7 +9,7 @@ does not modify the existing C2C projector or wrapper.
   configurations, and sample-ID paired accuracy summaries with explicit
   missing-pair reports.
 - `statistics.py`: deterministic paired bootstrap and exact McNemar analysis,
-  conserved subject/category slices, four-stage latency summaries, and stable
+  conserved subject/category slices, five-stage latency summaries, and stable
   failure indexes for unified evaluation records.
 - `vocab_transport.py`: local special/exact/span baseline for tiny corpora.
 - `sinkhorn.py`: dense oracle and sparse log-domain scaling with gauge-fixed,
@@ -24,7 +24,8 @@ does not modify the existing C2C projector or wrapper.
 - `config.py`: immutable model/data/runtime configuration with pinned revision
   and optional tokenizer fingerprint, direction-specific expected artifact
   shape, frozen special-token policy, construction (`epsilon`, tolerance,
-  iterations, smoothing), inference, and cross-field validation.
+  iterations, smoothing), inference, frozen planner/thinker roles, independent
+  greedy generation budgets, and cross-field validation.
 - `manifest.py`: order-independent train/dev splits based on stable sample IDs.
 - `corpus.py`: pinned raw-corpus hashing, canonical conversation identities,
   exact-content deduplication, and manifest-bound split loading.
@@ -55,8 +56,11 @@ does not modify the existing C2C projector or wrapper.
 - `evaluation.py`: append-only per-sample records, prompt-safe resume, explicit
   failures, deterministic rank merge, and atomic aggregate summaries shared by
   receiver/source/T2T/C2C/STT adapters.
-- `wrapper.py`: no-grad source prefill, explicit causal-shift virtual prompts,
-  receiver KV-cache decoding, and an independent receiver-only baseline path.
+- `wrapper.py`: no-grad sender full-context prefill, exact STT embeddings
+  prepended to the receiver's native prompt embeddings, receiver KV-cache
+  decoding, and an independent receiver-only baseline path. The current
+  planner-to-thinker protocol transports every sender prompt/thought position
+  (`causal_shift: false`) and then appends the explicit thinker prompt.
   Exact soft transport partitions the source sequence into 32-token query
   chunks before applying the same full-vocabulary softmax and complete sparse
   transport. This bounds the query-by-edge intermediate without changing the

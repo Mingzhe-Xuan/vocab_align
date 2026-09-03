@@ -31,13 +31,26 @@ construction:
   smoothing: 1.0e-8
 transport:
   tau: 1.0
-  causal_shift: true
+  causal_shift: false
   source_top_m: null
 special_tokens:
   source_support: full_tokenizer
   target_support: ordinary_only
   mapping: exact_kind_then_literal_bytes
   receiver_boundary: native
+collaboration:
+  sender_role: planner
+  receiver_role: thinker
+  sender_system_prompt: You are the planner. Analyze the problem step by step and produce a useful reasoning plan for another model.
+  receiver_system_prompt: You are the thinker. Use the preceding planner context, think through the problem step by step yourself, and give the final answer.
+  sender_enable_thinking: true
+  receiver_enable_thinking: true
+  context_mode: sender_prompt_and_think
+  receiver_problem_mode: explicit
+sender_generation:
+  do_sample: false
+  max_new_tokens: 128
+  temperature: 1.0
 generation:
   do_sample: false
   max_new_tokens: 128

@@ -420,7 +420,13 @@ class UnifiedEvaluator:
     
 
 
-    def _format_longbench_example(self, example: Dict[str, Any], tokenizer: AutoTokenizer) -> str:
+    def _format_longbench_example(
+        self,
+        example: Dict[str, Any],
+        tokenizer: AutoTokenizer,
+        *,
+        apply_chat_template: bool = True,
+    ) -> str:
 
 
         current_subject = self.current_evaluating_subject  
@@ -438,13 +444,13 @@ class UnifiedEvaluator:
                         tokenizer.decode(tokenized_raw[-half_len:], skip_special_tokens=True)
         
         no_chat_template_tasks = ["trec", "triviaqa", "samsum", "lsht", "lcc", "repobench-p"]
-        if subject not in no_chat_template_tasks:
+        if apply_chat_template and subject not in no_chat_template_tasks:
             messages = [{"role": "user", "content": raw_prompt}]
             final_prompt = tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
                 add_generation_prompt=True,
-                enable_thinking=False
+                enable_thinking=True
             )
         else:
             final_prompt = raw_prompt

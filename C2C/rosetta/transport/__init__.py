@@ -52,6 +52,7 @@ from .candidate_graph import (
 )
 from .config import (
     ConfigError,
+    CollaborationSpec,
     DataSpec,
     ModelSpec,
     SpecialTokenPolicy,
@@ -156,6 +157,7 @@ __all__ = [
     "CandidateGraphError",
     "ConvergenceReport",
     "ConfigError",
+    "CollaborationSpec",
     "CorpusError",
     "DataSpec",
     "EdgeSource",

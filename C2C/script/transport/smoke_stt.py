@@ -191,7 +191,7 @@ def _receiver_only_report(
     prompt: str,
     generation: Mapping[str, Any],
 ) -> dict[str, Any]:
-    encoded = target_tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
+    encoded = target_tokenizer(prompt, return_tensors="pt", add_special_tokens=False)
     input_ids = torch.as_tensor(encoded["input_ids"], dtype=torch.long)
     if input_ids.ndim == 1:
         input_ids = input_ids.unsqueeze(0)
@@ -244,6 +244,39 @@ def _receiver_only_report(
     }
 
 
+def _role_messages(prompt: str, system_prompt: str) -> list[dict[str, str]]:
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt},
+    ]
+
+
+def _render_role_prompt(
+    tokenizer: Any, prompt: str, system_prompt: str, enable_thinking: bool
+) -> str:
+    return tokenizer.apply_chat_template(
+        _role_messages(prompt, system_prompt),
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=enable_thinking,
+    )
+
+
+def _encode_prompt(
+    tokenizer: Any, rendered_prompt: str
+) -> tuple[torch.Tensor, torch.Tensor]:
+    encoded = tokenizer(rendered_prompt, return_tensors="pt", add_special_tokens=False)
+    input_ids = torch.as_tensor(encoded["input_ids"], dtype=torch.long)
+    if input_ids.ndim == 1:
+        input_ids = input_ids.unsqueeze(0)
+    attention_mask = torch.as_tensor(
+        encoded.get("attention_mask", torch.ones_like(input_ids)), dtype=torch.long
+    )
+    if attention_mask.ndim == 1:
+        attention_mask = attention_mask.unsqueeze(0)
+    return input_ids, attention_mask
+
+
 def build_smoke_report(
     wrapper: TrainingFreeTransportModel,
     source_tokenizer: Any,
@@ -259,21 +292,63 @@ def build_smoke_report(
         raise SmokeError("prompt must be a nonempty string")
     generation = _validate_generation(generation)
 
-    receiver_only = _receiver_only_report(wrapper, target_tokenizer, prompt, generation)
-
-    encoded = source_tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
-    input_ids = torch.as_tensor(encoded["input_ids"], dtype=torch.long)
-    if input_ids.ndim == 1:
-        input_ids = input_ids.unsqueeze(0)
-    attention_mask = torch.as_tensor(
-        encoded.get("attention_mask", torch.ones_like(input_ids)), dtype=torch.long
+    collaboration = config.collaboration
+    sender_text = _render_role_prompt(
+        source_tokenizer,
+        prompt,
+        collaboration.sender_system_prompt,
+        collaboration.sender_enable_thinking,
     )
-    if attention_mask.ndim == 1:
-        attention_mask = attention_mask.unsqueeze(0)
+    receiver_text = _render_role_prompt(
+        target_tokenizer,
+        prompt,
+        collaboration.receiver_system_prompt,
+        collaboration.receiver_enable_thinking,
+    )
+    receiver_only = _receiver_only_report(
+        wrapper, target_tokenizer, receiver_text, generation
+    )
+    input_ids, attention_mask = _encode_prompt(source_tokenizer, sender_text)
+    receiver_input_ids, receiver_attention_mask = _encode_prompt(
+        target_tokenizer, receiver_text
+    )
     device = _source_device(wrapper.source_model)
+    source_ids = input_ids.to(device)
+    source_mask = attention_mask.to(device)
+    sender_generation = _validate_generation(config.sender_generation)
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    sender_started = perf_counter()
+    with torch.no_grad():
+        sender_context_ids = wrapper.source_model.generate(
+            input_ids=source_ids,
+            attention_mask=source_mask,
+            **sender_generation,
+        )
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    sender_generation_seconds = perf_counter() - sender_started
+    if not isinstance(sender_context_ids, torch.Tensor):
+        sender_context_ids = getattr(sender_context_ids, "sequences", None)
+    if (
+        not isinstance(sender_context_ids, torch.Tensor)
+        or sender_context_ids.ndim != 2
+        or sender_context_ids.shape[0] != source_ids.shape[0]
+        or sender_context_ids.shape[1] <= source_ids.shape[1]
+        or not torch.equal(sender_context_ids[:, : source_ids.shape[1]], source_ids)
+    ):
+        raise SmokeError(
+            "sender generate must return the prompt prefix plus at least one think token"
+        )
+    sender_think_ids = sender_context_ids[:, source_ids.shape[1] :]
+    sender_context_mask = torch.cat(
+        (source_mask, torch.ones_like(sender_think_ids, dtype=source_mask.dtype)), dim=1
+    )
     output = wrapper.generate(
-        input_ids.to(device),
-        source_attention_mask=attention_mask.to(device),
+        sender_context_ids,
+        source_attention_mask=sender_context_mask,
+        receiver_input_ids=receiver_input_ids,
+        receiver_attention_mask=receiver_attention_mask,
         return_transport_output=True,
         **generation,
     )
@@ -300,7 +375,7 @@ def build_smoke_report(
         ).encode("utf-8")
     ).hexdigest()
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "input_fingerprint": input_fingerprint,
         "code_version": code_version,
         "prompt": prompt,
@@ -313,23 +388,48 @@ def build_smoke_report(
             "metadata": artifact.metadata,
         },
         "shapes": {
-            "source_input_ids": list(input_ids.shape),
+            "sender_prompt_ids": list(input_ids.shape),
+            "sender_context_ids": list(sender_context_ids.shape),
+            "aligned_sender": list(output.aligned_sender_shape),
+            "receiver_prompt_ids": list(receiver_input_ids.shape),
+            "receiver_prompt": list(output.receiver_prompt_shape),
             "virtual_prompt": list(output.virtual_prompt_shape),
             "receiver_output_ids": list(output.sequences.shape),
         },
+        "collaboration": {
+            "sender_role": collaboration.sender_role,
+            "receiver_role": collaboration.receiver_role,
+            "sender_enable_thinking": collaboration.sender_enable_thinking,
+            "receiver_enable_thinking": collaboration.receiver_enable_thinking,
+            "sender_rendered_prompt": sender_text,
+            "sender_think_token_ids": sender_think_ids[0].detach().cpu().tolist(),
+            "sender_think_text": source_tokenizer.decode(
+                sender_think_ids[0].detach().cpu().tolist(),
+                skip_special_tokens=True,
+            ),
+            "receiver_rendered_prompt": receiver_text,
+            "prefix_order": [
+                "aligned_sender_prompt",
+                "aligned_sender_think",
+                "receiver_native_prompt",
+            ],
+        },
         "transport_quality": {
             "retained_mass": _tensor_summary(
-                output.stats.retained_mass, attention_mask
+                output.stats.retained_mass, sender_context_mask
             ),
             "dropped_top_m_mass": _tensor_summary(
-                output.stats.dropped_top_m_mass, attention_mask
+                output.stats.dropped_top_m_mass, sender_context_mask
             ),
             "active_support_mass": _tensor_summary(
-                output.stats.active_support_mass, attention_mask
+                output.stats.active_support_mass, sender_context_mask
             ),
             "top_m": output.stats.top_m,
         },
-        "metrics": output.metrics.to_dict(),
+        "metrics": {
+            **output.metrics.to_dict(),
+            "planner_generation_seconds": sender_generation_seconds,
+        },
         "outputs": [
             {"receiver_token_ids": ids, "text": text}
             for ids, text in zip(token_rows, decoded)

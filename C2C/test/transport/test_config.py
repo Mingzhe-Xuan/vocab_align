@@ -140,7 +140,7 @@ def test_transport_construction_defaults_and_validation():
             TransportConfig.from_dict(payload)
 
 
-def test_pinned_recipe_explicitly_enables_causal_shift():
+def test_pinned_recipe_explicitly_uses_planner_thinker_no_shift():
     recipe = (
         Path(__file__).resolve().parents[2]
         / "recipe"
@@ -150,9 +150,15 @@ def test_pinned_recipe_explicitly_enables_causal_shift():
     config = TransportConfig.from_dict(
         yaml.safe_load(recipe.read_text(encoding="utf-8"))
     )
-    assert config.transport.causal_shift is True
+    assert config.transport.causal_shift is False
     assert config.transport.tau == 1.0
     assert config.transport.source_top_m is None
+    assert config.collaboration.sender_role == "planner"
+    assert config.collaboration.receiver_role == "thinker"
+    assert config.collaboration.sender_enable_thinking is True
+    assert config.collaboration.receiver_enable_thinking is True
+    assert config.sender_generation["do_sample"] is False
+    assert config.sender_generation["max_new_tokens"] == 128
     assert config.construction == TransportConstructionSpec(
         epsilon=0.5,
         tolerance=0.002,
@@ -201,4 +207,18 @@ def test_recipe_fingerprints_shapes_and_special_policy_are_strict():
     payload = _payload()
     payload["special_tokens"] = {"target_support": "all_tokens"}
     with pytest.raises(ConfigError, match="special token policy"):
+        TransportConfig.from_dict(payload)
+
+    payload = _payload()
+    payload["collaboration"] = {"receiver_problem_mode": "latent_only"}
+    with pytest.raises(ConfigError, match="explicitly"):
+        TransportConfig.from_dict(payload)
+
+    payload = _payload()
+    payload["sender_generation"] = {
+        "do_sample": True,
+        "max_new_tokens": 8,
+        "temperature": 1.0,
+    }
+    with pytest.raises(ConfigError, match="greedy"):
         TransportConfig.from_dict(payload)

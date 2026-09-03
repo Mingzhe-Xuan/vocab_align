@@ -93,6 +93,7 @@ def test_slices_conserve_pairs_and_latency_keeps_stages_distinct():
     assert sum(x["samples"] for x in result["slices"]["subject"].values()) == 2
     assert sum(x["samples"] for x in result["slices"]["category"].values()) == 2
     assert set(result["latency"]) == {
+        "planner_generation",
         "source_prefill",
         "transport",
         "receiver_prefill",

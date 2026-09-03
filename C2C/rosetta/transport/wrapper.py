@@ -44,6 +44,8 @@ class VirtualPrompt:
 class TransportPrefill:
     virtual_prompt: VirtualPrompt
     receiver_output: Any
+    aligned_sender_shape: Tuple[int, ...] = ()
+    receiver_prompt_shape: Tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,8 @@ class TransportGenerationOutput:
     virtual_prompt_shape: Tuple[int, ...]
     stats: SoftTransportStats | None
     metrics: TransportMetrics
+    aligned_sender_shape: Tuple[int, ...] = ()
+    receiver_prompt_shape: Tuple[int, ...] = ()
 
 
 def _require_torch() -> None:
@@ -91,6 +95,48 @@ def _last_active_indices(attention_mask: torch.Tensor) -> torch.Tensor:
         .masked_fill(~attention_mask.bool(), -1)
         .max(-1)
         .values
+    )
+
+
+def _prepend_aligned_sender_to_receiver_prompt(
+    aligned_sender: VirtualPrompt,
+    receiver_input_ids: torch.Tensor,
+    receiver_attention_mask: torch.Tensor | None,
+    receiver_embeddings: Any,
+) -> VirtualPrompt:
+    if receiver_attention_mask is None:
+        receiver_attention_mask = torch.ones_like(receiver_input_ids, dtype=torch.long)
+    _validate_inputs(receiver_input_ids, receiver_attention_mask)
+    if receiver_input_ids.shape[0] != aligned_sender.embeddings.shape[0]:
+        raise TransportModelError("sender and receiver prompt batch sizes must match")
+    device = aligned_sender.embeddings.device
+    receiver_input_ids = receiver_input_ids.to(device)
+    receiver_attention_mask = receiver_attention_mask.to(device)
+    native = receiver_embeddings(receiver_input_ids).to(
+        device=device, dtype=aligned_sender.embeddings.dtype
+    )
+    rows = []
+    for row in range(aligned_sender.embeddings.shape[0]):
+        sender_values = aligned_sender.embeddings[row][
+            aligned_sender.attention_mask[row].bool()
+        ]
+        receiver_values = native[row][receiver_attention_mask[row].bool()]
+        rows.append(torch.cat((sender_values, receiver_values), dim=0))
+    maximum = max(row.shape[0] for row in rows)
+    embeddings = torch.zeros(
+        (len(rows), maximum, aligned_sender.embeddings.shape[-1]),
+        dtype=aligned_sender.embeddings.dtype,
+        device=device,
+    )
+    attention_mask = torch.zeros((len(rows), maximum), dtype=torch.long, device=device)
+    for row_index, values in enumerate(rows):
+        embeddings[row_index, : values.shape[0]] = values
+        attention_mask[row_index, : values.shape[0]] = 1
+    return VirtualPrompt(
+        embeddings=embeddings,
+        attention_mask=attention_mask,
+        position_ids=_position_ids(attention_mask),
+        stats=aligned_sender.stats,
     )
 
 
@@ -452,18 +498,47 @@ class TrainingFreeTransportModel(_ModuleBase):
         self,
         source_input_ids: torch.Tensor,
         source_attention_mask: torch.Tensor | None = None,
+        *,
+        receiver_input_ids: torch.Tensor | None = None,
+        receiver_attention_mask: torch.Tensor | None = None,
     ) -> TransportPrefill:
-        prefill, _, _, _ = self._prefill_timed(source_input_ids, source_attention_mask)
+        prefill, _, _, _ = self._prefill_timed(
+            source_input_ids,
+            source_attention_mask,
+            receiver_input_ids,
+            receiver_attention_mask,
+        )
         return prefill
 
     def _prefill_timed(
         self,
         source_input_ids: torch.Tensor,
         source_attention_mask: torch.Tensor | None,
+        receiver_input_ids: torch.Tensor | None = None,
+        receiver_attention_mask: torch.Tensor | None = None,
     ) -> tuple[TransportPrefill, float, float, float]:
         virtual_prompt, source_seconds, transport_seconds = (
             self._build_virtual_prompt_timed(source_input_ids, source_attention_mask)
         )
+        aligned_sender_shape = tuple(virtual_prompt.embeddings.shape)
+        receiver_prompt_shape: Tuple[int, ...] = ()
+        receiver_embeddings = self.receiver_model.get_input_embeddings()
+        if receiver_input_ids is not None:
+            receiver_prompt_shape = (
+                receiver_input_ids.shape[0],
+                receiver_input_ids.shape[1],
+                virtual_prompt.embeddings.shape[-1],
+            )
+            virtual_prompt = _prepend_aligned_sender_to_receiver_prompt(
+                virtual_prompt,
+                receiver_input_ids,
+                receiver_attention_mask,
+                receiver_embeddings,
+            )
+        elif receiver_attention_mask is not None:
+            raise TransportModelError(
+                "receiver_attention_mask requires receiver_input_ids"
+            )
         receiver_device = virtual_prompt.embeddings.device
         _synchronize(receiver_device)
         receiver_start = perf_counter()
@@ -480,12 +555,17 @@ class TrainingFreeTransportModel(_ModuleBase):
         if getattr(receiver_output, "past_key_values", None) is None:
             raise TransportModelError("receiver prefill did not return a KV cache")
         logits = getattr(receiver_output, "logits", None)
-        if logits is None or logits.shape[:2] != source_input_ids.shape:
+        if logits is None or logits.shape[:2] != virtual_prompt.embeddings.shape[:2]:
             raise TransportModelError(
                 "receiver prefill logits must match virtual prompt"
             )
         return (
-            TransportPrefill(virtual_prompt, receiver_output),
+            TransportPrefill(
+                virtual_prompt,
+                receiver_output,
+                aligned_sender_shape=aligned_sender_shape,
+                receiver_prompt_shape=receiver_prompt_shape,
+            ),
             source_seconds,
             transport_seconds,
             receiver_seconds,
@@ -543,7 +623,12 @@ class TrainingFreeTransportModel(_ModuleBase):
             if receiver_device.type == "cuda":
                 torch.cuda.reset_peak_memory_stats(receiver_device)
             prefill, source_seconds, transport_seconds, receiver_prefill_seconds = (
-                self._prefill_timed(source_input_ids, source_attention_mask)
+                self._prefill_timed(
+                    source_input_ids,
+                    source_attention_mask,
+                    receiver_input_ids,
+                    receiver_attention_mask,
+                )
             )
             mask = prefill.virtual_prompt.attention_mask
             output = prefill.receiver_output
@@ -642,10 +727,39 @@ class TrainingFreeTransportModel(_ModuleBase):
                 receiver_prefill_seconds=receiver_prefill_seconds,
                 decode_seconds=decode_seconds,
                 total_seconds=total_seconds,
-                source_input_tokens=int(mask.sum().item()),
-                virtual_tokens=int(mask.sum().item()),
+                source_input_tokens=int(
+                    (
+                        source_attention_mask
+                        if source_attention_mask is not None
+                        else torch.ones_like(source_input_ids)
+                    )
+                    .sum()
+                    .item()
+                ),
+                virtual_tokens=int(
+                    (
+                        source_attention_mask
+                        if source_attention_mask is not None
+                        else torch.ones_like(source_input_ids)
+                    )
+                    .sum()
+                    .item()
+                ),
                 output_tokens=generated_active,
                 peak_memory_bytes=peak_memory,
+                receiver_prompt_tokens=(
+                    0
+                    if receiver_input_ids is None
+                    else int(
+                        (
+                            receiver_attention_mask
+                            if receiver_attention_mask is not None
+                            else torch.ones_like(receiver_input_ids)
+                        )
+                        .sum()
+                        .item()
+                    )
+                ),
             )
             metrics.validate()
             return TransportGenerationOutput(
@@ -653,4 +767,6 @@ class TrainingFreeTransportModel(_ModuleBase):
                 virtual_prompt_shape=tuple(prefill.virtual_prompt.embeddings.shape),
                 stats=prefill.virtual_prompt.stats,
                 metrics=metrics,
+                aligned_sender_shape=prefill.aligned_sender_shape,
+                receiver_prompt_shape=prefill.receiver_prompt_shape,
             )

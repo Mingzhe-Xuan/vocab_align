@@ -13,6 +13,7 @@ class TransportStatisticsError(ValueError):
 
 
 _LATENCY_FIELDS = {
+    "planner_generation": "planner_generation_seconds",
     "source_prefill": "source_seconds",
     "transport": "transport_seconds",
     "receiver_prefill": "receiver_prefill_seconds",

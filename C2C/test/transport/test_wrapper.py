@@ -318,6 +318,45 @@ def test_generate_uses_last_active_prefill_logits_then_receiver_cache_only():
     assert receiver.calls[2]["past_key_values"] == 4
 
 
+def test_planner_context_is_aligned_before_receiver_native_prompt():
+    model, _, receiver = _model(causal_shift=False)
+    source_ids = torch.tensor([[0, 1]])
+    receiver_ids = torch.tensor([[3, 4]])
+    output = model.generate(
+        source_ids,
+        receiver_input_ids=receiver_ids,
+        receiver_attention_mask=torch.ones_like(receiver_ids),
+        max_new_tokens=1,
+        return_transport_output=True,
+    )
+    call = receiver.calls[0]
+    assert call["input_ids"] is None
+    assert call["inputs_embeds"].shape == (1, 4, 2)
+    expected_first = torch.softmax(torch.tensor([0.0, 8.0, 0.0]), dim=-1)
+    expected_second = torch.softmax(torch.tensor([0.0, 0.0, 8.0]), dim=-1)
+    torch.testing.assert_close(
+        call["inputs_embeds"][0, 0],
+        expected_first @ receiver.embedding.weight[1:4],
+    )
+    torch.testing.assert_close(
+        call["inputs_embeds"][0, 1],
+        expected_second @ receiver.embedding.weight[1:4],
+    )
+    torch.testing.assert_close(
+        call["inputs_embeds"][0, 2:], receiver.embedding(receiver_ids)[0]
+    )
+    torch.testing.assert_close(
+        call["attention_mask"], torch.ones((1, 4), dtype=torch.long)
+    )
+    torch.testing.assert_close(call["position_ids"], torch.tensor([[0, 1, 2, 3]]))
+    assert output.aligned_sender_shape == (1, 2, 2)
+    assert output.receiver_prompt_shape == (1, 2, 2)
+    assert output.virtual_prompt_shape == (1, 4, 2)
+    assert output.metrics.virtual_tokens == 2
+    assert output.metrics.receiver_prompt_tokens == 2
+    assert output.metrics.to_dict()["prefill_tokens"] == 4
+
+
 def test_structured_generation_reports_shapes_quality_and_segmented_metrics():
     model, _, _ = _model()
     output = model.generate(

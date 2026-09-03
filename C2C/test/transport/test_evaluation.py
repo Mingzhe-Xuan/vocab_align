@@ -246,98 +246,143 @@ def test_sample_rejects_non_integer_question_index():
 
 
 class _Tokenizer:
+    def __init__(self, role):
+        self.role = role
+        self.template_calls = []
+
     def apply_chat_template(self, messages, **kwargs):
-        assert messages == [{"role": "user", "content": "2 + 2?"}]
+        self.template_calls.append((messages, kwargs))
+        assert messages[-1] == {"role": "user", "content": "2 + 2?"}
+        assert messages[0]["role"] == "system"
+        assert self.role in messages[0]["content"]
         assert kwargs == {
             "tokenize": False,
             "add_generation_prompt": True,
-            "enable_thinking": False,
+            "enable_thinking": True,
         }
-        return "rendered source prompt"
+        return f"rendered {self.role} prompt with 2 + 2?"
 
     def __call__(self, text, **kwargs):
-        assert text == "rendered source prompt"
-        assert kwargs == {"return_tensors": "pt"}
+        assert text == f"rendered {self.role} prompt with 2 + 2?"
+        assert kwargs == {"return_tensors": "pt", "add_special_tokens": False}
+        ids = [1, 2] if self.role == "planner" else [2, 3]
         return {
-            "input_ids": torch.tensor([[1, 2]]),
+            "input_ids": torch.tensor([ids]),
             "attention_mask": torch.tensor([[1, 1]]),
         }
 
     def decode(self, token_ids, *, skip_special_tokens):
-        assert token_ids == [3]
         assert skip_special_tokens is True
+        if self.role == "planner":
+            assert token_ids == [0]
+            return "planner think"
+        assert token_ids == [3]
         return "Answer: A"
+
+
+class _SourceModel:
+    def __init__(self):
+        self.embedding = SimpleNamespace(weight=torch.zeros((4, 2)))
+        self.generate_calls = []
+
+    def get_input_embeddings(self):
+        return self.embedding
+
+    def generate(self, **kwargs):
+        self.generate_calls.append(kwargs)
+        assert kwargs["do_sample"] is False
+        assert kwargs["max_new_tokens"] == 1
+        think = torch.zeros((kwargs["input_ids"].shape[0], 1), dtype=torch.long)
+        return torch.cat((kwargs["input_ids"], think), dim=1)
 
 
 class _Wrapper:
     def __init__(self):
-        self.source_model = SimpleNamespace(
-            get_input_embeddings=lambda: SimpleNamespace(weight=torch.zeros((4, 2)))
-        )
+        self.source_model = _SourceModel()
 
     def generate(self, source_ids, **kwargs):
-        assert source_ids.tolist() == [[1, 2]]
-        assert kwargs["source_attention_mask"].tolist() == [[1, 1]]
+        assert source_ids.tolist() == [[1, 2, 0]]
+        assert kwargs["source_attention_mask"].tolist() == [[1, 1, 1]]
+        assert kwargs["receiver_input_ids"].tolist() == [[2, 3]]
+        assert kwargs["receiver_attention_mask"].tolist() == [[1, 1]]
         assert kwargs["return_transport_output"] is True
         assert kwargs["max_new_tokens"] == 1
         return TransportGenerationOutput(
             sequences=torch.tensor([[3]]),
-            virtual_prompt_shape=(1, 2, 4),
+            virtual_prompt_shape=(1, 5, 4),
             stats=SoftTransportStats(
-                retained_mass=torch.ones((1, 2)),
-                dropped_top_m_mass=torch.zeros((1, 2)),
-                active_support_mass=torch.ones((1, 2)),
+                retained_mass=torch.ones((1, 3)),
+                dropped_top_m_mass=torch.zeros((1, 3)),
+                active_support_mass=torch.ones((1, 3)),
                 top_m=None,
             ),
-            metrics=TransportMetrics(0.1, 0.2, 0.3, 0.4, 1.0, 2, 2, 1, None),
+            metrics=TransportMetrics(
+                0.1, 0.2, 0.3, 0.4, 1.0, 3, 3, 1, None, receiver_prompt_tokens=2
+            ),
+            aligned_sender_shape=(1, 3, 4),
+            receiver_prompt_shape=(1, 2, 4),
         )
 
 
-def test_training_free_adapter_emits_transport_metrics_and_diagnostics():
-    adapter = TrainingFreeTransportEvaluationAdapter(
-        _Wrapper(),
-        _Tokenizer(),
-        _Tokenizer(),
+def _planner_adapter(wrapper=None, *, sender_generation=None):
+    return TrainingFreeTransportEvaluationAdapter(
+        _Wrapper() if wrapper is None else wrapper,
+        _Tokenizer("planner"),
+        _Tokenizer("thinker"),
         {"max_new_tokens": 1},
         {"code_version": "fixture"},
+        sender_generation=(
+            {"do_sample": False, "max_new_tokens": 1, "temperature": 1.0}
+            if sender_generation is None
+            else sender_generation
+        ),
     )
+
+
+def test_training_free_adapter_emits_transport_metrics_and_diagnostics():
+    adapter = _planner_adapter()
     result = adapter.generate_one(_sample())
     assert result.text == "Answer: A"
     assert result.metrics["transport_seconds"] == pytest.approx(0.2)
-    assert result.diagnostics["virtual_prompt_shape"] == [1, 2, 4]
+    assert result.metrics["sender_prompt_tokens"] == 2
+    assert result.metrics["sender_think_tokens"] == 1
+    assert result.metrics["sender_context_tokens"] == 3
+    assert result.metrics["receiver_prompt_tokens"] == 2
+    assert result.metrics["planner_generation_seconds"] >= 0
+    assert result.diagnostics["virtual_prompt_shape"] == [1, 5, 4]
+    assert result.diagnostics["aligned_sender_shape"] == [1, 3, 4]
+    assert result.diagnostics["receiver_prompt_shape"] == [1, 2, 4]
     assert result.diagnostics["active_support_mass_mean"] == 1.0
-    assert result.diagnostics["source_prompt_rendered"] is False
+    assert result.diagnostics["sender_enable_thinking"] is True
+    assert result.diagnostics["receiver_enable_thinking"] is True
+    assert result.diagnostics["sender_think_text"] == "planner think"
+    assert "2 + 2?" in result.diagnostics["sender_rendered_prompt"]
+    assert "2 + 2?" in result.diagnostics["receiver_rendered_prompt"]
+    assert result.diagnostics["prefix_order"] == [
+        "aligned_sender_prompt",
+        "aligned_sender_think",
+        "receiver_native_prompt",
+    ]
     assert result.diagnostics["provenance"] == {"code_version": "fixture"}
 
 
-def test_training_free_adapter_encodes_pre_rendered_source_prompt_once():
-    class PreRenderedTokenizer(_Tokenizer):
-        def apply_chat_template(self, messages, **kwargs):
-            raise AssertionError(
-                "pre-rendered source prompt must not be rendered again"
-            )
-
+def test_training_free_adapter_rebuilds_both_role_prompts_from_canonical_problem():
     sample = replace(
-        _sample(prompt="rendered source prompt"),
+        _sample(prompt="legacy rendered source prompt"),
         prompt_metadata={"source_prompt_rendered": True},
     )
-    result = TrainingFreeTransportEvaluationAdapter(
-        _Wrapper(),
-        PreRenderedTokenizer(),
-        _Tokenizer(),
-        {"max_new_tokens": 1},
-    ).generate_one(sample)
-    assert result.diagnostics["source_prompt_rendered"] is True
-    assert result.diagnostics["source_rendered_prompt"] == "rendered source prompt"
+    result = _planner_adapter().generate_one(sample)
+    assert "legacy rendered" not in result.diagnostics["sender_rendered_prompt"]
+    assert "2 + 2?" in result.diagnostics["sender_rendered_prompt"]
+    assert "2 + 2?" in result.diagnostics["receiver_rendered_prompt"]
 
 
-def test_training_free_adapter_rejects_non_boolean_rendered_prompt_marker():
-    sample = replace(_sample(), prompt_metadata={"source_prompt_rendered": "true"})
-    adapter = TrainingFreeTransportEvaluationAdapter(
-        _Wrapper(), _Tokenizer(), _Tokenizer(), {"max_new_tokens": 1}
+def test_training_free_adapter_requires_greedy_sender_generation():
+    adapter = _planner_adapter(
+        sender_generation={"do_sample": True, "max_new_tokens": 1}
     )
-    with pytest.raises(ValueError, match="must be a boolean"):
-        adapter.generate_one(sample)
+    with pytest.raises(ValueError, match="greedy"):
+        adapter.generate_one(_sample())
 
 
 def test_training_free_adapter_marks_orf_transport_stats_unavailable():
@@ -349,9 +394,7 @@ def test_training_free_adapter_marks_orf_transport_stats_unavailable():
         return replace(original_generate(*args, **kwargs), stats=None)
 
     wrapper.generate = generate_without_stats
-    result = TrainingFreeTransportEvaluationAdapter(
-        wrapper, _Tokenizer(), _Tokenizer(), {"max_new_tokens": 1}
-    ).generate_one(_sample())
+    result = _planner_adapter(wrapper).generate_one(_sample())
     assert result.diagnostics["approximation_mode"] == "orf"
     assert result.diagnostics["transport_stats_available"] is False
     assert result.diagnostics["retained_mass_mean"] is None
@@ -386,7 +429,7 @@ def test_training_free_config_creates_adapter(monkeypatch):
         loaded["config"] = config
         loaded["artifact"] = artifact
         loaded["device_maps"] = kwargs
-        return wrapper, _Tokenizer(), _Tokenizer()
+        return wrapper, _Tokenizer("planner"), _Tokenizer("thinker")
 
     monkeypatch.setattr(
         "script.evaluation.transport_adapter._load_runtime", fake_load_with_artifact
@@ -412,6 +455,9 @@ def test_training_free_config_creates_adapter(monkeypatch):
     )
     assert adapter.method == "training_free_transport"
     assert adapter.generation["max_new_tokens"] == 1
+    assert adapter.sender_generation["max_new_tokens"] == 2
+    assert adapter.collaboration.sender_role == "planner"
+    assert adapter.collaboration.receiver_role == "thinker"
     assert loaded["artifact"].as_posix() == "local/fake.npz"
     assert loaded["runtime"][1]["allow_existing_output"] is True
     assert adapter.provenance["code_version"] == "code-sha"

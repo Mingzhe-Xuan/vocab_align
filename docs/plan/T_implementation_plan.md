@@ -2,6 +2,8 @@
 
 本文是 [`T_plan.md`](./T_plan.md) 的工程落地补充，规定阶段 0—5 的文件结构、模块职责和测试范围。研究问题、数学定义和实验口径以 `T_plan.md` 为准；本文不修改其中的算法目标。
 
+> 2026-09-03 目标修订：当前主协议改为 Planner→Thinker。sender/planner 与 receiver/thinker 都显式接收同一题目并开启 CoT；sender 先生成 think，再将 `sender prompt + sender think` 全 context 的 hidden states 经 exact STT 对齐，前置拼接到 receiver 自己显式编码的题目 prompt。本文后续与旧 prompt-only、shift-only virtual prompt 冲突的条款均以本修订及第 5、6、8 节的新条款为准；旧 Job 245/247–253 仅为历史诊断，必须重跑新协议。
+
 ## 1. 实施原则
 
 1. STT 与原 C2C 路径并存，不修改 `rosetta/model/projector.py` 和原 `rosetta/model/wrapper.py` 的公开行为。
@@ -184,8 +186,8 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 | 文件 | 功能 |
 |---|---|
 | `soft_transport.py` | 实现 temperature softmax、精确 `Tp`、`W_in^B Tp`、source top-m 可选路径和质量统计。 |
-| `wrapper.py` | 实现 `TrainingFreeTransportModel`：A no-grad prefill、因果 shift、B virtual prompt prefill、标准 KV cache 生成。 |
-| `metrics.py` | 记录 source、transport、receiver 分段耗时、输入/virtual/output 长度和峰值显存。 |
+| `wrapper.py` | 实现 `TrainingFreeTransportModel`：完整 sender context exact STT，与 receiver native prompt embeddings 拼接后 prefill，并用标准 KV cache 生成。 |
+| `metrics.py` | 记录 planner generation、sender full-context forward、transport、receiver prefill/decode 分段耗时，sender prompt/think/context、aligned prefix、receiver prompt/output 长度和峰值显存。 |
 | `script/transport/smoke_stt.py` | 加载两侧模型与 T，执行短样本并保存中间 shape、配置和输出。 |
 
 `wrapper.py` 不继承或覆盖原 C2C wrapper 的投影逻辑。共同能力通过小型纯函数复用，不能以条件分支改变旧 C2C 行为。
@@ -200,9 +202,10 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
   - source top-m 报告被丢弃概率质量，`m=V_A` 退化为精确路径。
 - `test_wrapper.py`
   - source forward 全程 `no_grad`，模型参数无 `.grad`，不存在 optimizer state。
-  - “起始 embedding + shifted logits”的序列长度、位置和因果关系正确。
-  - shift/no-shift 是显式配置，默认值与 recipe 一致。
-  - attention mask、position ids、past key values 长度随 prefill/generation 正确更新。
+  - sender prompt 与 sender think 的每个有效 hidden-state 位置各产生一个 aligned embedding；新主 recipe 固定 no-shift。
+  - receiver 原生题目 prompt embeddings 严格拼在 aligned sender context 后；题目不得只存在于 sender 一侧。
+  - 拼接后的 attention mask、从零连续 position ids、past key values 长度随 prefill/generation 正确更新。
+  - sender/receiver generation 均为 no-grad greedy、使用独立预算，并显式开启 CoT。
   - B 生成期使用自身 tokenizer/embedding，而不是继续调用 A。
   - transport 关闭时走独立 receiver-only 输入路径，并与直接调用 receiver 的结果一致。
   - batch size 1/2、单 token prompt、padding 和提前 EOS 均可处理。
@@ -216,7 +219,7 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 - 真实模型短序列 smoke test 能生成并保存逐步 diagnostics。
 - CPU/offload 运行只标记功能正确性，不进入正式 latency 表。
 
-真实 Qwen3-8B→Mistral-Nemo Job 245 已完成本阶段功能验收：在 RTX 5090/Blackwell 上使用隔离 `blackwell-cu128` profile（torch 2.7.1+cu128），同一 prompt 的 Receiver-only 与精确 STT 均确定性生成 2 tokens；STT virtual prompt 为 `[1, 7, 5120]`，retained/active support mass 在 float32 舍入内为 1，top-m 丢弃质量为 0。报告 schema v2 原子保存且无 partial，记录模型/tokenizer/artifact/runtime/compiled arch、分段 metrics 和两路输出；Job 245 为 0:16.67、Exit 0、MaxRSS 16,560,968 KiB。该耗时只作功能诊断，不进入正式 latency 表。
+Job 245 是旧 prompt-only 协议的历史功能证据。Planner→Thinker 新协议必须另行完成真实 smoke：报告两侧 rendered prompt、sender think、完整 sender context/aligned prefix/receiver prompt shape、双 CoT 开关、分段 metrics 和无 partial，旧报告不得沿用。
 
 ## 6. 阶段 3：统一评测
 
@@ -226,7 +229,7 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 |---|---|
 | `script/evaluation/unified_evaluator.py` | 增加 `training_free_transport` 初始化与推理分支，复用现有题目格式化、答案解析、分卡和保存逻辑。 |
 | `rosetta/transport/metrics.py` | 定义与 evaluator 兼容的分段 latency、长度和显存 schema。 |
-| `recipe/eval_recipe/stt_mmlu_redux.yaml` | 固定样本、few-shot/CoT、解码、`max_new_tokens`、硬件和输出路径。 |
+| `recipe/eval_recipe/stt_mmlu_redux.yaml` | 固定样本、同题 planner/thinker prompts、双侧 CoT、sender/receiver 解码预算、硬件和输出路径。 |
 | `script/transport/summarize_transport.py` | 聚合逐题正确性、类别分数、失败原因、吞吐和置信区间输入。 |
 
 建议在 evaluator 内引入窄接口（如 `generate_one(sample) -> EvaluationRecord`），让 HF、T2T、C2C 和 STT 共享外层循环，避免为 STT 复制整段评测代码。
@@ -235,7 +238,8 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 
 - 配置 `model_name: training_free_transport` 能创建正确 adapter，其他 model name 行为不变。
 - R/S/T2T/C2C/STT 对同一 fixture 产生相同 `sample_id`、canonical message 和评测 prompt 元数据。
-- STT 的 source/transport/receiver latency 和通信长度写入统一结果 schema。
+- STT 的 planner generation、sender full-context forward、transport、receiver prefill/decode latency 和各段长度写入统一结果 schema。
+- 两套 rendered prompt 都包含 canonical problem；source/target chat template 均收到 `enable_thinking=true`，recipe 的 `use_cot=true`。
 - 单样本异常写入 bad-sample 日志并继续后续样本；异常样本不得静默计为错误或被丢弃。
 - 多 rank 合并保持样本唯一、顺序确定，不重复计分。
 - answer parser 对 STT 不启用特殊宽松规则。
@@ -277,14 +281,14 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 - 主测试集只运行冻结配置；任何补跑或参数变更进入审计日志。
 - TH/TS/TK 均输出统一 schema，可直接进入同一统计脚本。
 
-## 8. 阶段 5：泛化与结果分析
+## 8. 阶段 5：Planner→Thinker exact benchmark 与结果分析
 
 ### 8.1 文件与功能
 
 | 文件 | 功能 |
 |---|---|
-| `recipe/transport_recipe/mistral_nemo_to_qwen3_8b.yaml` | 反向模型对；独立 T、边际、special 规则和 artifact，禁止简单转置正向 T。 |
-| 第二模型对 recipe | 使用相同 schema 声明新的异 tokenizer A→B 方向。 |
+| `recipe/transport_recipe/mistral_nemo_to_qwen3_8b.yaml` | 已实现、暂不运行的未来反向配置；不属于当前 benchmark 前置。 |
+| 第二模型对 recipe | 已实现、暂不运行的未来泛化配置。 |
 | `script/transport/summarize_transport.py` | paired bootstrap、McNemar、类别切片、latency 分解和失败案例索引。 |
 | `test/evaluation/test_transport_statistics.py` | 统计方法与结果聚合的确定性测试。 |
 
@@ -292,8 +296,10 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 
 ### 8.2 单元测试
 
-- 反向配置交换 A/B 后，所有矩阵 shape、边际和 tokenizer 指纹随方向正确变化。
-- 正向 artifact 不能被反向 wrapper 加载。
+- planner/thinker prompt 均包含同一 canonical problem，且角色 instruction 不相同。
+- sender think token 必须进入随后重新 forward 的完整 sender context；不能只 transport 原 prompt，也不能只 transport 生成部分。
+- aligned sender context 长度等于 sender prompt + sender think 有效 token 数；receiver prompt native embedding 紧随其后。
+- 双侧 thinking 开关、sender/receiver 独立 token budget、greedy decoding 与实际生成文本写入逐题记录。
 - paired bootstrap 在固定 seed 下可复现，置信区间边界有序。
 - McNemar 计数与手工构造的四格表一致，并正确处理零分母/全相同预测。
 - category/subject 聚合与逐题总数守恒。
@@ -302,8 +308,7 @@ ANN 只在共同外部 embedding 空间中生成候选边，禁止直接比较�
 
 ### 8.3 非单元验收
 
-- 至少一个反向或第二异 tokenizer 模型对完成最小主表。
-- 数学或长上下文扩展沿用冻结 prompt/解码协议。
+- 新 Planner→Thinker exact 协议在 MMLU-Redux、GSM8K、MATH-500、LongBench 固定小样本上完成；数学或长上下文沿用冻结双 prompt/双 CoT/解码协议。
 - 报告包含显著性、失败案例、资源条件和负结果，不以缺失实验替代零提升结论。
 
 ## 9. 测试分层与执行约定

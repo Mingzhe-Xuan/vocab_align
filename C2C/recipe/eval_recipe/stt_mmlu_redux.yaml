@@ -11,18 +11,22 @@ model:
   min_gpu_memory_gib: 30.0
   generation_config:
     do_sample: false
-    max_new_tokens: 16
+    max_new_tokens: 64
+    temperature: 1.0
+  sender_generation_config:
+    do_sample: false
+    max_new_tokens: 64
     temperature: 1.0
 output:
-  output_dir: local/transport/evaluation/mmlu-redux
-  records: local/transport/evaluation/mmlu-redux/stt.records.jsonl
-  bad_samples: local/transport/evaluation/mmlu-redux/stt.bad-samples.jsonl
-  summary: local/transport/evaluation/mmlu-redux/stt.summary.json
+  output_dir: local/transport/evaluation/planner-thinker-mmlu-redux
+  records: local/transport/evaluation/planner-thinker-mmlu-redux/stt.records.jsonl
+  bad_samples: local/transport/evaluation/planner-thinker-mmlu-redux/stt.bad-samples.jsonl
+  summary: local/transport/evaluation/planner-thinker-mmlu-redux/stt.summary.json
 eval:
   dataset: mmlu-redux
   gpu_ids: [0]
   answer_method: generate
-  use_cot: false
+  use_cot: true
   use_template: true
   sample_interval: 1
   limit: 5

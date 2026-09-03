@@ -908,3 +908,20 @@ wrapper 近似模式测试计划：
 - 完整回归：`206 passed, 2 warnings in 112.49s`；两条 warning 仍仅为既有 pandas 可选依赖提示。
 - 七个相关 Python 文件 Black unchanged，六个文件内存 AST 通过，source `compileall` 通过，`git diff --check` 通过。测试文件 pycache 原子写受既有 Windows ACL 阻止，因此改用不写文件的 AST 检查；pytest 已实际导入并执行这些测试，未跳过范围。
 - 本单元只验收配置和加载安全；反向/第二模型对尚未构建 full T 或运行 benchmark，recipe README 明确禁止把配置存在误报为实验完成。
+# 2026-09-03：Planner→Thinker 双 CoT exact STT 单元
+
+测试计划：
+
+- adapter 从同一 canonical problem 构造不同角色的 sender/planner 与 receiver/thinker prompts；两次 native chat template 均显式收到 `enable_thinking=true`，recipe `use_cot=true`，生成保持 greedy。
+- sender 先按独立 `sender_max_new_tokens` 生成 think；保存生成 token/text，并把原 sender prompt 与全部有效 think token 拼成完整 context 后重新 no-grad forward。prompt 或 think 任一段被遗漏、generate 未返回原 prompt 前缀、预算非法均显式失败。
+- exact STT 对完整 sender context 每个有效 hidden/logit 位置产生一枚 aligned embedding，新主协议固定 no-shift；receiver prompt 由 receiver tokenizer 显式编码，其 native embeddings 严格拼在 aligned prefix 后。
+- 拼接后的 attention mask、position IDs、receiver KV cache 与 decode position 连续且长度守恒；覆盖 batch、padding、receiver prompt 缺失/shape 不匹配和 EOS。receiver 不能收到 source token IDs。
+- diagnostics/metrics 保存 sender/receiver rendered prompts、sender think、双 CoT 开关、sender prompt/think/context、aligned prefix、receiver prompt/output token 数，以及 planner generation/source alignment/transport/receiver prefill/decode 分段耗时。
+- 更新四项 exact benchmark recipes 为新协议独立输出路径，防止与旧 prompt-only records resume 混用。本地运行定向 pytest、完整 pytest、Black、AST/Bash/diff；真实模型仅由临时验证分支经 Slurm 测试，近似/消融不运行。
+
+实际结果（本地阶段）：
+
+- adapter、wrapper、config、smoke、runner、Slurm recipe 与五阶段统计定向回归：`80 passed, 2 warnings in 8.27s`。测试明确断言两侧拿到相同题目、两个 chat template 均 `enable_thinking=true`、sender 先生成且返回原 prompt 前缀、完整 sender context 全位置对齐，以及 aligned prefix 后严格跟随 receiver native embeddings。
+- 最终完整 `python -m pytest -o addopts= --basetemp .pytest-full-planner-final -q`：`207 passed, 2 warnings in 124.25s`；两条 warning 仍仅为 pandas 对可选 `numexpr`/`bottleneck` 版本的既存提示。
+- 14 个新协议模块/测试文件 Black unchanged；保留既有风格的 legacy unified evaluator 通过内存 AST 与 25/25 adapter/runner 复验，避免把全文件机械格式化混入本单元。Windows 路径/临时目录的三次入口失败未进入业务断言；修正为从 `C2C/` 运行并使用内部相对 `--basetemp` 后完整通过，经验已追加到 `docs/agents/lessons.md`。
+- 真实模型协议 smoke 与四项 benchmark 尚未运行；本地结果不能替代 Slurm/GPU 验收，当前提交只能标记为临时未验收。

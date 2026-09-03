@@ -229,6 +229,86 @@ class SpecialTokenPolicy:
 
 
 @dataclass(frozen=True)
+class CollaborationSpec:
+    """Frozen roles and prompt semantics for Planner-to-Thinker STT."""
+
+    sender_role: str = "planner"
+    receiver_role: str = "thinker"
+    sender_system_prompt: str = (
+        "You are the planner. Analyze the problem step by step and produce a useful "
+        "reasoning plan for another model."
+    )
+    receiver_system_prompt: str = (
+        "You are the thinker. Use the preceding planner context, think through the "
+        "problem step by step yourself, and give the final answer."
+    )
+    sender_enable_thinking: bool = True
+    receiver_enable_thinking: bool = True
+    context_mode: str = "sender_prompt_and_think"
+    receiver_problem_mode: str = "explicit"
+
+    def validate(self) -> None:
+        if self.sender_role != "planner" or self.receiver_role != "thinker":
+            raise ConfigError("collaboration roles must be planner and thinker")
+        if (
+            not self.sender_system_prompt.strip()
+            or not self.receiver_system_prompt.strip()
+        ):
+            raise ConfigError("collaboration system prompts must be nonempty")
+        if self.sender_enable_thinking is not True:
+            raise ConfigError("sender thinking must be explicitly enabled")
+        if self.receiver_enable_thinking is not True:
+            raise ConfigError("receiver thinking must be explicitly enabled")
+        if self.context_mode != "sender_prompt_and_think":
+            raise ConfigError("collaboration must transport sender prompt and think")
+        if self.receiver_problem_mode != "explicit":
+            raise ConfigError("receiver must receive the problem explicitly")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "CollaborationSpec":
+        _only_fields(
+            payload,
+            {
+                "sender_role",
+                "receiver_role",
+                "sender_system_prompt",
+                "receiver_system_prompt",
+                "sender_enable_thinking",
+                "receiver_enable_thinking",
+                "context_mode",
+                "receiver_problem_mode",
+            },
+            "collaboration",
+        )
+        try:
+            value = cls(**payload)
+        except TypeError as exc:
+            raise ConfigError(f"invalid collaboration configuration: {exc}") from exc
+        value.validate()
+        return value
+
+
+def _validate_generation(payload: Mapping[str, Any], label: str) -> None:
+    if payload.get("do_sample") is not False:
+        raise ConfigError(f"{label} generation must explicitly use greedy decoding")
+    max_new_tokens = payload.get("max_new_tokens")
+    if (
+        isinstance(max_new_tokens, bool)
+        or not isinstance(max_new_tokens, int)
+        or max_new_tokens <= 0
+    ):
+        raise ConfigError(f"{label} max_new_tokens must be a positive integer")
+    temperature = payload.get("temperature", 1.0)
+    if (
+        isinstance(temperature, bool)
+        or not isinstance(temperature, (int, float))
+        or not math.isfinite(float(temperature))
+        or float(temperature) <= 0
+    ):
+        raise ConfigError(f"{label} temperature must be finite and positive")
+
+
+@dataclass(frozen=True)
 class TransportConfig:
     schema_version: int
     source: ModelSpec
@@ -243,6 +323,14 @@ class TransportConfig:
     )
     transport: TransportInferenceSpec = field(default_factory=TransportInferenceSpec)
     special_tokens: SpecialTokenPolicy = field(default_factory=SpecialTokenPolicy)
+    collaboration: CollaborationSpec = field(default_factory=CollaborationSpec)
+    sender_generation: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "do_sample": False,
+            "max_new_tokens": 128,
+            "temperature": 1.0,
+        }
+    )
     generation: Dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
@@ -254,6 +342,7 @@ class TransportConfig:
         self.construction.validate()
         self.transport.validate()
         self.special_tokens.validate()
+        self.collaboration.validate()
         if (
             isinstance(self.seed, bool)
             or not isinstance(self.seed, int)
@@ -276,6 +365,10 @@ class TransportConfig:
             )
         if not isinstance(self.generation, dict):
             raise ConfigError("generation must be an object")
+        if not isinstance(self.sender_generation, dict):
+            raise ConfigError("sender_generation must be an object")
+        _validate_generation(self.sender_generation, "sender")
+        _validate_generation(self.generation, "receiver")
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)
@@ -306,6 +399,8 @@ class TransportConfig:
                 "construction",
                 "transport",
                 "special_tokens",
+                "collaboration",
+                "sender_generation",
                 "generation",
             },
             "transport",
@@ -332,6 +427,19 @@ class TransportConfig:
                 ),
                 special_tokens=SpecialTokenPolicy.from_dict(
                     payload.get("special_tokens", {})
+                ),
+                collaboration=CollaborationSpec.from_dict(
+                    payload.get("collaboration", {})
+                ),
+                sender_generation=dict(
+                    payload.get(
+                        "sender_generation",
+                        {
+                            "do_sample": False,
+                            "max_new_tokens": 128,
+                            "temperature": 1.0,
+                        },
+                    )
                 ),
                 generation=dict(payload.get("generation", {})),
             )

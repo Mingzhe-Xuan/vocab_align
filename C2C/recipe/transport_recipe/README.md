@@ -6,6 +6,15 @@ the output path, marginals, tokenizer fingerprints, and artifact must be built
 independently for that direction. A reverse experiment must never transpose or
 reuse a forward artifact.
 
+The active collaboration contract fixes the source/sender as `planner` and the
+target/receiver as `thinker`. The same problem is rendered independently by
+both native chat templates with thinking explicitly enabled. The sender first
+generates its thought; STT then aligns hidden states for its complete prompt and
+thought, and those aligned embeddings are prepended to the receiver's native
+prompt. Thus the receiver context order is conceptually `sender_prompt +
+sender_think + receiver_prompt`, while the first two segments cross the model
+boundary as aligned embeddings rather than target-token text.
+
 Formal recipes explicitly freeze the builder's safe special-token policy:
 retain the full source tokenizer support, restrict the target OT support to
 ordinary tokens, use exact-kind mapping followed by literal-byte fallback, and
