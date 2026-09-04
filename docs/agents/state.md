@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Planner→Thinker exact STT 已完成本地实现与完整回归，正式 T 已从 Guqq 复制到本地根目录并通过 SHA-256 校验，`docs/assets/T_artifact_usage.md` 已完成。文档核验发现正式 artifact metadata 的 tokenizer fingerprints 与当前 transport recipe 冻结值不一致；严格 loader 应拒绝该组合，因此继续远程 benchmark 前必须复核 fingerprint 算法/provenance 并使三者一致，不能关闭门禁。旧 prompt-only 结果仅作历史诊断，近似/消融继续延期。
+Planner→Thinker exact STT 伪代码文档 `docs/assets/T_algo.md` 已完成并通过 artifact support、引用路径和格式检查，覆盖双提示词/双 CoT、planner generation、完整 sender context exact STT、receiver-native prompt 拼接和 KV-cache decode。fingerprint 一致性问题仍是继续远程 benchmark 的前置条件，不能关闭门禁；近似/消融继续延期。
 
 ## 当前计划
 
@@ -20,6 +20,8 @@ Planner→Thinker exact STT 已完成本地实现与完整回归，正式 T 已�
 - 2026-09-03 12:44 +08:00：Planner→Thinker 协议实现、smoke/benchmark recipes 与文档迁移完成；定向 80/80、完整 207/207、Black 检查通过。下一步形成未验收临时提交，并按连接审计与 Slurm 规则运行真实模型 smoke 和四项 exact benchmark。
 - 2026-09-03 22:04 +08:00：进入正式 T artifact 使用文档单元；先用本地已校验文件核对数组 schema、shape、nnz、dtype 与 tokenizer fingerprints，再记录路径、方向、校验、Slurm/recipe 和 Python 接口。仅修改文档与忽略规则，不改算法或运行计算。
 - 2026-09-03 22:09 +08:00：正式 T 使用文档完成，artifact loader、10 个引用路径、命令与 diff 格式检查通过。核验同时发现 artifact fingerprints `c39a.../12be...` 与 recipe 的 `1a385.../8542...` 不一致；将远程 benchmark 前置条件调整为先查明 fingerprint provenance，保持严格失败，不绕过校验。
+- 2026-09-04 09:12 +08:00：进入 STT 伪代码文档单元；文档将区分离线 T artifact、在线 planner 生成、完整 context hidden→logits→概率→稀疏 T→receiver embedding、原生 receiver prompt 拼接与自回归 decode，并明确 mask/position/fingerprint/方向不变量。
+- 2026-09-04 09:18 +08:00：STT 伪代码文档完成；使用 artifact 实际 active supports 修正 T 维度为 `[len(target_token_ids), len(source_token_ids)]`，并显式 gather receiver embedding rows。实际 shape/support、6 个引用路径、关键协议字段和 diff 检查通过，下一步回到 fingerprint provenance 与远程 benchmark 验收。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

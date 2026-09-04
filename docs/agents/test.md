@@ -941,3 +941,18 @@ wrapper 近似模式测试计划：
 - 文档自身、本地 artifact、四个 benchmark recipes、通用 Slurm 入口、artifact loader、wrapper 和 adapter 共 10 个引用路径全部存在；PowerShell/Bash 示例的工作目录与换行语法已人工复核。
 - `git diff --check` 通过；关键大小、SHA、shape、Slurm 命令和 fingerprint 警告均可检索。首次路径存在性命令从 `C2C/` 错用仓库根相对路径而返回 False，改从仓库根完整重跑后 10/10 均为 True，不属于文档链接失败。
 - 审计发现正式 artifact metadata fingerprints `c39a.../12be...` 与当前 recipe `1a385.../8542...` 不一致；文档显式要求严格拒绝并先复核 provenance，未通过删除 fingerprint 检查降低标准。
+
+# 2026-09-04：STT 伪代码文档单元
+
+测试计划：
+
+- 伪代码必须让同一 problem 分别进入 planner 与 thinker 的原生 chat template，并显式开启两侧 thinking；planner think 先生成，随后 `sender prompt + sender think` 全 context 重新 forward。
+- exact STT 必须按 row-vector 语义表达 `softmax(LMHead_A(h)/tau)`、方向为 `[target, source]` 的稀疏 T 以及 receiver embedding expectation；不得写成转置方向、hard token 映射或 dense T。
+- receiver 输入顺序必须是 aligned sender prompt、aligned sender think、receiver native prompt；mask 与 position 连续，receiver 再执行自己的 CoT 和自回归回答。
+- 检查文档中引用的 artifact、loader、wrapper、adapter 路径存在，伪代码块/公式/Markdown 格式和 `git diff --check` 通过。本单元只修改文档，不要求新增代码测试。
+
+实际结果：
+
+- 正式 artifact 实测 `shape=(131069, 151669)`，source/target active supports 分别为 `151669/131069`，source IDs 连续覆盖完整 source tokenizer support，target 最大 ID 为 `131071`；伪代码据此使用 active token-ID gather，没有错误假设 T 两轴都等于完整 tokenizer 长度。
+- `T_algo.md`、`T_artifact_usage.md`、artifact/soft-transport/wrapper/adapter 共 6 个引用路径全部存在；双 `enable_thinking`、sender full context、row-vector `p_A @ T^T`、三段 prefix、no-shift 与禁止 dense 等关键字段均可检索。
+- Markdown 结构和伪代码人工复核通过，`git diff --check` 通过。本单元没有修改 Python 代码，因此未新增或运行无关单元测试。
