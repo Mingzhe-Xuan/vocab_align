@@ -164,3 +164,4 @@
 - 正式反向矩阵任务完成：实现与本地测试、Guqq Slurm 生成、独立数值 audit、本地根目录副本及使用文档均已验收并推送；fingerprint 按用户要求保持 `not-performed`，真实推理门禁未关闭。
 - 用户澄清需要从头独立求解 Mistral→Qwen，而不是 Bayes 反演。已将新单元拆分为方向独立 ANN、OpenHermes 500k marginals/candidate graph、正式 Sinkhorn 与 artifact audit；既有 Job 324 工件只作为 `_bayes_reverse` 对照保留，不得作为新解输入。
 - 完成独立反向 ANN/正式 OT Slurm 入口及 added-special 完整分类：锁定 Mistral→Qwen revisions、独立输入输出和 `(151643, 131072)` support，正式门禁拒绝 Bayes derivation；定向 36/36、完整 215/215 与静态检查通过，准备 Guqq 真正从头求解。
+- 独立反向构建已进入 Guqq：Bayes 派生工件改名保留为对照，未验收实现同步后提交 Mistral→Qwen ANN Job 325；正式 Sinkhorn 等待 ANN direction/coverage/provenance 验收。

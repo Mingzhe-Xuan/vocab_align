@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Mistral-Nemo→Qwen3 独立 OT 的方向锁定 ANN/正式 Slurm 入口和 backend special-token 完整识别已完成本地验证：36/36 定向、215/215 完整回归和静态检查通过。目标 support 固定为 Mistral full source 131072、Qwen ordinary target 151643；下一步提交并推送未验收实现，在 Guqq 先保留改名 Job 324 派生对照，再运行独立反向 ANN。
+Mistral-Nemo→Qwen3 独立 OT 的本地实现已通过 36/36 定向、215/215 完整回归和静态检查；Job 324 Bayes 工件已在 Guqq 改名保留为对照。方向独立的 Mistral→Qwen ANN 正由 Slurm Job 325 构建，完成 provenance/coverage 验收后再提交正式 Sinkhorn。
 
 ## 当前计划
 
@@ -29,6 +29,7 @@ Mistral-Nemo→Qwen3 独立 OT 的方向锁定 ANN/正式 Slurm 入口和 backen
 - 2026-09-04 16:45 +08:00：正式反向矩阵使用文档与验收证据已以 `61ec2b8` 推送；代码实现、正式 Slurm artifact、本地副本、数值 audit、测试和文档要求全部满足，目标完成。fingerprint 仍按用户范围标记为未验证，未关闭真实推理门禁。
 - 2026-09-04 17:15 +08:00：用户澄清目标为重新独立求解 Mistral→Qwen，而非对正向 coupling 做 Bayes 反演。进入反向 ANN、独立 marginal/candidate graph/Sinkhorn 正式构建；Job 324 派生工件保留但改名降级为对照，新解不得复用其数值或 provenance。
 - 2026-09-04 17:28 +08:00：独立反向 ANN/正式 OT Slurm 入口与 backend added-special 分类修复完成；后者消除 Guqq 环境只识别 14/26 Qwen special 导致 target support 漂移的问题。定向 36/36、完整 215/215、Black/AST/Bash/diff 通过，进入验证提交与远端 ANN 阶段。
+- 2026-09-04 17:34 +08:00：未验收实现已推送，Guqq Bayes artifact/audits 已改名保留且未覆盖；独立反向 ANN Job 325 提交成功。下一步验收其完整 added-special coverage 与方向 provenance，再启动正式反向 Sinkhorn。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。
