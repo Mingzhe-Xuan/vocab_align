@@ -976,3 +976,21 @@ wrapper 近似模式测试计划：
 - 正式 Slurm 结果：Guqq CPU Job 324 Exit 0，耗时 17.45 秒、MaxRSS 1,435,048 KiB、0 swap；生成 artifact 40,694,539 bytes，SHA-256 `77905324ee9e063aef33c0e01a73c26bf4ac7907c8a48f972c463f5af3eb486f`，无 `.partial.npz`。
 - 独立 audit：shape `[151669, 131069]`、2,733,518 nnz、candidate edges 2,733,518、nonnegative/valid true、最大列和误差 `4.907185768843192e-14`、column marginal L1 `1.9365990559674718e-15`、transported marginal L1 `1.052004005974113e-13`，无危险 special mappings。
 - 本地 scp 副本大小和 SHA 与 Guqq 逐位一致；`load_transport_artifact` 全量验证成功，source/target active supports 为 `131069/151669`，metadata source/target fingerprints 为 `12be.../c39a...`，`fingerprint_validation=not-performed`，parent SHA 正确绑定正向正式 artifact `1495d522...aba97`。
+
+# 2026-09-04：Mistral-Nemo→Qwen3 独立 OT 求解单元
+
+测试计划：
+
+- 反向 ANN Slurm 入口必须固定 source=`mistralai/Mistral-Nemo-Instruct-2407`、target=`Qwen/Qwen3-8B` 及各自 40 位 revision，输出独立候选文件；不得读取、转置或改写正向 ANN JSON。
+- 正式反向 Slurm 入口必须消费同一 OpenHermes 500k records/manifest 的 `transport_train`、独立反向 ANN，调用通用 builder 重新估计 marginals、构图和求解 Sinkhorn；固定 epsilon `0.5`、tolerance `2e-3`、max iterations `10000`、smoothing `1e-8`。
+- 入口必须使用独立 artifact/audit/checkpoint/log 路径，预期 active shape 为 `[Qwen ordinary target=151643, Mistral full source=131072]`；禁止把 Bayes 工件或正向 artifact 当作 resume 输入。
+- Slurm wrapper 通过 Bash syntax、stub 参数转发、失败传播和无 partition/GPU 检查；recipe 的路径与 expected shape 必须与独立正式工件一致。
+- 本地运行新增定向 pytest、相关 transport 回归、完整 pytest、Black、AST/Bash 和 `git diff --check`。正式 ANN 与 OT 只在 Guqq 经 Slurm 运行。
+- 正式验收核对 ANN 方向 fingerprints/coverage/hash，artifact shape/nnz/source-target marginals/metadata code/data/ANN provenance、列归一化、marginal L1、dangerous specials、文件 SHA/大小、无 partial，并将独立工件 scp 到本地根目录再次加载验证。
+
+实际结果（本地阶段）：
+
+- special-token metadata、反向 ANN/formal Slurm、既有 ANN/formal 和 recipe 配置定向回归 `36 passed in 40.55s`；新增用例证明 backend `special=true` 的 added token 即使未出现在 `all_special_tokens` 也会从 ordinary support 排除。
+- 完整回归 `215 passed, 2 warnings in 234.71s`；两条 warning 仍仅为既有 pandas 可选依赖版本提示。
+- 三个相关 Python 文件 Black unchanged、内存 AST 通过；两个新 Slurm 脚本 Bash syntax、stub 参数转发、固定方向/revisions/solver 参数、独立路径、无 partition/GPU 和 `git diff --check` 均通过。
+- 正式 Guqq ANN/Sinkhorn 尚未运行，本地测试不能替代真实 artifact 验收。

@@ -162,3 +162,5 @@
 - 完成 Mistral-Nemo→Qwen3 Bayes 反演库、原子 CLI 与 CPU Slurm 入口：不做裸转置，而从正向 `T * source_marginal` 恢复联合质量并按实际 target marginal 重新条件化；交换 active supports、candidate/special coordinates 和方向 provenance。定向 57/57、完整 211/211、最终专属 4/4 及静态检查通过，正式矩阵待 Guqq Slurm 生成。
 - Guqq CPU Slurm Job 324 已生成并审计正式 Mistral-Nemo→Qwen3 artifact，Exit 0、17.45 秒、MaxRSS 1.37 GiB；shape 151669×131069、2,733,518 nnz、最大列和误差 `4.91e-14`、marginal L1 `1.05e-13`、valid true。40,694,539-byte 工件已 scp 到本地根目录，双端 SHA-256 均为 `77905324...b486f`，保持 Git 忽略。
 - 正式反向矩阵任务完成：实现与本地测试、Guqq Slurm 生成、独立数值 audit、本地根目录副本及使用文档均已验收并推送；fingerprint 按用户要求保持 `not-performed`，真实推理门禁未关闭。
+- 用户澄清需要从头独立求解 Mistral→Qwen，而不是 Bayes 反演。已将新单元拆分为方向独立 ANN、OpenHermes 500k marginals/candidate graph、正式 Sinkhorn 与 artifact audit；既有 Job 324 工件只作为 `_bayes_reverse` 对照保留，不得作为新解输入。
+- 完成独立反向 ANN/正式 OT Slurm 入口及 added-special 完整分类：锁定 Mistral→Qwen revisions、独立输入输出和 `(151643, 131072)` support，正式门禁拒绝 Bayes derivation；定向 36/36、完整 215/215 与静态检查通过，准备 Guqq 真正从头求解。

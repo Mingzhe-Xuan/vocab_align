@@ -2,14 +2,14 @@
 
 ## 当前状态
 
-Mistral-Nemo→Qwen3 正式 Bayes 反向矩阵实现与验收完成。Guqq CPU Slurm Job 324 生成的 artifact 已复制到本地根目录；远端 audit 与本地 loader 验证均通过。shape `(151669, 131069)`、2,733,518 nnz、SHA-256 `77905324...b486f`，逐边保持正向联合质量并按 realized Mistral marginal 重新条件化；按用户要求 fingerprint 仅交换 provenance、未做 live 验证。代码、测试、Slurm 入口和使用文档均已推送。
+Mistral-Nemo→Qwen3 独立 OT 的方向锁定 ANN/正式 Slurm 入口和 backend special-token 完整识别已完成本地验证：36/36 定向、215/215 完整回归和静态检查通过。目标 support 固定为 Mistral full source 131072、Qwen ordinary target 151643；下一步提交并推送未验收实现，在 Guqq 先保留改名 Job 324 派生对照，再运行独立反向 ANN。
 
 ## 当前计划
 
-1. 已实现通用 sparse artifact Bayes 反演函数、CLI 与 CPU Slurm 入口。
-2. 已通过 toy 联合质量/双重反演测试、57/57 定向和 211/211 完整回归。
-3. 已通过 Guqq Slurm 转换、独立 audit，并 scp 正式 artifact 到本地根目录。
-4. 已完成使用文档、路径/哈希/diff 检查和验收提交；用户未跟踪的 `docs/assets/alignment.py` 与 `T_method.md` 移动保持未改、未纳入本任务提交。
+1. 新增并测试方向锁定的反向 ANN 与正式 OT Slurm 入口，固定 Mistral/Qwen revisions、OpenHermes 500k manifest、shape `(151643, 131072)` 和独立输出路径。
+2. 将本地/Guqq Job 324 派生工件改为明确的 `_bayes_reverse` 文件名，保留不覆盖；提交并推送源码。
+3. Guqq 首项 pull 后依次通过 Slurm 生成独立反向 ANN 和正式 Sinkhorn artifact，不在登录节点运行批量处理。
+4. 独立 audit 新 artifact，scp 到本地根目录，更新 recipe/使用文档和测试记录后完成验收。
 
 ## 变更记录
 
@@ -27,6 +27,8 @@ Mistral-Nemo→Qwen3 正式 Bayes 反向矩阵实现与验收完成。Guqq CPU S
 - 2026-09-04 14:34 +08:00：Bayes 反演实现、原子 CLI、CPU-only Slurm 入口与模块接口完成；toy 验证逐边联合质量、realized marginal、双重反演、support/candidate/special/provenance 交换。定向 57/57、完整 211/211、最终 4/4 和 Black/AST/Bash/CLI/diff 通过，进入未验收提交与 Guqq 正式 artifact 转换阶段。
 - 2026-09-04 16:31 +08:00：Guqq Job 324 以 Exit 0 完成正式反向转换，17.45 秒、MaxRSS 1,435,048 KiB、0 swap；远端 audit valid，本地断点复制后大小与 SHA 完全一致并通过 loader。进入使用文档、最终测试记录与验收提交，不扩大到 fingerprint 调查或 benchmark。
 - 2026-09-04 16:45 +08:00：正式反向矩阵使用文档与验收证据已以 `61ec2b8` 推送；代码实现、正式 Slurm artifact、本地副本、数值 audit、测试和文档要求全部满足，目标完成。fingerprint 仍按用户范围标记为未验证，未关闭真实推理门禁。
+- 2026-09-04 17:15 +08:00：用户澄清目标为重新独立求解 Mistral→Qwen，而非对正向 coupling 做 Bayes 反演。进入反向 ANN、独立 marginal/candidate graph/Sinkhorn 正式构建；Job 324 派生工件保留但改名降级为对照，新解不得复用其数值或 provenance。
+- 2026-09-04 17:28 +08:00：独立反向 ANN/正式 OT Slurm 入口与 backend added-special 分类修复完成；后者消除 Guqq 环境只识别 14/26 Qwen special 导致 target support 漂移的问题。定向 36/36、完整 215/215、Black/AST/Bash/diff 通过，进入验证提交与远端 ANN 阶段。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

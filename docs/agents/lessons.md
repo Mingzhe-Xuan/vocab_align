@@ -75,3 +75,7 @@ Job 234 暴露了 full-dual 截断 Newton-CG 的另一非显然约束：标准 r
 ## 条件 transport 的反向不是裸转置
 
 artifact 保存的是列归一化条件分布 `T[target, source] = P(target | source)`；直接转置后，新列一般不归一化，也不再代表 `P(source | target)`。正确反向必须先恢复逐边联合质量 `J[target, source] = T[target, source] * p(source)`，再按每个 target 的实际联合质量求和重新条件化。若正向 Sinkhorn 在允许容差内仍有非零 row residual，反向 source marginal 必须使用 `J.sum(source)` 的 realized marginal，而不是 metadata 中仅近似满足的目标 marginal；否则无法同时保持原联合耦合与严格列归一化。反向 artifact 还必须交换 active token-ID supports、候选图坐标、special mapping 和方向 provenance，并明确标记为派生产物；tokenizer fingerprint 未验证只能记为未验证，不能伪造为已通过。
+
+## Added special token 不能只依赖 `all_special_tokens`
+
+同一锁定 tokenizer 在不同 Transformers/tokenizer 序列化路径下，`all_special_tokens` 可能只暴露部分 backend added tokens；Guqq 构建环境曾因此只识别 Qwen 26 个控制 token 中的 14 个，使 ordinary support 从预期 151643 漂移到 151655。special/control 分类必须同时读取 fast-tokenizer backend 的 added-token decoder，并纳入所有 `special=true` token，再由显式 BOS/EOS/pad 等属性覆盖具体 kind。否则这些控制 token 会静默进入 target OT marginal 和 ANN 图，改变矩阵 shape 与语义；这不是单纯 fingerprint 元数据问题。

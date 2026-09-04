@@ -36,6 +36,15 @@ and reserves 64G for up to 24 hours because canonicalizing and tokenizing the
 500k corpus is batch work. `BUILD_SPLIT` exists for explicit dev validation;
 the formal default remains `transport_train`.
 
+`build_reverse_ann_candidates.sbatch` independently generates the directional
+Mistral-Nemo to Qwen3 ANN graph. `build_reverse_formal_transport.sbatch` then
+reuses only the frozen OpenHermes records/manifest—not the forward graph,
+marginals, coupling, or artifact—to estimate reverse-direction marginals and
+solve a new Sinkhorn problem. The post-build gate requires shape
+`[151643 Qwen ordinary targets, 131072 Mistral full sources]` and rejects any
+artifact carrying Bayes-derivation metadata. Run the ANN job to completion
+before submitting the formal reverse job.
+
 Example:
 
 ```bash
@@ -50,4 +59,8 @@ ANN_CANDIDATES_JSON=local/transport/artifacts/qwen3_8b_to_mistral_nemo_ann.json 
   sbatch script/transport/slurm/build_full_support_preview.sbatch
 
 sbatch script/transport/slurm/build_formal_transport.sbatch
+
+sbatch script/transport/slurm/build_reverse_ann_candidates.sbatch
+# After the reverse ANN job passes its provenance/coverage checks:
+sbatch script/transport/slurm/build_reverse_formal_transport.sbatch
 ```
