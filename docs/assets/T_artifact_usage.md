@@ -32,13 +32,13 @@ direction:       Qwen3-8B -> Mistral-Nemo-Instruct-2407
 本地文件已由根目录 `.gitignore` 精确排除。它是模型生成物且大于
 10 MiB，不得执行 `git add -f` 或通过普通 Git 提交。
 
-由同一联合耦合派生的反向 artifact 对应：
+独立求解并已验收的反向 artifact 对应：
 
 ```text
 sender/source:   mistralai/Mistral-Nemo-Instruct-2407
 receiver/target: Qwen/Qwen3-8B
 direction:       Mistral-Nemo-Instruct-2407 -> Qwen3-8B
-derivation:      bayes-joint-reversal-v1
+construction:    fresh marginals + reverse ANN + Sinkhorn
 ```
 
 - Guqq：`~/vocab_align/C2C/local/transport/artifacts/mistral_nemo_to_qwen3_8b_openhermes_500k.npz`
@@ -46,22 +46,28 @@ derivation:      bayes-joint-reversal-v1
 
 | 项目 | 值 |
 |---|---|
-| Slurm job | `324` |
-| 文件大小 | `40,694,539` bytes |
-| SHA-256 | `77905324ee9e063aef33c0e01a73c26bf4ac7907c8a48f972c463f5af3eb486f` |
-| shape | `[151669, 131069]` |
+| Slurm job | `327` |
+| 文件大小 | `39,412,012` bytes |
+| SHA-256 | `78a01689490224824db6c54460c992091572694cd5c603327e5d84fe3efff84d` |
+| shape | `[151643, 131072]` |
 | 布局 | `[Qwen target, Mistral source]` |
-| 非零元素 | `2,733,518` |
-| source active support | `131,069` Mistral token IDs |
-| target active support | `151,669` Qwen token IDs |
-| source tokenizer fingerprint | `12be2a776e12655422f69aabc496e70843d20b1b118c0089314e14d542beca92`（未做 live 验证） |
-| target tokenizer fingerprint | `c39a0519aee714a6c8a3eca850849443a5cc6eb7e960211daa11cf5a896061de`（未做 live 验证） |
-| artifact input fingerprint | `9d42ecb84aa005828aa2e5535b7feda4c60991d996f424cbb7e651b3efa4bba8` |
-| 最大列和误差 | `4.9072e-14` |
-| transported marginal L1 | `1.0520e-13` |
+| 非零元素 | `2,693,524` |
+| source active support | `131,072` Mistral token IDs（完整词表） |
+| target active support | `151,643` Qwen ordinary token IDs |
+| source tokenizer fingerprint | `ea2f93fc906df0a1bdc3e1c4501666dcc2d56413f17ce99acc019af0acfe4fae` |
+| target tokenizer fingerprint | `a15bfb56a5f7330ca968a5b72cb34377671ed372d8d52155b3fe77165dbd895d` |
+| artifact input fingerprint | `21947b8e10b37f13c766c773c85e391375b3ba791022b613d7ff811e3fd700a3` |
+| reverse ANN SHA-256 | `33fb337bea7c28d3d271f24ed02c336ae2f36942a645672392166c59dae6fc7d` |
+| 最大列和误差 | `7.1783e-12` |
+| transported marginal L1 | `1.9999668e-3` |
 | audit | `valid: true`，无危险 special mapping |
 
-反向文件也由根目录 `.gitignore` 精确排除，不进入 Git。
+该工件从 OpenHermes-2.5 的 495,000 个 `transport_train` 样本重新统计
+Mistral source 与 Qwen target marginals，使用独立 Mistral→Qwen ANN 候选图并
+从 fresh checkpoint 运行 Sinkhorn；metadata 不含 `derivation`，也没有读取
+正向 T。Job 324 的 Bayes 派生版本只在 Guqq 以
+`mistral_nemo_to_qwen3_8b_bayes_reverse_openhermes_500k.npz` 保留为对照，
+不是正式反向文件。正式反向文件由根目录 `.gitignore` 精确排除，不进入 Git。
 
 ## 2. 文件内部结构
 
@@ -78,20 +84,11 @@ metadata
 ```
 
 `shape[0]` 是 receiver/target 词表轴，`shape[1]` 是 sender/source
-词表轴。单纯把 CSC 矩阵转置不能得到反向条件分布，因为新列一般不归一化。
-本仓库的
-[`reversal.py`](../../C2C/rosetta/transport/reversal.py)
-先恢复联合质量
-`J[target, source] = T[target, source] * source_marginal[source]`，再用
-正向实际 transported target marginal 做 Bayes 条件化；因此逐边联合质量保持
-不变。正向的 recorded target marginal 与 realized marginal 相差
-`0.0019655245`，反向必须采用后者，不能直接交换 metadata marginal。
-
-这个派生反向矩阵表示同一个正向 OT 联合耦合的反向条件分布，不等同于交换
-模型后重新构图、估计边缘并求解一次新的 OT。两种研究问题应使用不同文件名
-和 provenance。两个正式 artifact 都不能复用于其他 tokenizer revision，也
-不得 dense 化，因为
-`131069 x 151669` 的 dense 矩阵会产生不可接受的内存占用。
+词表轴。单纯转置或 Bayes 条件化正向 CSC 只能得到同一联合耦合的反向表示，
+不能代替交换模型后重新估计 marginals、构建候选图和求解 OT。正式反向矩阵
+正是后一种独立问题的解；Bayes 版本仅作诊断对照。两个方向的 artifact 都不能
+复用于其他 tokenizer revision，也不得 dense 化，因为十亿量级 dense 元素会
+产生不可接受的内存占用。
 
 ## 3. 在 Planner -> Thinker STT 中的作用
 
@@ -179,11 +176,12 @@ loader 的两个 expected fingerprint 参数：
 reverse_artifact = load_transport_artifact(
     Path("../mistral_nemo_to_qwen3_8b_openhermes_500k.npz")
 )
-assert reverse_artifact.shape == (151669, 131069)
-assert reverse_artifact.metadata["derivation"]["method"] == (
-    "bayes-joint-reversal-v1"
+assert reverse_artifact.shape == (151643, 131072)
+assert reverse_artifact.data.size == 2693524
+assert "derivation" not in reverse_artifact.metadata
+assert reverse_artifact.metadata["build_config"]["ann"]["sha256"] == (
+    "33fb337bea7c28d3d271f24ed02c336ae2f36942a645672392166c59dae6fc7d"
 )
-assert reverse_artifact.metadata["derivation"]["joint_mass_preserved"] is True
 ```
 
 这只表示跳过 live tokenizer fingerprint 对比；schema、列归一化、marginal、
@@ -200,11 +198,11 @@ fingerprint 门禁。
 
 ## 6. 当前 fingerprint 兼容性警告
 
-artifact 内记录的 source/target fingerprints 分别是 `c39a...` 和
-`12be...`。当前 transport recipe 中冻结的值是 `1a385...` 和 `8542...`，
-二者并不相同。反向 artifact 按方向交换了原 artifact 中的两个 fingerprint，
-并明确记录 `fingerprint_validation: not-performed`。严格模型运行 loader 应当
-拒绝与当前 recipe 不一致的组合；不得删除或绕过 fingerprint 检查来强行推理。
+正向 artifact 内记录的 source/target fingerprints 分别是 `c39a...` 和
+`12be...`，与当前正向 recipe 的 `1a385...` 和 `8542...` 不同。独立反向
+artifact 使用当前锁定 tokenizer 重新计算得到 `ea2f...` 和 `a15b...`，不是
+交换旧指纹。严格模型运行 loader 仍应拒绝与对应 recipe 不一致的组合；不得
+删除或绕过 fingerprint 检查来强行推理。
 
 在继续真实 benchmark 前，需要用锁定 revision 的当前 tokenizer fingerprint
 实现复核哪一组值正确，并使 recipe、运行时 tokenizer 和 artifact metadata
@@ -234,9 +232,11 @@ sha256sum \
   C2C/local/transport/artifacts/mistral_nemo_to_qwen3_8b_openhermes_500k.npz
 ```
 
-需要从正向 artifact 重新派生反向 artifact 时，只能提交 CPU Slurm 入口
-[`reverse_formal_transport.sbatch`](../../C2C/script/transport/slurm/reverse_formal_transport.sbatch)，
-不能在登录节点直接执行转换 CLI。
+需要重新构建独立反向 artifact 时，先提交
+[`build_reverse_ann_candidates.sbatch`](../../C2C/script/transport/slurm/build_reverse_ann_candidates.sbatch)，
+再提交
+[`build_reverse_formal_transport.sbatch`](../../C2C/script/transport/slurm/build_reverse_formal_transport.sbatch)。
+两者都只能通过 Slurm 运行，不能在登录节点直接执行批量构建。
 
 这些命令只检查文件，不产生明显计算负载。每次连接 Guqq 仍需遵循
 `AGENTS.md` 的连接记录和首项 `git pull` 要求。

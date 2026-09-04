@@ -170,3 +170,4 @@
 - 修复后 Mistral→Qwen ANN 已提交为 Job 326；错误 Job 325 JSON 改名保留且不参与后续构建，正式 Sinkhorn 仍以 130072/151643 coverage 为硬门禁。
 - Job 326 独立反向 ANN 验收通过：130072 个 Mistral ordinary source 与 151643 个 Qwen ordinary target 全覆盖，文件 SHA `33fb337b...fc7d`；准备提交 OpenHermes 500k 正式独立 Sinkhorn。
 - 经 `net.sh` 恢复 GitHub pull 后，ANN/manifest 与空输出门禁通过；正式独立 Mistral→Qwen OpenHermes 500k Sinkhorn 已提交为 Job 327，开始只读监控。
+- Job 327 从 fresh checkpoint 完成独立 Mistral→Qwen Sinkhorn：1:25:44、Exit 0、MaxRSS 8,389,548 KiB；正式 artifact 39,412,012 bytes、SHA `78a01689...f84d`、shape 151643×131072、2,693,524 nnz，row residual `1.9999668e-3`、column residual `1.37e-13`、audit valid、无 dangerous special 或 Bayes `derivation`。文件已 scp 到本地根目录并通过全量 loader；recipe、使用文档、14/14 定向与 216/216 完整回归通过。

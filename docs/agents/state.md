@@ -2,14 +2,14 @@
 
 ## 当前状态
 
-独立 Mistral→Qwen ANN Job 326 已通过 130072→151643 coverage 与 provenance 验收；正式 OpenHermes 500k Sinkhorn 已在空输出及 ANN/manifest 哈希门禁后提交为 Slurm Job 327，正在运行/排队监控。该作业从头估计 marginals、构图并求解，不读取 Bayes coupling。
+独立 Mistral→Qwen OpenHermes 500k 矩阵已完成：Job 326 构建方向独立 ANN，Job 327 从 fresh checkpoint 重新估计 marginals、构图并求解 Sinkhorn；正式 artifact 已通过远端 audit、本地 SHA 与 loader 全量验证，且不含 Bayes `derivation`。recipe/使用文档与最终回归已同步，进入验收提交。
 
 ## 当前计划
 
-1. 新增并测试方向锁定的反向 ANN 与正式 OT Slurm 入口，固定 Mistral/Qwen revisions、OpenHermes 500k manifest、shape `(151643, 131072)` 和独立输出路径。
-2. 将本地/Guqq Job 324 派生工件改为明确的 `_bayes_reverse` 文件名，保留不覆盖；提交并推送源码。
-3. Guqq 首项 pull 后依次通过 Slurm 生成独立反向 ANN 和正式 Sinkhorn artifact，不在登录节点运行批量处理。
-4. 独立 audit 新 artifact，scp 到本地根目录，更新 recipe/使用文档和测试记录后完成验收。
+1. 已完成方向锁定的反向 ANN 与正式 OT Slurm 入口、added-token support 修复及本地测试。
+2. 已将 Job 324 Bayes 派生工件降级为 `_bayes_reverse` 对照，并由 Jobs 326/327 独立重建正式矩阵。
+3. 已完成远端数值/provenance audit、scp、本地全量加载、recipe 与使用文档同步。
+4. 形成并推送最终验收提交，报告矩阵结果；后续 benchmark 作为独立实验单元，不与本次构建验收混合。
 
 ## 变更记录
 
@@ -35,6 +35,7 @@
 - 2026-09-04 17:52 +08:00：修复提交已同步 Guqq，错误 ANN 原子改名保留，修复后反向 ANN Job 326 提交成功；正式 Sinkhorn 继续等待严格 coverage/provenance 门禁。
 - 2026-09-04 17:56 +08:00：Job 326 反向 ANN 以正确 130072/151643 coverage 通过，方向 revisions/fingerprints、code 与文件哈希完整。进入正式独立 Sinkhorn 提交阶段。
 - 2026-09-04 18:03 +08:00：首次 pull 网络失败后按规范运行 `bash net.sh`，重试同步及全部输入/空输出门禁通过；正式独立 Mistral→Qwen Sinkhorn Job 327 提交成功，进入只读终态监控。
+- 2026-09-04 19:40 +08:00：Job 327 以 1:25:44、Exit 0、MaxRSS 8,389,548 KiB、0 swap 完成 fresh 独立求解；artifact 为 39,412,012 bytes、SHA `78a01689...f84d`、shape 151643×131072、2,693,524 nnz，audit valid 且 row residual `1.9999668e-3`。本地 scp、全量 loader、recipe/文档同步和 216/216 回归均通过，进入最终验收提交。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

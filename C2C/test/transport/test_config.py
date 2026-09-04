@@ -186,6 +186,7 @@ def test_reverse_and_second_model_pair_recipes_pin_independent_directions():
     assert reverse.expected_artifact_shape == (151643, 131072)
     assert forward.expected_artifact_shape == (131069, 151669)
     assert reverse.output_path != forward.output_path
+    assert reverse.output_path.endswith("mistral_nemo_to_qwen3_8b_openhermes_500k.npz")
     assert second.target.name == "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
     assert second.expected_artifact_shape == (128000, 151669)
     assert len({forward.output_path, reverse.output_path, second.output_path}) == 3

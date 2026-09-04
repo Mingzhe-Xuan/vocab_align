@@ -20,7 +20,7 @@ data:
   build_splits: [transport_train]
   dev_fraction: 0.01
 seed: 42
-output_path: local/transport/artifacts/mistral_nemo_to_qwen3_8b.npz
+output_path: local/transport/artifacts/mistral_nemo_to_qwen3_8b_openhermes_500k.npz
 output_schema: stt-result-v1
 expected_artifact_shape: [151643, 131072]
 construction:
