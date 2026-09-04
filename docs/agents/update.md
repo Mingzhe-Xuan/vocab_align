@@ -161,3 +161,4 @@
 - 进入 Mistral-Nemo→Qwen3 反向 transport artifact 实现：以正式 Qwen3→Mistral-Nemo 的稀疏联合耦合做 Bayes 反演，交换方向 support/provenance 并保留联合质量；暂不处理 live tokenizer fingerprint 差异，但保持运行时严格门禁不变。已预注册 toy 联合质量、双重反演、序列化/audit、CLI 原子性和正式 Slurm artifact 验收范围。
 - 完成 Mistral-Nemo→Qwen3 Bayes 反演库、原子 CLI 与 CPU Slurm 入口：不做裸转置，而从正向 `T * source_marginal` 恢复联合质量并按实际 target marginal 重新条件化；交换 active supports、candidate/special coordinates 和方向 provenance。定向 57/57、完整 211/211、最终专属 4/4 及静态检查通过，正式矩阵待 Guqq Slurm 生成。
 - Guqq CPU Slurm Job 324 已生成并审计正式 Mistral-Nemo→Qwen3 artifact，Exit 0、17.45 秒、MaxRSS 1.37 GiB；shape 151669×131069、2,733,518 nnz、最大列和误差 `4.91e-14`、marginal L1 `1.05e-13`、valid true。40,694,539-byte 工件已 scp 到本地根目录，双端 SHA-256 均为 `77905324...b486f`，保持 Git 忽略。
+- 正式反向矩阵任务完成：实现与本地测试、Guqq Slurm 生成、独立数值 audit、本地根目录副本及使用文档均已验收并推送；fingerprint 按用户要求保持 `not-performed`，真实推理门禁未关闭。
