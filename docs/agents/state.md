@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Qwen reserved-added 控制 token 分类修复已通过 216/216 回归并同步 Guqq；错误 Job 325 ANN 已改名保留为诊断，修复后的独立 Mistral→Qwen ANN 正由 Slurm Job 326 重建。其 coverage 必须为 130072→151643，通过后才启动正式 Sinkhorn。
+修复后的独立 Mistral→Qwen ANN Job 326 已通过验收：coverage 130072→151643、方向 fingerprints/revisions/code 完整，SHA-256 `33fb337b...fc7d`。下一步在空独立 artifact/audit/checkpoint 门禁后提交正式 OpenHermes 500k Sinkhorn。
 
 ## 当前计划
 
@@ -33,6 +33,7 @@ Qwen reserved-added 控制 token 分类修复已通过 216/216 回归并同步 G
 - 2026-09-04 17:44 +08:00：Job 325 provenance 显示 Mistral ordinary 130072 正确、Qwen ordinary 151655 错误，正式 OT 门禁停止且未提交。根因是 12 个 Qwen reserved added tokens 位于 `tokenizer.vocab_size` 外但 backend `special=false`；进入精确分类修复与 ANN 重跑，不接受错误 shape。
 - 2026-09-04 17:48 +08:00：reserved-added 控制分类修复完成，定向 35/35、完整 216/216、Black/AST/Bash/diff 通过。下一步推送后把 Job 325 JSON 改名为失败诊断，使用同一锁定配置重跑 ANN，要求 Qwen target coverage 精确为 151643。
 - 2026-09-04 17:52 +08:00：修复提交已同步 Guqq，错误 ANN 原子改名保留，修复后反向 ANN Job 326 提交成功；正式 Sinkhorn 继续等待严格 coverage/provenance 门禁。
+- 2026-09-04 17:56 +08:00：Job 326 反向 ANN 以正确 130072/151643 coverage 通过，方向 revisions/fingerprints、code 与文件哈希完整。进入正式独立 Sinkhorn 提交阶段。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。
