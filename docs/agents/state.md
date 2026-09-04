@@ -2,14 +2,14 @@
 
 ## 当前状态
 
-Mistral-Nemo→Qwen3 Bayes 反演库、CLI、CPU Slurm 入口与测试已完成本地验证：定向 57/57、完整 211/211、最终反演定向 4/4 及静态检查通过。尚未生成正式反向 artifact；下一步形成未验收提交并推送，随后由 Guqq 首项 pull 后经 Slurm 转换正式矩阵。
+Mistral-Nemo→Qwen3 正式 Bayes 反向矩阵已由 Guqq CPU Slurm Job 324 生成并复制到本地根目录；远端 audit 与本地 loader 验证均通过。shape `(151669, 131069)`、2,733,518 nnz、SHA-256 `77905324...b486f`，逐边保持正向联合质量并按 realized Mistral marginal 重新条件化；按用户要求 fingerprint 仅交换 provenance、未做 live 验证。当前进入文档与最终验收提交整理。
 
 ## 当前计划
 
 1. 实现通用的 sparse artifact Bayes 反演函数与 CLI，反转 active token supports、边缘分布、候选图、special mappings 和方向 provenance。
 2. 用 toy artifact 验证联合质量守恒、列归一化、双重反演和序列化；运行 transport 定向及完整本地回归。
-3. 提交并推送代码；按连接审计要求让 Guqq 首项 `git pull`，经 Slurm 转换正式 artifact、独立 audit 后 scp 到本地根目录。
-4. 记录正式反向 artifact 的大小、SHA-256、shape、nnz 和审计结果，更新使用文档并完成验收提交。
+3. 已通过 Guqq Slurm 转换正式 artifact、独立 audit，并 scp 到本地根目录。
+4. 完成相关使用文档、路径/哈希检查和最终 diff 审计，提交验收记录；保留用户未跟踪的 `docs/assets/alignment.py` 与 `T_method.md` 移动，不纳入本任务提交。
 
 ## 变更记录
 
@@ -25,6 +25,7 @@ Mistral-Nemo→Qwen3 Bayes 反演库、CLI、CPU Slurm 入口与测试已完成�
 - 2026-09-04 09:18 +08:00：STT 伪代码文档完成；使用 artifact 实际 active supports 修正 T 维度为 `[len(target_token_ids), len(source_token_ids)]`，并显式 gather receiver embedding rows。实际 shape/support、6 个引用路径、关键协议字段和 diff 检查通过，下一步回到 fingerprint provenance 与远程 benchmark 验收。
 - 2026-09-04 09:36 +08:00：用户将当前目标调整为参考正式 Qwen3→Mistral-Nemo artifact 实现 Mistral-Nemo→Qwen3 反向矩阵，并要求暂时忽略 fingerprint。方向分析确认裸转置不满足条件概率语义；进入同一联合耦合的 Bayes 反演实现、toy 不变量测试与正式 Slurm 转换阶段。
 - 2026-09-04 14:34 +08:00：Bayes 反演实现、原子 CLI、CPU-only Slurm 入口与模块接口完成；toy 验证逐边联合质量、realized marginal、双重反演、support/candidate/special/provenance 交换。定向 57/57、完整 211/211、最终 4/4 和 Black/AST/Bash/CLI/diff 通过，进入未验收提交与 Guqq 正式 artifact 转换阶段。
+- 2026-09-04 16:31 +08:00：Guqq Job 324 以 Exit 0 完成正式反向转换，17.45 秒、MaxRSS 1,435,048 KiB、0 swap；远端 audit valid，本地断点复制后大小与 SHA 完全一致并通过 loader。进入使用文档、最终测试记录与验收提交，不扩大到 fingerprint 调查或 benchmark。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

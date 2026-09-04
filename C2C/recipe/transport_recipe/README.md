@@ -3,8 +3,13 @@
 Each recipe fixes one directed source-to-receiver transport configuration.
 `expected_artifact_shape` is always `[target_active_vocab, source_active_vocab]`;
 the output path, marginals, tokenizer fingerprints, and artifact must be built
-independently for that direction. A reverse experiment must never transpose or
-reuse a forward artifact.
+independently for a newly solved reverse OT experiment. A bare transpose is
+never a valid conditional transport. When the research question instead asks
+for the reverse conditional of the *same* learned joint coupling,
+`rosetta.transport.reversal.reverse_transport_artifact` may derive it by Bayes
+reconditioning with the realized marginal. That artifact must use a separate
+path and explicit derivation provenance and is not equivalent to solving a new
+reverse-direction OT problem.
 
 The active collaboration contract fixes the source/sender as `planner` and the
 target/receiver as `thinker`. The same problem is rendered independently by

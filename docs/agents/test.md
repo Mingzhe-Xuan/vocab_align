@@ -973,4 +973,6 @@ wrapper 近似模式测试计划：
 - toy 反演、artifact/audit、config、wrapper 与构建 CLI 定向回归 `57 passed in 25.32s`；完整回归 `211 passed, 2 warnings in 244.38s`，两条 warning 仍仅为既有 pandas 可选依赖版本提示。
 - 最终反演专属回归 `4 passed in 12.84s`：反向联合质量等于正向联合质量的转置，source marginal 使用正向实际 transported marginal，列和为 1；双重反演恢复原 transport/source marginal/support/candidate coordinates，special mapping 与 fingerprints 仅交换方向。
 - 四个新增 Python 文件 Black unchanged、内存 AST 解析通过；CLI `--help`、CPU-only Slurm 脚本 `bash -n` 和 `git diff --check` 通过。默认 Black 写测试文件受既有 Windows ACL 阻止，按已有经验使用 `--diff` 后通过 `apply_patch` 应用两处机械格式，再由任务专用 cache 完成最终检查，未降低测试范围。
-- 正式反向 artifact 尚未执行 Slurm 转换，因此本地测试结果不能作为最终矩阵验收证据。
+- 正式 Slurm 结果：Guqq CPU Job 324 Exit 0，耗时 17.45 秒、MaxRSS 1,435,048 KiB、0 swap；生成 artifact 40,694,539 bytes，SHA-256 `77905324ee9e063aef33c0e01a73c26bf4ac7907c8a48f972c463f5af3eb486f`，无 `.partial.npz`。
+- 独立 audit：shape `[151669, 131069]`、2,733,518 nnz、candidate edges 2,733,518、nonnegative/valid true、最大列和误差 `4.907185768843192e-14`、column marginal L1 `1.9365990559674718e-15`、transported marginal L1 `1.052004005974113e-13`，无危险 special mappings。
+- 本地 scp 副本大小和 SHA 与 Guqq 逐位一致；`load_transport_artifact` 全量验证成功，source/target active supports 为 `131069/151669`，metadata source/target fingerprints 为 `12be.../c39a...`，`fingerprint_validation=not-performed`，parent SHA 正确绑定正向正式 artifact `1495d522...aba97`。
