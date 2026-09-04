@@ -956,3 +956,21 @@ wrapper 近似模式测试计划：
 - 正式 artifact 实测 `shape=(131069, 151669)`，source/target active supports 分别为 `151669/131069`，source IDs 连续覆盖完整 source tokenizer support，target 最大 ID 为 `131071`；伪代码据此使用 active token-ID gather，没有错误假设 T 两轴都等于完整 tokenizer 长度。
 - `T_algo.md`、`T_artifact_usage.md`、artifact/soft-transport/wrapper/adapter 共 6 个引用路径全部存在；双 `enable_thinking`、sender full context、row-vector `p_A @ T^T`、三段 prefix、no-shift 与禁止 dense 等关键字段均可检索。
 - Markdown 结构和伪代码人工复核通过，`git diff --check` 通过。本单元没有修改 Python 代码，因此未新增或运行无关单元测试。
+
+# 2026-09-04：Mistral-Nemo→Qwen3 反向 transport artifact 单元
+
+测试计划：
+
+- toy 稀疏 artifact 的反向结果必须保持 `[target, source]` 布局，交换 active source/target token IDs，并使每个新 source 列严格归一化。
+- 反演前后的联合质量逐边一致：`T_reverse[qwen, mistral] * p_realized(mistral)` 必须等于 `T_forward[mistral, qwen] * p(qwen)`；反向 source marginal 使用正向矩阵实际输运得到的 marginal，不能因正向允许的 `2e-3` 残差伪造联合质量。
+- source/target fingerprint 字段只做方向交换且本单元不校验 live tokenizer fingerprint；candidate graph 坐标、special mappings、active supports 和派生 provenance 必须一并反转，不能把裸转置标记为可用 transport。
+- 双重反演应在浮点容差内恢复原矩阵、marginals 和 token supports；序列化往返及独立 artifact audit 必须通过。
+- CLI 拒绝输入输出为同一路径，以临时文件原子发布，并生成 JSON/Markdown audit；运行新增定向 pytest、完整 pytest、Black、compile/AST、CLI help 与 `git diff --check`。
+- 正式 2,733,518-nnz artifact 的转换属于批量处理，只在 Guqq 通过 Slurm 执行；验收 shape 应为正向 active support 的严格交换 `(151669, 131069)`，并记录文件 SHA-256、大小、nnz、列和及 marginal 残差。fingerprint 一致性调查不属于本单元，不通过删除既有门禁来规避。
+
+实际结果（本地阶段）：
+
+- toy 反演、artifact/audit、config、wrapper 与构建 CLI 定向回归 `57 passed in 25.32s`；完整回归 `211 passed, 2 warnings in 244.38s`，两条 warning 仍仅为既有 pandas 可选依赖版本提示。
+- 最终反演专属回归 `4 passed in 12.84s`：反向联合质量等于正向联合质量的转置，source marginal 使用正向实际 transported marginal，列和为 1；双重反演恢复原 transport/source marginal/support/candidate coordinates，special mapping 与 fingerprints 仅交换方向。
+- 四个新增 Python 文件 Black unchanged、内存 AST 解析通过；CLI `--help`、CPU-only Slurm 脚本 `bash -n` 和 `git diff --check` 通过。默认 Black 写测试文件受既有 Windows ACL 阻止，按已有经验使用 `--diff` 后通过 `apply_patch` 应用两处机械格式，再由任务专用 cache 完成最终检查，未降低测试范围。
+- 正式反向 artifact 尚未执行 Slurm 转换，因此本地测试结果不能作为最终矩阵验收证据。

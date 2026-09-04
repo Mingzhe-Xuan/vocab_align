@@ -71,3 +71,7 @@ source logits 为 `h W^T + b` 时，通信温度作用于整个 logits：ORF que
 真实 2.3M-edge 图进一步表明，即使相对增量目标且 SciPy `ftol=0`，当目标下降在 float64 中恰好不可分辨时，L-BFGS-B 仍会以 `RELATIVE REDUCTION OF F <= FACTR*EPSMCH` 返回；Job 232/233 的 20 次短退及完全相同 residual 证明这不是简单选项问题。严格边际求解不能再依赖函数值 line-search/termination。应直接对 dual gradient 使用 Hessian-vector：在 `sqrt(marginal)` 坐标中以对角预条件 CG 求 Newton 方向，再用原始两侧 L1 residual 做有限 backtracking 和接受判据。CG matvec 与候选评估必须共享显式预算，避免用隐藏的内部迭代绕过总计算上限。
 
 Job 234 暴露了 full-dual 截断 Newton-CG 的另一非显然约束：标准 row/column scaling 结束时 column marginal 已精确到机器误差，有限步 CG 的近似方向却不保证 column 方程为零；若用两侧最大 residual 回溯，方向即使改善 row 方程，也会因新引入的 column residual 只能接受约 `1/1024` 的微步。应解析消去 column dual，使用 reduced row-dual 的 Schur-complement Hessian；每个 row trial 后按 source marginal 精确重归一化各 column，再用 row/column 原始 residual 验收。这样候选始终留在 column-feasible 流形，截断 CG 的误差不会被误当成破坏另一侧约束的步长惩罚。reduced Hessian 仍有常数 gauge，必须固定高质量 anchor 或做正交投影，并保持 Hessian matvec/候选评估的显式预算。
+
+## 条件 transport 的反向不是裸转置
+
+artifact 保存的是列归一化条件分布 `T[target, source] = P(target | source)`；直接转置后，新列一般不归一化，也不再代表 `P(source | target)`。正确反向必须先恢复逐边联合质量 `J[target, source] = T[target, source] * p(source)`，再按每个 target 的实际联合质量求和重新条件化。若正向 Sinkhorn 在允许容差内仍有非零 row residual，反向 source marginal 必须使用 `J.sum(source)` 的 realized marginal，而不是 metadata 中仅近似满足的目标 marginal；否则无法同时保持原联合耦合与严格列归一化。反向 artifact 还必须交换 active token-ID supports、候选图坐标、special mapping 和方向 provenance，并明确标记为派生产物；tokenizer fingerprint 未验证只能记为未验证，不能伪造为已通过。

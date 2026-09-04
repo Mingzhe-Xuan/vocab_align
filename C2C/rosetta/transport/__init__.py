@@ -88,6 +88,7 @@ from .manifest import (
 )
 from .marginals import MarginalError, TokenMarginal, estimate_token_marginal
 from .metrics import MetricsError, TransportMetrics
+from .reversal import REVERSAL_METHOD, reverse_transport_artifact
 from .orf import (
     OrfError,
     OrfTransportState,
@@ -173,6 +174,7 @@ __all__ = [
     "ModelSpec",
     "OrfError",
     "OrfTransportState",
+    "REVERSAL_METHOD",
     "SinkhornError",
     "SparseCoupling",
     "SoftTransportError",
@@ -232,6 +234,7 @@ __all__ = [
     "paired_transport_statistics",
     "precompute_source_values",
     "precomputed_transport_embeddings",
+    "reverse_transport_artifact",
     "save_transport",
     "save_transport_artifact",
     "save_evaluation_summary",

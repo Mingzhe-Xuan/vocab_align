@@ -21,6 +21,10 @@ does not modify the existing C2C projector or wrapper.
   matrix and its provenance. Loading never enables NumPy pickle payloads;
   column normalization stays at dtype precision while the recorded marginal
   L1 tolerance is bounded by the pre-registered full-vocabulary requirement.
+- `reversal.py`: exact Bayes reversal of an existing conditional artifact via
+  its realized sparse joint coupling. It swaps active supports and provenance,
+  preserves edgewise joint mass, and reconditions columns; it never treats a
+  bare matrix transpose as a valid reverse transport.
 - `config.py`: immutable model/data/runtime configuration with pinned revision
   and optional tokenizer fingerprint, direction-specific expected artifact
   shape, frozen special-token policy, construction (`epsilon`, tolerance,

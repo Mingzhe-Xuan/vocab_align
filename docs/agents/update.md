@@ -158,3 +158,5 @@
 - 按用户要求将 Guqq 正式 Qwen3→Mistral-Nemo T artifact 复制到本地仓库根目录；39,951,267-byte 文件经 SFTP 断点续传完成，本地/远端 SHA-256 均为 `1495d522...aba97`。新增根目录精确忽略规则，未暂存或提交该大文件；仅清理本次失败传输产生的 131,072-byte partial。
 - 新增 `docs/assets/T_artifact_usage.md`，记录正式 T 的双端路径、方向、CSC schema、完整性数据、Planner→Thinker STT 位置、Slurm recipes、低层 loader 与禁用事项；artifact 只读加载及 10 个引用路径检查通过。同步发现 artifact 与当前 recipe tokenizer fingerprints 不一致并明确列为 benchmark 前置阻塞，不绕过严格校验。
 - 新增 `docs/assets/T_algo.md`：以 row-vector 伪代码完整描述 Planner→Thinker exact STT，包括同题双原生 prompt/双 CoT、planner think、完整 sender context forward、active-support sparse `p_A @ T^T @ E_B`、padding/position packing 与 receiver KV-cache decode；实际 artifact support、6 个引用路径和格式检查通过。
+- 进入 Mistral-Nemo→Qwen3 反向 transport artifact 实现：以正式 Qwen3→Mistral-Nemo 的稀疏联合耦合做 Bayes 反演，交换方向 support/provenance 并保留联合质量；暂不处理 live tokenizer fingerprint 差异，但保持运行时严格门禁不变。已预注册 toy 联合质量、双重反演、序列化/audit、CLI 原子性和正式 Slurm artifact 验收范围。
+- 完成 Mistral-Nemo→Qwen3 Bayes 反演库、原子 CLI 与 CPU Slurm 入口：不做裸转置，而从正向 `T * source_marginal` 恢复联合质量并按实际 target marginal 重新条件化；交换 active supports、candidate/special coordinates 和方向 provenance。定向 57/57、完整 211/211、最终专属 4/4 及静态检查通过，正式矩阵待 Guqq Slurm 生成。
