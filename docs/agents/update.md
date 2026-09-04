@@ -169,3 +169,4 @@
 - reserved-added 控制分类修复通过定向 35/35、完整 216/216：现在同时识别 backend `special=true` 与基础词表外 added IDs，同时不误排除基础词表内 alias。准备保留 Job 325 诊断并重跑独立 ANN。
 - 修复后 Mistral→Qwen ANN 已提交为 Job 326；错误 Job 325 JSON 改名保留且不参与后续构建，正式 Sinkhorn 仍以 130072/151643 coverage 为硬门禁。
 - Job 326 独立反向 ANN 验收通过：130072 个 Mistral ordinary source 与 151643 个 Qwen ordinary target 全覆盖，文件 SHA `33fb337b...fc7d`；准备提交 OpenHermes 500k 正式独立 Sinkhorn。
+- 经 `net.sh` 恢复 GitHub pull 后，ANN/manifest 与空输出门禁通过；正式独立 Mistral→Qwen OpenHermes 500k Sinkhorn 已提交为 Job 327，开始只读监控。

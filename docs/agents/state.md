@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-修复后的独立 Mistral→Qwen ANN Job 326 已通过验收：coverage 130072→151643、方向 fingerprints/revisions/code 完整，SHA-256 `33fb337b...fc7d`。下一步在空独立 artifact/audit/checkpoint 门禁后提交正式 OpenHermes 500k Sinkhorn。
+独立 Mistral→Qwen ANN Job 326 已通过 130072→151643 coverage 与 provenance 验收；正式 OpenHermes 500k Sinkhorn 已在空输出及 ANN/manifest 哈希门禁后提交为 Slurm Job 327，正在运行/排队监控。该作业从头估计 marginals、构图并求解，不读取 Bayes coupling。
 
 ## 当前计划
 
@@ -34,6 +34,7 @@
 - 2026-09-04 17:48 +08:00：reserved-added 控制分类修复完成，定向 35/35、完整 216/216、Black/AST/Bash/diff 通过。下一步推送后把 Job 325 JSON 改名为失败诊断，使用同一锁定配置重跑 ANN，要求 Qwen target coverage 精确为 151643。
 - 2026-09-04 17:52 +08:00：修复提交已同步 Guqq，错误 ANN 原子改名保留，修复后反向 ANN Job 326 提交成功；正式 Sinkhorn 继续等待严格 coverage/provenance 门禁。
 - 2026-09-04 17:56 +08:00：Job 326 反向 ANN 以正确 130072/151643 coverage 通过，方向 revisions/fingerprints、code 与文件哈希完整。进入正式独立 Sinkhorn 提交阶段。
+- 2026-09-04 18:03 +08:00：首次 pull 网络失败后按规范运行 `bash net.sh`，重试同步及全部输入/空输出门禁通过；正式独立 Mistral→Qwen Sinkhorn Job 327 提交成功，进入只读终态监控。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。
