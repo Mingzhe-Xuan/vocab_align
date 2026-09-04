@@ -43,8 +43,9 @@ does not modify the existing C2C projector or wrapper.
   vocabulary-block pre-aggregation, and online `u @ S.T / (u @ z)` mapping.
 - `token_metadata.py`: raw token bytes, character-to-byte offsets, tokenizer
   fingerprints, and special/control classification shared by builders/audits.
-  Classification includes backend added tokens carrying `special=true`, even
-  when a Transformers version omits them from `all_special_tokens`.
+  Classification includes backend added tokens carrying `special=true` and
+  reserved added IDs outside `tokenizer.vocab_size`, even when a Transformers
+  version omits them from `all_special_tokens`.
 - `baseline.py`: deterministic baseline snapshots that keep canonical messages
   separate from each model's rendered prompt and mark unavailable resources.
 - `candidate_graph.py`: prioritized special/exact/span/ANN sparse support,

@@ -83,6 +83,27 @@ def test_backend_special_added_tokens_are_classified_when_not_in_public_list():
     assert ordinary_bytes_index(tokenizer) == {b"ordinary": [0]}
 
 
+def test_backend_tokens_outside_base_vocabulary_are_controls_even_if_flag_is_false():
+    class AddedToken:
+        special = False
+
+        def __str__(self):
+            return "<reserved>"
+
+    class Backend:
+        @staticmethod
+        def get_added_tokens_decoder():
+            return {1: AddedToken()}
+
+    tokenizer = TinyTokenizer({"ordinary": 0, "<reserved>": 1})
+    tokenizer.vocab_size = 1
+    tokenizer.backend_tokenizer = Backend()
+
+    assert tokenizer.all_special_tokens == []
+    assert special_id_to_kind(tokenizer) == {1: "special"}
+    assert ordinary_bytes_index(tokenizer) == {b"ordinary": [0]}
+
+
 def test_same_token_id_with_different_bytes_is_not_an_exact_match():
     source = TinyTokenizer({"a": 0})
     target = TinyTokenizer({"b": 0})

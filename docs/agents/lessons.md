@@ -78,4 +78,4 @@ artifact 保存的是列归一化条件分布 `T[target, source] = P(target | so
 
 ## Added special token 不能只依赖 `all_special_tokens`
 
-同一锁定 tokenizer 在不同 Transformers/tokenizer 序列化路径下，`all_special_tokens` 可能只暴露部分 backend added tokens；Guqq 构建环境曾因此只识别 Qwen 26 个控制 token 中的 14 个，使 ordinary support 从预期 151643 漂移到 151655。special/control 分类必须同时读取 fast-tokenizer backend 的 added-token decoder，并纳入所有 `special=true` token，再由显式 BOS/EOS/pad 等属性覆盖具体 kind。否则这些控制 token 会静默进入 target OT marginal 和 ANN 图，改变矩阵 shape 与语义；这不是单纯 fingerprint 元数据问题。
+同一锁定 tokenizer 在不同 Transformers/tokenizer 序列化路径下，`all_special_tokens` 可能只暴露部分 backend added tokens；Guqq 构建环境曾因此只识别 Qwen 26 个控制 token 中的 14 个，使 ordinary support 从预期 151643 漂移到 151655。special/control 分类必须同时读取 fast-tokenizer backend 的 added-token decoder，纳入所有 `special=true` token，并把 ID 不小于 `tokenizer.vocab_size` 的 reserved added token 视为控制 token，再由显式 BOS/EOS/pad 等属性覆盖具体 kind。不能无条件排除基础词表内部的普通 added-token alias。否则控制 token 会静默进入 target OT marginal 和 ANN 图，改变矩阵 shape 与语义；这不是单纯 fingerprint 元数据问题。

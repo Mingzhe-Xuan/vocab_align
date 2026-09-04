@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-Mistral-Nemo→Qwen3 独立 OT 的本地实现已通过 36/36 定向、215/215 完整回归和静态检查；Job 324 Bayes 工件已在 Guqq 改名保留为对照。方向独立的 Mistral→Qwen ANN 正由 Slurm Job 325 构建，完成 provenance/coverage 验收后再提交正式 Sinkhorn。
+Job 325 暴露的 Qwen reserved-added 控制 token 分类已修复：backend `special=true` 或 ID 位于基础 `tokenizer.vocab_size` 外的 added token 均从 ordinary target 排除。定向 35/35、完整 216/216 与静态检查通过；准备推送修复，保留改名 Job 325 诊断 JSON，并以空正式路径重跑反向 ANN。
 
 ## 当前计划
 
@@ -30,6 +30,8 @@ Mistral-Nemo→Qwen3 独立 OT 的本地实现已通过 36/36 定向、215/215 �
 - 2026-09-04 17:15 +08:00：用户澄清目标为重新独立求解 Mistral→Qwen，而非对正向 coupling 做 Bayes 反演。进入反向 ANN、独立 marginal/candidate graph/Sinkhorn 正式构建；Job 324 派生工件保留但改名降级为对照，新解不得复用其数值或 provenance。
 - 2026-09-04 17:28 +08:00：独立反向 ANN/正式 OT Slurm 入口与 backend added-special 分类修复完成；后者消除 Guqq 环境只识别 14/26 Qwen special 导致 target support 漂移的问题。定向 36/36、完整 215/215、Black/AST/Bash/diff 通过，进入验证提交与远端 ANN 阶段。
 - 2026-09-04 17:34 +08:00：未验收实现已推送，Guqq Bayes artifact/audits 已改名保留且未覆盖；独立反向 ANN Job 325 提交成功。下一步验收其完整 added-special coverage 与方向 provenance，再启动正式反向 Sinkhorn。
+- 2026-09-04 17:44 +08:00：Job 325 provenance 显示 Mistral ordinary 130072 正确、Qwen ordinary 151655 错误，正式 OT 门禁停止且未提交。根因是 12 个 Qwen reserved added tokens 位于 `tokenizer.vocab_size` 外但 backend `special=false`；进入精确分类修复与 ANN 重跑，不接受错误 shape。
+- 2026-09-04 17:48 +08:00：reserved-added 控制分类修复完成，定向 35/35、完整 216/216、Black/AST/Bash/diff 通过。下一步推送后把 Job 325 JSON 改名为失败诊断，使用同一锁定配置重跑 ANN，要求 Qwen target coverage 精确为 151643。
 
 - 2026-09-01 16:15 +08:00：开始任务，完成两份计划与当前工作树初审。下一步实现第一个可独立验收单元。
 - 2026-09-01 16:22 +08:00：用户将服务器环境规范由 uv 更新为 Python venv；已同步环境记录，实施计划不变。

@@ -59,9 +59,14 @@ def special_id_to_token(tokenizer: Any) -> Dict[int, str]:
     backend = getattr(tokenizer, "backend_tokenizer", None)
     decoder_getter = getattr(backend, "get_added_tokens_decoder", None)
     if callable(decoder_getter):
+        base_vocab_size = getattr(tokenizer, "vocab_size", None)
         for token_id, token in decoder_getter().items():
-            if bool(getattr(token, "special", False)):
-                result[int(token_id)] = str(token)
+            token_id = int(token_id)
+            outside_base_vocabulary = (
+                isinstance(base_vocab_size, int) and token_id >= base_vocab_size
+            )
+            if bool(getattr(token, "special", False)) or outside_base_vocabulary:
+                result[token_id] = str(token)
     for token in getattr(tokenizer, "all_special_tokens", []):
         token_id = vocabulary.get(token)
         if token_id is not None:

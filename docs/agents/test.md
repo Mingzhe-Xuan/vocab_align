@@ -994,3 +994,5 @@ wrapper 近似模式测试计划：
 - 完整回归 `215 passed, 2 warnings in 234.71s`；两条 warning 仍仅为既有 pandas 可选依赖版本提示。
 - 三个相关 Python 文件 Black unchanged、内存 AST 通过；两个新 Slurm 脚本 Bash syntax、stub 参数转发、固定方向/revisions/solver 参数、独立路径、无 partition/GPU 和 `git diff --check` 均通过。
 - 正式 Guqq ANN/Sinkhorn 尚未运行，本地测试不能替代真实 artifact 验收。
+- Job 325 首次真实 ANN 诊断未通过正式门禁：source Mistral ordinary/source coverage `130072/130072` 正确，但 target Qwen ordinary/target coverage 为 `151655/151655`，与预注册 151643 不符；正式 Sinkhorn 未提交。新增回归要求 backend `special=false`、但 ID 位于 `tokenizer.vocab_size` 外的 reserved added token 仍从 ordinary support 排除。
+- reserved-added 修复定向回归 `35 passed in 47.96s`，覆盖 metadata、ANN、candidate graph、facade 与两个反向 Slurm 入口；完整回归 `216 passed, 2 warnings in 362.05s`。三文件 Black unchanged、两个 Slurm Bash syntax 与 `git diff --check` 通过；warning 仍仅为既有 pandas 可选依赖版本提示。
